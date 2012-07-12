@@ -222,7 +222,7 @@ class Jonah
             return array();
         }
         try {
-            $feeds = $GLOBALS['jonah_shares']->listShares(
+            $feeds = $GLOBALS['injector']->getInstance('Jonah_Shares')->listShares(
                 $GLOBALS['registry']->getAuth(),
                 array('perm'=>$permission, 
                 'attributes'=> $owneronly ? $GLOBALS['registry']->getAuth() : null,
@@ -238,7 +238,7 @@ class Jonah
     public static function getFeed($feedId)
     {
         try {
-            $feed = $GLOBALS['jonah_shares']->getShare($feedId);
+            $feed = $GLOBALS['injector']->getInstance('Jonah_Shares')->getShare($feedId);
         } catch (Horde_Share_Exception $e) {
             Horde::logMessage($e->getMessage(), 'ERR');
             return array();
@@ -249,7 +249,7 @@ class Jonah
     public static function addFeed($info)
     {
         try {
-            $feed = $GLOBALS['jonah_shares']->newShare($GLOBALS['registry']->getAuth(), $info['slug']);
+            $feed = $GLOBALS['injector']->getInstance('Jonah_Shares')->newShare($GLOBALS['registry']->getAuth(), $info['slug']);
             $feed->set('name', $info['name']);
             $feed->set('desc', $info['description']);
             $feed->set('full_feed', (int)$info['full_feed']);
@@ -261,7 +261,7 @@ class Jonah
             $feed->set('img', $info['img']);
             $feed->set('updated', (int)$info['updated']);
 
-            $GLOBALS['jonah_shares']->addShare($feed);
+            $GLOBALS['injector']->getInstance('Jonah_Shares')->addShare($feed);
         } catch (Horde_Share_Exception $e) {
             throw new Jonah_Exception($e);
         }
@@ -315,7 +315,7 @@ class Jonah
 
         // Remove share and all groups/permissions.
         try {
-            return $GLOBALS['jonah_shares']->removeShare($feed);
+            return $GLOBALS['injector']->getInstance('Jonah_Shares')->removeShare($feed);
         } catch (Horde_Share_Exception $e) {
             throw new Jonah_Exception($e);
         }

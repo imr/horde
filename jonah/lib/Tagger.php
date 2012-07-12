@@ -180,7 +180,7 @@ class Jonah_Tagger
             if (empty($filter['user'])) {
                 // @TODO: No way to get only the system shares the current
                 // user can see?
-                $feeds = $GLOBALS['jonah_shares']->listSystemShares();
+                $feeds = $GLOBALS['injector']->('Jonah_Shares')->listSystemShares();
                 $args['feedId'] = array();
                 foreach ($feeds as $name => $share) {
                     if ($share->hasPermission($GLOBALS['registry']->getAuth(), Horde_Perms::READ)) {
