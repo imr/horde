@@ -30,18 +30,20 @@
     </thead>
 
     <tbody id="feeds-body">
-     <?php foreach ($this->channels as $channel):?>
+     <?php foreach (array_values($this->channels) as $feed):?>
      <tr>
-      <td class="nowrap">
-       <?php echo $channel['edit_link'] . $channel['refresh_link'] . $channel['addstory_link'] . $channel['delete_link'];?>
-      </td>
-      <td>
-       <a href="<?php echo $channel['stories_url']?>"><?php echo $channel['channel_name']?></a>
-      </td>
-      <td><?php echo $channel['channel_type']?></td>
-      <td class="linedRow"><?php echo $channel['channel_updated']?></td>
+      <td nowrap><?php echo Horde::link(Horde::url('stories/edit.php')->add('channel_id', $feed->getName()), _("Add Story")) . $this->add_img . '</a>' ?>
+          <?php echo Horde::link(Horde::url('channels/' . $feed->getName() . '/edit'), _("Edit")) . $this->edit_img . '</a>' ?>
+<?php if (empty($conf['share']['no_sharing'])): ?>
+          <?php echo Horde::link(Horde_Util::addParameter($perms_url_base, 'share', $feed->getName()), _("Change Permissions"), '', '_blank', Horde::popupJs($perms_url_base, array('params' => array('share' => $feed->getName()), 'urlencode' => true)) . 'return false;') . $this->perms_img . '</a>' ?>
+<?php endif; ?>
+          <?php echo Horde::link(Horde::url($feed->getName()), _("Delete")) . $this->delete_img . '</a>' ?></td>
+      <td><?php echo htmlspecialchars($feed->get('name')) ?></td>
+      <td><?php echo is_null($feed->get('owner')) ? _("System") : _("User") ?></td>
+      <td><?php $url = Horde::url($feed->getName()); echo Horde::link($url, _("Click or copy this URL to display this feed"), '', '_blank') . htmlspecialchars($url) . '</a>' ?></td>
+      <td><?php $url = Horde::url('/' . $feed->getName() . '/rss'); echo Horde::link($url, _("Click or copy this URL to display this feed"), '', '_blank') . htmlspecialchars($url) . '</a>' ?></td>
      </tr>
-     <?php endforeach?>
+<?php endforeach; ?>
     </tbody>
     </table>
     <div id="feeds-empty">
