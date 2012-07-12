@@ -1,9 +1,9 @@
 <?php
 /**
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL). If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author  Chuck Hagenbuch <chuck@horde.org>
  * @package Mnemo
@@ -49,7 +49,7 @@ function showPassphrase($memo)
     return false;
 }
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('mnemo');
 
 /* Redirect to the notepad view if no action has been requested. */
@@ -257,8 +257,10 @@ default:
 }
 
 $notepads = Mnemo::listNotepads(false, Horde_Perms::EDIT);
-require $registry->get('templates', 'horde') . '/common-header.inc';
-echo Horde::menu();
+$page_output->header(array(
+    'title' => $title
+));
+echo Mnemo::menu();
 $notification->notify();
 require MNEMO_TEMPLATES . '/memo/memo.inc';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

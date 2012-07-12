@@ -1,15 +1,15 @@
 <?php
 /**
- * This object provides a way to identify a list of IMAP indices.
+ * An object that provides a way to identify a list of IMAP indices.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Imap_Client
  *
  * @property boolean $all  Does this represent an ALL message set?
@@ -17,6 +17,8 @@
  * @property boolean $search_res  Does this represent a search result?
  * @property boolean $sequence  Are these sequence IDs? If false, these are
  *                              UIDs.
+ * @property boolean $tostring  Return the non-sorted string representation.
+ * @property boolean $tostring_sort  Return the sorted string representation.
  */
 class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 {
@@ -37,6 +39,13 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
      * @var boolean
      */
     protected $_sequence = false;
+
+    /**
+     * The utility class to use to parse a sequence string.
+     *
+     * @var string
+     */
+    protected $_utilsClass = 'Horde_Imap_Client_Utils';
 
     /**
      * Constructor.
@@ -68,6 +77,13 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
 
         case 'sequence':
             return (bool)$this->_sequence;
+
+        case 'tostring':
+        case 'tostring_sort':
+            $utils = new $this->_utilsClass();
+            return strval($utils->toSequenceString($this->_ids, array(
+                'nosort' => ($name == 'tostring')
+            )));
         }
     }
 
@@ -75,8 +91,7 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
      */
     public function __toString()
     {
-        $utils = new Horde_Imap_Client_Utils();
-        return strval($utils->toSequenceString($this->_ids));
+        return $this->tostring;
     }
 
     /**
@@ -103,7 +118,7 @@ class Horde_Imap_Client_Ids implements Countable, Iterator, Serializable
                 if (is_numeric($ids)) {
                     $add = array($ids);
                 } else {
-                    $utils = new Horde_Imap_Client_Utils();
+                    $utils = new $this->_utilsClass();
                     $add = $utils->fromSequenceString($ids);
                 }
             }

@@ -8,7 +8,7 @@
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 
@@ -16,15 +16,15 @@
  * Components_Runner_CiSetup:: prepares a continuous integration setup for a
  * component.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 class Components_Runner_CiSetup
@@ -73,41 +73,10 @@ class Components_Runner_CiSetup
     public function run()
     {
         $options = $this->_config->getOptions();
-        $arguments = $this->_config->getArguments();
-
-        if (!isset($options['toolsdir'])) {
-            throw new Components_Exception(
-                'You are required to set the path to a PEAR tool environment.'
-            );
-        }
-        if (!isset($options['pearrc'])) {
-            throw new Components_Exception(
-                'You are required to set the path to a PEAR environment for this package'
-            );
-        }
-
-        if (basename(dirname($this->_config->getComponentDirectory())) == 'framework') {
-            $origin = 'framework/' . basename($this->_config->getComponentDirectory());
-        } else {
-            $origin = basename($this->_config->getComponentDirectory());
-        }
-
-        $config_template = new Components_Helper_Templates_Single(
+        $templates = new Components_Helper_Templates_RecursiveDirectory(
             $this->_config_application->getTemplateDirectory(),
-            $options['cisetup'],
-            'hudson-component-config.xml',
-            'config.xml'
+            $options['cisetup']
         );
-        $config_template->write(
-            array(
-                'sourcepath' => $origin,
-                'sourcejob' => 'horde',
-                'toolsdir' => $options['toolsdir'],
-                'description' => $this->_factory->createPackageForInstallLocation(
-                    $this->_config->getComponentPackageXml(),
-                    $options['pearrc']
-                )->getDescription()
-            )
-        );
+        $templates->write(array('config' => $this->_config));
     }
 }

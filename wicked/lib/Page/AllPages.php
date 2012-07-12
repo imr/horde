@@ -2,10 +2,10 @@
 /**
  * Wicked AllPages class.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Tyler Colbert <tyler@colberts.us>
  * @package Wicked
@@ -52,7 +52,7 @@ class Wicked_Page_AllPages extends Wicked_Page {
         $template->set('pages', $pages, true);
         $template->set('hits', false, true);
 
-        Horde::addScriptFile('tables.js', 'horde', true);
+        $GLOBALS['page_output']->addScriptFile('tables.js', 'horde');
 
         // Show search form and page header.
         ob_start();

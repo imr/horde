@@ -1,29 +1,26 @@
 <?php
 /**
- * Exception handler for the Horde_Imap_Client class.
+ * Exception handler for the Horde_Imap_Client package.
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Additional server debug information MAY be found in the $details
+ * property.
+ *
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Imap_Client
  */
-class Horde_Imap_Client_Exception extends Horde_Exception_Prior
+class Horde_Imap_Client_Exception extends Horde_Exception_Wrapped
 {
     /* Error message codes. */
 
     // Unspecified error (default)
     const UNSPECIFIED = 0;
-
-    // The given Horde_Imap_Client driver does not exist on the system.
-    const DRIVER_NOT_FOUND = 1;
-
-    // The function called is not supported in POP3.
-    const POP3_NOTSUPPORTED = 2;
 
     // There was an unrecoverable error in UTF7IMAP -> UTF8 conversion.
     const UTF7IMAP_CONVERSION = 3;
@@ -40,10 +37,6 @@ class Horde_Imap_Client_Exception extends Horde_Exception_Prior
     // The server could not decode the MIME part (see RFC 3516)
     const UNKNOWNCTE = 7;
 
-    // The server does not support the IMAP extensions needed for this
-    // operation
-    const NOSUPPORTIMAPEXT = 8;
-
     // The comparator specified by setComparator() was not recognized by the
     // IMAP server
     const BADCOMPARATOR = 9;
@@ -58,7 +51,7 @@ class Horde_Imap_Client_Exception extends Horde_Exception_Prior
     // Thrown if read error for server response.
     const SERVER_READERROR = 12;
 
-    // Thrown on CATENATE if a bad IMAP URL is found.
+    // Thrown on CATENATE if the URL is invalid.
     const CATENATE_BADURL = 13;
 
     // Thrown on CATENATE if the message was too big.
@@ -66,6 +59,46 @@ class Horde_Imap_Client_Exception extends Horde_Exception_Prior
 
     // Thrown on CREATE if special-use attribute is not supported.
     const USEATTR = 15;
+
+    // The user did not have permissions to carry out the operation.
+    const NOPERM = 17;
+
+    // The operation was not successful because another user is holding
+    // a necessary resource. The operation may succeed if attempted later.
+    const INUSE = 18;
+
+    // The operation failed because data on the server was corrupt.
+    const CORRUPTION = 19;
+
+    // The operation failed because it exceeded some limit on the server.
+    const LIMIT = 20;
+
+    // The operation failed because the user is over their quota.
+    const OVERQUOTA = 21;
+
+    // The operation failed because the requested creation object already
+    // exists.
+    const ALREADYEXISTS = 22;
+
+    // The operation failed because the requested deletion object did not
+    // exist.
+    const NONEXISTENT = 23;
+
+    // Setting metadata failed because the size of its value is too large.
+    // The maximum octet count the server is willing to accept will be
+    // in the exception message string.
+    const METADATA_MAXSIZE = 24;
+
+    // Setting metadata failed because the maximum number of allowed
+    // annotations has already been reached.
+    const METADATA_TOOMANY = 25;
+
+    // Setting metadata failed because the server does not support private
+    // annotations on one of the specified mailboxes.
+    const METADATA_NOPRIVATE = 26;
+
+    // Invalid metadata entry.
+    const METADATA_INVALID = 27;
 
 
     // Login failures
@@ -96,5 +129,32 @@ class Horde_Imap_Client_Exception extends Horde_Exception_Prior
 
     // Could not open/access mailbox
     const MAILBOX_NOOPEN = 200;
+
+
+    // POP3 specific error codes
+
+    // Temporary issue. Generally, there is no need to alarm the user for
+    // errors of this type.
+    const POP3_TEMP_ERROR = 300;
+
+    // Permanent error indicated by server.
+    const POP3_PERM_ERROR = 301;
+
+
+    // Unsupported feature error codes
+
+    // Function/feature is not supported on this server.
+    const NOT_SUPPORTED = 400;
+
+
+    /**
+     * Allow the error code to be altered.
+     *
+     * @param integer $code  Error code.
+     */
+    public function setCode($code)
+    {
+        $this->code = intval($code);
+    }
 
 }

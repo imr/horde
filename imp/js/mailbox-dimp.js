@@ -5,22 +5,22 @@
  * See the documentation of prototypejs::Template for the template format:
  *   http://www.prototypejs.org/api/template
  *
- * Copyright 2005-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2005-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
 DimpBase.msglist_template_horiz =
 '<div class="#{className}" id="#{VP_domid}" style="#{style}">' +
- '<div class="msgStatus sep">' +
+ '<div class="msgStatus">' +
   '<div class="iconImg msCheck"></div>' +
   '#{status}' +
  '</div>' +
  '<div class="msgFrom sep">#{from}</div>' +
  '<div class="msgSubject sep" title="#{subjecttitle}">#{subjectdata}#{subject}</div>' +
  '<div class="msgDate sep">#{date}</div>' +
- '<div class="msgSize">#{size}</div>' +
+ '<div class="msgSize sep">#{size}</div>' +
 '</div>';
 
 DimpBase.msglist_template_vert =

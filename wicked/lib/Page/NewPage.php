@@ -1,9 +1,9 @@
 <?php
 /**
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @package Wicked
  */
@@ -86,9 +86,9 @@ class Wicked_Page_NewPage extends Wicked_Page {
             $page_text = '';
         }
 
-        Horde::addInlineScript(array(
+        $GLOBALS['page_output']->addInlineScript(array(
             'if (document.editform && document.editform.page_text) document.editform.changelog.page_text()'
-        ), 'dom');
+        ), true);
 
         require WICKED_TEMPLATES . '/edit/new.inc';
         return true;

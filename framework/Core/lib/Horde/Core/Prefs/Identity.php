@@ -3,15 +3,15 @@
  * This class provides Horde-specific functions for the Horde_Prefs_Identity
  * class.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Jan Schneider <jan@horde.org>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Core
  */
 class Horde_Core_Prefs_Identity extends Horde_Prefs_Identity
@@ -29,7 +29,7 @@ class Horde_Core_Prefs_Identity extends Horde_Prefs_Identity
      */
     public function verifyIdentity($id, $old_addr)
     {
-        global $conf;
+        global $conf, $registry;
 
         $hash = strval(new Horde_Support_Randomid());
 
@@ -40,7 +40,7 @@ class Horde_Core_Prefs_Identity extends Horde_Prefs_Identity
         $this->_prefs->setValue('confirm_email', serialize($pref));
 
         $new_addr = $this->getValue($this->_prefnames['from_addr'], $id);
-        $confirm = Horde::url(Horde::getServiceLink('emailconfirm'), true)->add('h', $hash)->setRaw(true);
+        $confirm = $registry->getServiceLink('emailconfirm')->add('h', $hash)->setRaw(true);
         $message = sprintf(Horde_Core_Translation::t("You have requested to add the email address \"%s\" to the list of your personal email addresses.\n\nGo to the following link to confirm that this is really your address:\n%s\n\nIf you don't know what this message means, you can delete it."),
                            $new_addr,
                            $confirm);
@@ -84,7 +84,7 @@ class Horde_Core_Prefs_Identity extends Horde_Prefs_Identity
             $notification->push(Horde_Core_Translation::t("There are no email addresses to confirm."), 'horde.message');
             return;
         } elseif (!isset($confirm[$hash])) {
-            $notifcation->push(Horde_Core_Translation::t("Email addresses to confirm not found."), 'horde.message');
+            $notification->push(Horde_Core_Translation::t("Email addresses to confirm not found."), 'horde.message');
             return;
         }
 

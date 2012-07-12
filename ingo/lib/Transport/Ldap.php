@@ -4,7 +4,7 @@
  * installed and set active via an LDAP server.
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author  Jason M. Felice <jason.m.felice@gmail.com>
  * @package Ingo
@@ -16,7 +16,7 @@ class Ingo_Transport_Ldap extends Ingo_Transport
      *
      * @throws Ingo_Exception
      */
-    public function __construct($params = array())
+    public function __construct(array $params = array())
     {
         if (!Horde_Util::extensionExists('ldap')) {
             throw new Ingo_Exception(_("LDAP support is required but the LDAP module is not available or not loaded."));
@@ -184,11 +184,14 @@ class Ingo_Transport_Ldap extends Ingo_Transport
     /**
      * Sets a script running on the backend.
      *
-     * @param string $script  The sieve script.
+     * @todo No idea how to handle $additional.
+     *
+     * @param string $script     The filter script.
+     * @param array $additional  Any additional scripts that need to uploaded.
      *
      * @throws Ingo_Exception
      */
-    protected function setScriptActive($script)
+    protected function setScriptActive($script, $additional = array())
     {
         $ldapcn = $this->_connect();
         $values = $this->_getScripts($ldapcn, $userDN);
@@ -223,8 +226,6 @@ class Ingo_Transport_Ldap extends Ingo_Transport
         }
 
         @ldap_close($ldapcn);
-
-        return true;
     }
 
     /**

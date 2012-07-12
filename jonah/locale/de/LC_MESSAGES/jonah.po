@@ -1,5 +1,5 @@
 # German translations for Jonah.
-# Copyright 2002-2011 The Horde Project
+# Copyright 2002-2012 Horde LLC (http://www.horde.org/)
 # This file is distributed under the same license as the Jonah package.
 # Jan Schneider, 2002-2010.
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Jonah 1.0-git\n"
 "Report-Msgid-Bugs-To: dev@lists.horde.org\n"
-"POT-Creation-Date: 2011-03-15 13:27+0100\n"
+"POT-Creation-Date: 2011-05-18 12:23+0200\n"
 "PO-Revision-Date: 2011-02-02 17:34+0100\n"
 "Last-Translator: Jan Schneider\n"
 "Language-Team: i18n@lists.horde.org\n"
@@ -27,31 +27,31 @@ msgstr " - Am häufigsten gelesene Beiträge"
 msgid "\"%s\" stories in HTML"
 msgstr "\"%s\"-Beiträge als HTML"
 
-#: lib/Driver.php:246
+#: lib/Driver.php:248
 msgid "1 hour"
 msgstr "1 Stunde"
 
-#: lib/Driver.php:250
+#: lib/Driver.php:252
 msgid "12 hours"
 msgstr "12 Stunden"
 
-#: lib/Driver.php:247
+#: lib/Driver.php:249
 msgid "2 hours"
 msgstr "2 Stunden"
 
-#: lib/Driver.php:251
+#: lib/Driver.php:253
 msgid "24 hours"
 msgstr "24 Stunden"
 
-#: lib/Driver.php:245
+#: lib/Driver.php:247
 msgid "30 mins"
 msgstr "30 Minuten"
 
-#: lib/Driver.php:248
+#: lib/Driver.php:250
 msgid "4 hours"
 msgstr "4 Stunden"
 
-#: lib/Driver.php:249
+#: lib/Driver.php:251
 msgid "8 hours"
 msgstr "8 Stunden"
 
@@ -76,7 +76,7 @@ msgstr "Administrator"
 msgid "An error occurred fetching channels: %s"
 msgstr "Beim Empfangen dieses Kanals ist ein Fehler aufgetreten: %s"
 
-#: lib/Driver/Sql.php:577
+#: lib/Driver/Sql.php:579
 #, php-format
 msgid "Channel \"%s\" not found."
 msgstr "Kanal \"%s\" nicht gefunden."
@@ -124,15 +124,15 @@ msgstr "Suche beenden"
 msgid "Comments"
 msgstr "Kommentare"
 
-#: config/templates.php:44
+#: config/templates.php:45
 msgid "Compact"
 msgstr "Kompakt"
 
-#: lib/Jonah.php:223
+#: lib/Jonah.php:213
 msgid "Composite Feed"
 msgstr "Zusammengefasster Feed"
 
-#: lib/Jonah.php:61 lib/Jonah.php:64
+#: lib/Jonah.php:51 lib/Jonah.php:54
 #, php-format
 msgid "Could not open %s: %s"
 msgstr "%s konnte nicht gelesen werden: %s"
@@ -237,7 +237,7 @@ msgstr "Vollständiger Beitragstext"
 msgid "HTML Delivery for \"%s\""
 msgstr "HTML-Auslieferung für \"%s\""
 
-#: lib/Driver.php:418
+#: lib/Driver.php:420
 msgid "HTML Version of Story"
 msgstr "HTML-Version des Beitrags"
 
@@ -259,7 +259,7 @@ msgstr "Einfügen"
 msgid "Include full story content in syndicated feeds?"
 msgstr "Den vollständigen Beitragstext in den veröffentlichten Feed verwenden?"
 
-#: config/templates.php:33
+#: config/templates.php:34
 msgid "Internal"
 msgstr "Intern"
 
@@ -284,7 +284,7 @@ msgstr "Letzte Aktualisierung"
 msgid "Latest News"
 msgstr "Neueste Beiträge"
 
-#: lib/Jonah.php:84 lib/Jonah.php:220
+#: lib/Jonah.php:74 lib/Jonah.php:210
 msgid "Local Feed"
 msgstr "Lokaler Feed"
 
@@ -296,7 +296,7 @@ msgstr "Feeds verwalten"
 msgid "Maximum Stories"
 msgstr "Maximale Beiträge"
 
-#: config/templates.php:22
+#: config/templates.php:23
 msgid "Media"
 msgstr "Multimedia"
 
@@ -360,7 +360,7 @@ msgstr "Keine Feeds verfügbar."
 msgid "No feeds match"
 msgstr "Keine Treffer"
 
-#: lib/Driver.php:307
+#: lib/Driver.php:309
 msgid "No stories are currently available."
 msgstr "Zur Zeit sind keine Beiträge verfügbar."
 
@@ -405,7 +405,7 @@ msgstr "Parsen fehlgeschlagen:"
 msgid "Parse succeeded, structure is:"
 msgstr "Parsen erfolgreich, Struktur ist:"
 
-#: lib/Driver.php:413
+#: lib/Driver.php:415
 msgid "Plaintext Version of Story"
 msgstr "Textversion des Beitrags"
 
@@ -438,7 +438,7 @@ msgstr "Diesen Nachrichtenbeitrag wirklich löschen?"
 msgid "Results URL"
 msgstr "Ergebnis-URL"
 
-#: lib/Jonah.php:174
+#: lib/Jonah.php:164
 msgid "Rich Text"
 msgstr "Formatierter Text"
 
@@ -483,11 +483,11 @@ msgstr ""
 "Kurznamen ermöglichen den direkten Zugriff auf diesen Feed über: %s.<br /"
 ">Kurznamen dürfen Buchstaben, Zahlen und Unterstriche enthalten."
 
-#: config/templates.php:11
+#: config/templates.php:12
 msgid "Standard"
 msgstr "Standard"
 
-#: delivery/rss.php:73
+#: delivery/rss.php:68
 #, php-format
 msgid "Stories tagged with %s in %s"
 msgstr "Mit %s getaggte Beiträge in %s"
@@ -531,7 +531,7 @@ msgstr "Bearbeiten des Beitrags fehlgeschlagen: %s"
 msgid "Story has not been deleted."
 msgstr "Der Beitrag wurde nicht gelöscht."
 
-#: lib/Driver/Sql.php:525
+#: lib/Driver/Sql.php:527
 #, php-format
 msgid "Story id \"%s\" not found."
 msgstr "Beitrags-ID \"%s\" nicht gefunden."
@@ -544,8 +544,8 @@ msgstr "Betreff"
 msgid "Tag Cloud"
 msgstr "Tagwolke"
 
-#: lib/Driver.php:446 lib/Driver.php:451 lib/Driver.php:456 lib/Driver.php:462
-#: lib/Driver.php:467
+#: lib/Driver.php:448 lib/Driver.php:453 lib/Driver.php:458 lib/Driver.php:464
+#: lib/Driver.php:469
 msgid "Tag support not enabled in backend."
 msgstr "Tags sind für dieses Backend nicht aktiviert."
 
@@ -561,7 +561,7 @@ msgstr "Tags:"
 msgid "Tags: "
 msgstr "Tags: "
 
-#: lib/Jonah.php:181
+#: lib/Jonah.php:171
 msgid "Text"
 msgstr "Text"
 
@@ -619,7 +619,7 @@ msgstr "An"
 msgid "Type"
 msgstr "Typ"
 
-#: config/templates.php:55
+#: config/templates.php:56
 msgid "Ultracompact"
 msgstr "Sehr kompakt"
 
@@ -632,7 +632,7 @@ msgstr "Der Beitrag konnte nicht versendet werden: %s"
 msgid "View"
 msgstr "Anzeigen"
 
-#: channels/index.php:18 lib/View/ChannelDelete.php:47
+#: channels/index.php:18 lib/Api.php:111 lib/View/ChannelDelete.php:47
 #: lib/View/ChannelEdit.php:41 lib/View/StoryDelete.php:39
 #: lib/View/StoryEdit.php:46 lib/View/StoryList.php:32
 #: lib/View/TagSearchList.php:34
@@ -647,6 +647,6 @@ msgstr "_Feeds"
 msgid "_New Story"
 msgstr "_Neuer Beitrag"
 
-#: lib/Driver.php:244
+#: lib/Driver.php:246
 msgid "none"
 msgstr "keines"

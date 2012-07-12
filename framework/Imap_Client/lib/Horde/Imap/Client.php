@@ -1,16 +1,16 @@
 <?php
 /**
- * Horde_Imap_Client:: provides an abstracted API interface to various IMAP
- * backends (RFC 3501).
+ * Base class for Horde_Imap_Client package. Defines common constants and
+ * provides factory for creating an IMAP client object.
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Imap_Client
  */
 class Horde_Imap_Client
@@ -59,12 +59,17 @@ class Horde_Imap_Client
     /* SORT_SEQUENCE does a simple numerical sort on the returned
      * UIDs/sequence numbers. */
     const SORT_SEQUENCE = 12;
+    /* Fuzzy sort criteria defined in RFC 6203 */
+    const SORT_RELEVANCY = 13;
 
-    const SORT_RESULTS_COUNT = 1;
-    const SORT_RESULTS_MATCH = 2;
-    const SORT_RESULTS_MAX = 3;
-    const SORT_RESULTS_MIN = 4;
-    const SORT_RESULTS_SAVE = 5;
+    /* Search results constants */
+    const SEARCH_RESULTS_COUNT = 1;
+    const SEARCH_RESULTS_MATCH = 2;
+    const SEARCH_RESULTS_MAX = 3;
+    const SEARCH_RESULTS_MIN = 4;
+    const SEARCH_RESULTS_SAVE = 5;
+    /* Fuzzy sort criteria defined in RFC 6203 */
+    const SEARCH_RESULTS_RELEVANCY = 6;
 
     /* Constants for thread() */
     const THREAD_ORDEREDSUBJECT = 1;
@@ -115,7 +120,7 @@ class Horde_Imap_Client
     const ACL_DELETEMSGS = 't';
     const ACL_EXPUNGE = 'e';
     const ACL_ADMINISTER = 'a';
-    // Deprecated constants (RFC 2086 [3]; RFC 4314 [2.1.1])
+    // Old constants (RFC 2086 [3]; RFC 4314 [2.1.1])
     const ACL_CREATE = 'c';
     const ACL_DELETE = 'd';
 
@@ -131,6 +136,10 @@ class Horde_Imap_Client
     const FLAG_MDNSENT = '$mdnsent';
     // RFC 5550 [2.8]
     const FLAG_FORWARDED = '$forwarded';
+    // RFC 5788 registered keywords:
+    // http://www.ietf.org/mail-archive/web/morg/current/msg00441.html
+    const FLAG_JUNK = '$junk';
+    const FLAG_NOTJUNK = '$notjunk';
 
     /* Special-use mailbox attributes (RFC 6154 [2]). */
     const SPECIALUSE_ALL = '\\All';
@@ -141,90 +150,38 @@ class Horde_Imap_Client
     const SPECIALUSE_SENT = '\\Sent';
     const SPECIALUSE_TRASH = '\\Trash';
 
-    /**
-     * Attempts to return a concrete Horde_Imap_Client instance based on
-     * $driver.
-     *
-     * @param string $driver  The type of concrete subclass to return.
-     * @param array $params   Configuration parameters:
-     * <pre>
-     * Required Parameters:
-     * --------------------
-     * password - (string) The IMAP user password.
-     * username - (string) The IMAP username.
-     *
-     * Optional Parameters:
-     * --------------------
-     * cache - (array) If set, caches data from fetch() calls. Requires the
-     *         horde/Cache package to be installed. The array can contain the
-     *         following keys (see Horde_Imap_Client_Cache:: for default
-     *         values):
-     *   cacheob - [REQUIRED] (Horde_Cache) The cache object to use.
-     *   fields - [OPTIONAL] (array) The fetch criteria to cache. If not
-     *            defined, all cacheable data is cached. The following is a
-     *            list of criteria that can be cached:
-     *              + Horde_Imap_Client::FETCH_ENVELOPE
-     *              + Horde_Imap_Client::FETCH_FLAGS
-     *                Only if server supports CONDSTORE extension
-     *              + Horde_Imap_Client::FETCH_HEADERS
-     *                Only for queries that specifically request caching
-     *              + Horde_Imap_Client::FETCH_IMAPDATE
-     *              + Horde_Imap_Client::FETCH_SIZE
-     *              + Horde_Imap_Client::FETCH_STRUCTURE
-     *   lifetime - [OPTIONAL] (integer) The lifetime of the cache data (in
-     *              seconds).
-     *   slicesize - [OPTIONAL] (integer) The slicesize to use.
-     * capability_ignore - (array) A list of IMAP capabilites to ignore, even
-     *                     if they are supported on the server.
-     *                     DEFAULT: No supported capabilities are ignored
-     * comparator - (string) The search comparator to use instead of the
-     *              default IMAP server comparator. See
-     *              Horde_Imap_Client_Base::setComparator() for the format.
-     *              DEFAULT: Use the server default
-     * debug - (string) If set, will output debug information to the stream
-     *         identified. The value can be any PHP supported wrapper that can
-     *         be opened via fopen().
-     *         DEFAULT: No debug output
-     * encryptKey - (array) A callback to a function that returns the key
-     *              used to encrypt the password. This function MUST be
-     *              static.
-     *              DEFAULT: No encryption
-     * hostspec - (string) The hostname or IP address of the server.
-     *            DEFAULT: 'localhost'
-     * id - (array) Send ID information to the IMAP server (only if server
-     *      supports the ID extension). An array with the keys being the
-     *      fields to send and the values being the associated values. See RFC
-     *      2971 [3.3] for a list of defined field values.
-     *      DEFAULT: No info sent to server
-     * lang - (array) A list of languages (in priority order) to be used to
-     *        display human readable messages.
-     *        DEFAULT: Messages output in IMAP server default language
-     * log - (array) A callback to a function that receives a single
-     *       parameter: a Horde_Imap_Client_Exception object. This callback
-     *       function MUST be static.
-     *       DEFAULT: No logging
-     * port - (integer) The server port to which we will connect.
-     *         DEFAULT: 143 (imap or imap w/TLS) or 993 (imaps)
-     * secure - (string) Use SSL or TLS to connect.
-     *          VALUES: false, 'ssl', 'tls'.
-     *          DEFAULT: No encryption
-     * statuscache - (boolean) Cache STATUS responses?
-     *               DEFAULT: False
-     * timeout - (integer)  Connection timeout, in seconds.
-     *           DEFAULT: 30 seconds
-     * </pre>
-     *
-     * @return Horde_Imap_Client_Base  The newly created instance.
-     * @throws Horde_Imap_Client_Exception
-     */
-    static public function factory($driver, $params = array())
-    {
-        $class = __CLASS__ . '_' . strtr(ucfirst(basename($driver)), '-', '_');
-        if (class_exists($class)) {
-            return new $class($params);
-        }
+    /* Debugging constants. */
+    const DEBUG_RAW = 0;
+    const DEBUG_CLIENT = 1;
+    const DEBUG_INFO = 2;
+    const DEBUG_SERVER = 3;
+    // Time, in seconds, for a slow command.
+    const SLOW_COMMAND = 1;
 
-        throw new Horde_Imap_Client_Exception('Driver ' . $driver . ' not found', Horde_Imap_Client_Exception::DRIVER_NOT_FOUND);
-    }
+    /**
+     * Capability dependencies.
+     *
+     * @var array
+     */
+    static public $capability_deps = array(
+        // RFC 5162 [1]
+        'QRESYNC' => array(
+            // QRESYNC requires CONDSTORE, but the latter is implied and is
+            // not required to be listed.
+            'ENABLE'
+        ),
+        // RFC 5182 [2.1]
+        'SEARCHRES' => array(
+            'ESEARCH'
+        ),
+        // RFC 5255 [3.1]
+        'LANGUAGE' => array(
+            'NAMESPACE'
+        ),
+        // RFC 5957 [1]
+        'SORT=DISPLAY' => array(
+            'SORT'
+        )
+    );
 
 }

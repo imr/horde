@@ -8,14 +8,14 @@
  * license, which is compatible with the LGPL.
  *
  * Copyright 2002-2003 Philip Mak
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Text_Flowed
  */
 class Horde_Text_Flowed
@@ -78,7 +78,7 @@ class Horde_Text_Flowed
      * @param string $text     The text to process.
      * @param string $charset  The character set of $text.
      */
-    public function __construct($text, $charset = null)
+    public function __construct($text, $charset = 'UTF-8')
     {
         $this->_text = $text;
         $this->_charset = $charset;
@@ -285,30 +285,40 @@ class Horde_Text_Flowed
                         /* Remaining section of line is short enough. */
                         $this->_output[] = array('text' => $line, 'level' => $num_quotes);
                         break;
-                    } elseif ($m = Horde_String::regexMatch($line, array('^(.{' . $min . ',' . $opt . '}) (.*)', '^(.{' . $min . ',' . $this->_maxlength . '}) (.*)', '^(.{' . $min . ',})? (.*)'), $this->_charset)) {
-                        /* We need to wrap text at a certain number of
-                         * *characters*, not a certain number of *bytes*;
-                         * thus the need for a multibyte capable regex.
-                         * If a multibyte regex isn't available, we are stuck
-                         * with preg_match() (the function will still work -
-                         * we will just be left with shorter rows than expected
-                         * if multibyte characters exist in the row).
-                         *
-                         * Algorithim:
-                         * 1. Try to find a string as long as _optlength.
-                         * 2. Try to find a string as long as _maxlength.
-                         * 3. Take the first word. */
-                        if (empty($m[1])) {
-                            $m[1] = $m[2];
-                            $m[2] = '';
-                        }
-                        $this->_output[] = array('text' => $m[1] . ' ' . (($delsp) ? ' ' : ''), 'level' => $num_quotes);
-                        $line = $m[2];
                     } else {
-                        /* One excessively long word left on line.  Be
-                         * absolutely sure it does not exceed 998 characters
-                         * in length or else we must truncate. */
-                        if ($line_length > 998) {
+                        $regex = array();
+                        if ($min <= $opt) {
+                            $regex[] = '^(.{' . $min . ',' . $opt . '}) (.*)';
+                        }
+                        if ($min <= $this->_maxlength) {
+                            $regex[] = '^(.{' . $min . ',' . $this->_maxlength . '}) (.*)';
+                        }
+                        $regex[] = '^(.{' . $min . ',})? (.*)';
+
+                        if ($m = Horde_String::regexMatch($line, $regex, $this->_charset)) {
+                            /* We need to wrap text at a certain number of
+                             * *characters*, not a certain number of *bytes*;
+                             * thus the need for a multibyte capable regex.
+                             * If a multibyte regex isn't available, we are
+                             * stuck with preg_match() (the function will
+                             * still work - are just left with shorter rows
+                             * than expected if multibyte characters exist in
+                             * the row).
+                             *
+                             * 1. Try to find a string as long as _optlength.
+                             * 2. Try to find a string as long as _maxlength.
+                             * 3. Take the first word. */
+                            if (empty($m[1])) {
+                                $m[1] = $m[2];
+                                $m[2] = '';
+                            }
+                            $this->_output[] = array('text' => $m[1] . ' ' . (($delsp) ? ' ' : ''), 'level' => $num_quotes);
+                            $line = $m[2];
+                        } elseif ($line_length > 998) {
+                            /* One excessively long word left on line.  Be
+                             * absolutely sure it does not exceed 998
+                             * characters in length or else we must
+                             * truncate. */
                             $this->_output[] = array('text' => Horde_String::substr($line, 0, 998, $this->_charset), 'level' => $num_quotes);
                             $line = Horde_String::substr($line, 998, null, $this->_charset);
                         } else {

@@ -2,10 +2,10 @@
 /**
  * Wicked AttachedFiles class.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Jason M. Felice <jason.m.felice@gmail.com>
  * @package Wicked
@@ -55,7 +55,7 @@ class Wicked_Page_AttachedFiles extends Wicked_Page {
      */
     public function content()
     {
-        global $wicked, $notification;
+        global $wicked, $notification, $registry;
 
         if (!$wicked->pageExists($this->referrer())) {
             throw new Wicked_Exception(sprintf(_("Referrer \"%s\" does not exist."),
@@ -69,12 +69,11 @@ class Wicked_Page_AttachedFiles extends Wicked_Page {
             $attachments[$idx]['date'] = date('M j, Y g:ia',
                                               $attach['attachment_created']);
 
-            $attachments[$idx]['url'] = Horde::downloadUrl(
+            $attachments[$idx]['url'] = $registry->downloadUrl(
                 $attach['attachment_name'],
                 array('page' => $referrer_id,
                       'file' => $attach['attachment_name'],
-                      'version' => $attach['attachment_majorversion'] . '.'
-                                   . $attach['attachment_minorversion']));
+                      'version' => $attach['attachment_version']));
 
             $attachments[$idx]['delete_form'] = $this->allows(Wicked::MODE_REMOVE);
 
@@ -141,7 +140,7 @@ class Wicked_Page_AttachedFiles extends Wicked_Page {
         $template->set('referrer', $this->referrer());
         $template->set('formInput', Horde_Util::formInput());
 
-        Horde::addScriptFile('stripe.js', 'horde', true);
+        $GLOBALS['page_output']->addScriptFile('stripe.js', 'horde');
         echo $template->fetch(WICKED_TEMPLATES . '/display/AttachedFiles.html');
     }
 
@@ -250,7 +249,6 @@ class Wicked_Page_AttachedFiles extends Wicked_Page {
             }
         }
 
-        $minor_change = false;
         if ($is_update) {
             if (!$found) {
                 $notification->push(
@@ -259,7 +257,6 @@ class Wicked_Page_AttachedFiles extends Wicked_Page {
                     'horde.error');
                 return;
             }
-            $minor_change = Horde_Util::getFormData('minor_change');
         } else {
             if ($found) {
                 $notification->push(
@@ -272,7 +269,6 @@ class Wicked_Page_AttachedFiles extends Wicked_Page {
 
         $file = array('page_id'         => $referrer_id,
                       'attachment_name' => $filename,
-                      'minor'           => $minor_change,
                       'change_log'      => $change_log);
 
         try {

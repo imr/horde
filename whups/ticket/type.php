@@ -3,70 +3,17 @@
  * Displays and handles the form to change the ticket type.
  *
  * Copyright 2001-2002 Robert E. Coyle <robertecoyle@hotmail.com>
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://www.horde.org/licenses/bsdl.php.
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('whups');
 
-class SetTypeStep1Form extends Horde_Form {
-
-    function SetTypeStep1Form(&$vars, $title = '')
-    {
-        global $whups_driver;
-
-        parent::Horde_Form($vars, $title);
-
-        $this->addHidden('', 'id', 'int', true, true);
-
-        /* Types */
-        $queue = $vars->get('queue');
-        $this->addVariable(_("New Type"), 'type', 'enum', true, false, null, array($whups_driver->getTypes($queue)));
-        $this->addVariable(_("Comment"), 'newcomment', 'longtext', false);
-
-        /* Group restrictions. */
-        $mygroups = $GLOBALS['injector']
-            ->getInstance('Horde_Group')
-            ->listGroups($GLOBALS['registry']->getAuth());
-        if ($mygroups) {
-            foreach (array_keys($mygroups) as $gid) {
-                $grouplist[$gid] = $groups->getName($gid, true);
-            }
-            asort($grouplist);
-            $grouplist = array_merge(array(0 => _("Any Group")), $grouplist);
-            $this->addVariable(_("Viewable only by members of"), 'group', 'enum', true, false, null, array($grouplist));
-        }
-    }
-
-}
-
-class SetTypeStep2Form extends Horde_Form {
-
-    function SetTypeStep2Form(&$vars, $title = '')
-    {
-        global $whups_driver;
-
-        parent::Horde_Form($vars, $title);
-
-        $this->addHidden('', 'id', 'int', true, true);
-        $this->addHidden('', 'group', 'int', false, false);
-        $this->addHidden('', 'type', 'int', true, true);
-        $this->addHidden('', 'newcomment', 'longtext', false, true);
-
-        /* Give user an opportunity to check that state and priority
-         * are still valid. */
-        $type = $vars->get('type');
-        $this->addVariable(_("State"), 'state', 'enum', true, false, null, array($whups_driver->getStates($type)));
-        $this->addVariable(_("Priority"), 'priority', 'enum', true, false, null, array($whups_driver->getPriorities($type)));
-    }
-
-}
-
 $ticket = Whups::getCurrentTicket();
-$linkTags[] = $ticket->feedLink();
+$page_output->addLinkTag($ticket->feedLink());
 $details = $ticket->getDetails();
 if (!Whups::hasPermission($details['queue'], 'queue', 'update')) {
     $notification->push(_("Permission Denied"), 'horde.error');
@@ -83,8 +30,8 @@ $action = $vars->get('action');
 $form = $vars->get('formname');
 
 /* Set Type action. */
-if ($form == 'settypestep1form') {
-    $settypeform = new SetTypeStep1Form($vars);
+if ($form == 'whups_form_settypestepone') {
+    $settypeform = new Whups_Form_SetTypeStepOne($vars);
     if ($settypeform->validate($vars)) {
         $action = 'st2';
     } else {
@@ -92,8 +39,8 @@ if ($form == 'settypestep1form') {
     }
 }
 
-if ($form == 'settypestep2form') {
-    $settypeform = new SetTypeStep2Form($vars);
+if ($form == 'whups_form_settypesteptwo') {
+    $settypeform = new Whups_Form_SetTypeStepTwo($vars);
     if ($settypeform->validate($vars)) {
         $settypeform->getInfo($vars, $info);
 
@@ -109,12 +56,12 @@ if ($form == 'settypestep2form') {
             $ticket->change('comment-perms', $info['group']);
         }
 
-        $result = $ticket->commit();
-        if (is_a($result, 'PEAR_Error')) {
-            $notification->push($result, 'horde.error');
-        } else {
+        try {
+            $ticket->commit();
             $notification->push(_("Successfully changed ticket type."), 'horde.success');
             $ticket->show();
+        } catch (Whups_Exception $e) {
+            $notification->push($e, 'horde.error');
         }
     } else {
         $notification->push(var_export($settypeform->getErrors(), true), 'horde.error');
@@ -122,8 +69,9 @@ if ($form == 'settypestep2form') {
     }
 }
 
-$title = sprintf(_("Set Type for %s"), '[#' . $id . '] ' . $ticket->get('summary'));
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => sprintf(_("Set Type for %s"), '[#' . $id . '] ' . $ticket->get('summary'))
+));
 require WHUPS_TEMPLATES . '/menu.inc';
 require WHUPS_TEMPLATES . '/prevnext.inc';
 
@@ -134,18 +82,18 @@ $r = new Horde_Form_Renderer();
 
 switch ($action) {
 case 'st2':
-    $form1 = new SetTypeStep1Form($vars, _("Set Type - Step 1"));
-    $form2 = new SetTypeStep2Form($vars, _("Set Type - Step 2"));
+    $form1 = new Whups_Form_SetTypeStepOne($vars, _("Set Type - Step 1"));
+    $form2 = new Whups_Form_SetTypeStepTwo($vars, _("Set Type - Step 2"));
 
     $form1->renderInactive($r, $vars);
     echo '<br />';
-    $form2->renderActive($r, $vars, 'type.php', 'post');
+    $form2->renderActive($r, $vars, Horde::url('ticket/type.php'), 'post');
     break;
 
 default:
-    $form1 = new SetTypeStep1Form($vars, _("Set Type - Step 1"));
-    $form1->renderActive($r, $vars, 'type.php', 'post');
+    $form1 = new Whups_Form_SetTypeStepOne($vars, _("Set Type - Step 1"));
+    $form1->renderActive($r, $vars, Horde::url('ticket/type.php'), 'post');
     break;
 }
 
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

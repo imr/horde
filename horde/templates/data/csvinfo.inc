@@ -8,17 +8,15 @@
 </h1>
 <div class="headerbox text">
     <?php echo _("Here is the beginning of the file:") ?><br />
-    <pre><?php echo htmlspecialchars($GLOBALS['session']->get('horde', 'import_data/first_lines')) ?></pre><br />
+    <pre><?php echo htmlspecialchars($storage->get('first_lines')) ?></pre><br />
     <?php echo Horde::label('header', _("Does the first row contain the field names? If yes, check this box:")) ?>
     <input id="header" type="checkbox" name="header" value="1" checked="checked" /><br />
     <?php echo Horde::label('sep', _("What is the delimiter character?")) ?>
-    <input type="text" id="sep" name="sep" size="1" value="<?php echo htmlspecialchars($GLOBALS['session']->get('horde', 'import_data/sep')) ?>" /><br />
-    <?php if ($quote = $GLOBALS['session']->get('horde', 'import_data/quote')): ?>
+    <input type="text" id="sep" name="sep" size="1" value="," /><br />
     <?php echo Horde::label('quote', _("What is the quote character?")) ?>
-    <input type="text" id="quote" name="quote" size="1" value="<?php echo htmlspecialchars($quote) ?>" /><br />
-    <?php endif; ?>
+    <input type="text" id="quote" name="quote" size="1" value="&quot;" /><br />
     <?php echo Horde::label('fields', _("How many fields (columns) are there?")) ?>
-    <input type="text" id="fields" name="fields" size="2" /><br />
+    <input type="text" id="fields" name="fields" size="2" value="<?php echo htmlspecialchars($storage->get('fields')) ?>" /><br />
 </div>
 <input type="submit" value="<?php echo _("Next") ?>" class="button" />
 </form>

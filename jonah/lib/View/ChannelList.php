@@ -2,7 +2,7 @@
 /**
  * View for displaying Jonah feeds.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://cvs.horde.org/co.php/jonah/LICENSE
@@ -41,11 +41,20 @@ class Jonah_View_ChannelList extends Jonah_View_Base
         $perms_img = Horde::img('perms.png', _("Change Permissions"));
         $delete_img = Horde::img('delete.png', _("Delete"));
 
-        Horde::addScriptFile('tables.js', 'horde');
-        $title = _("Feeds");
-        require $registry->get('templates', 'horde') . '/common-header.inc';
-        echo Horde::menu();
-        require JONAH_TEMPLATES . '/feed_list.php';
-        require $registry->get('templates', 'horde') . '/common-footer.inc';
+        $view = new Horde_View(array('templatePath' => JONAH_TEMPLATES . '/view'));
+        $view->addHelper('Tag');
+        $view->channels = $channels;
+        $view->search_img = Horde::img('search.png');
+        global $page_output;
+        $page_output->addScriptFile('tables.js', 'horde');
+        $page_output->addScriptFile('quickfinder.js', 'horde');
+
+        $page_output->header(array(
+            'title' => _("Feeds")
+        ));
+        require JONAH_TEMPLATES . '/menu.inc';
+        echo $view->render('channellist');
+        $page_output->footer();
     }
+
 }

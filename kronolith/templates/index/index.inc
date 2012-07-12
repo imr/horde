@@ -10,25 +10,35 @@
         <?php foreach ($menu->getSiteLinks() as $key => $menu_item): ?>
         <?php if ($menu_item == 'separator'): ?>
       </ul>
-      <span class="kronolithSeparator">|</span>
       <ul>
         <?php else: ?>
         <li><a href="<?php echo $menu_item['url'] ?>" title="<?php echo $menu_item['text'] ?>" id="kronolithMenu-<?php echo $key ?>"><img src="<?php echo $menu_item['icon_path'] . '/' . $menu_item['icon'] ?>" alt="<?php echo $menu_item['text'] ?>" /> <?php echo $menu_item['text'] ?></a></li>
         <?php endif; ?>
         <?php endforeach; ?>
         <?php foreach ($GLOBALS['conf']['menu']['apps'] as $app): ?>
-        <?php if (empty($GLOBALS['conf']['menu']['apps_iframe']) || $GLOBALS['registry']->hasAjaxView($app)): ?>
-        <li><a href="<?php echo $GLOBALS['registry']->get('webroot', $app) ?>" id="kronolithApplication-<?php echo $app ?>" title="<?php echo $GLOBALS['registry']->get('name', $app) ?>"><img src="<?php echo $GLOBALS['registry']->get('icon', $app) ?>" /> <?php echo $GLOBALS['registry']->get('name', $app) ?></a></li>
+        <?php if ($GLOBALS['registry']->hasPermission($app)): ?>
+        <?php  if ($app == 'horde'): ?>
+          <li><a href="<?php echo $GLOBALS['registry']->getServiceLink('portal');?>" id="kronolithApplication-<?php echo $app ?>"><img src="<?php echo $GLOBALS['registry']->get('icon', $app) ?>" /> <?php echo $GLOBALS['registry']->get('name', $app) ?></a></li>
+        <?php elseif ($GLOBALS['registry']->hasView(Horde_Registry::VIEW_DYNAMIC, $app)): ?>
+        <li><a href="<?php echo $GLOBALS['registry']->get('webroot', $app) ?>" id="kronolithApplication-<?php echo $app ?>"><img src="<?php echo $GLOBALS['registry']->get('icon', $app) ?>" /> <?php echo $GLOBALS['registry']->get('name', $app) ?></a></li>
         <?php else: ?>
-        <li><a href="#" onclick="KronolithCore.go('app:<?php echo $app ?>')" id="kronolithApplication-<?php echo $app ?>" title="<?php echo $GLOBALS['registry']->get('name', $app) ?>"><img src="<?php echo $GLOBALS['registry']->get('icon', $app) ?>" /> <?php echo $GLOBALS['registry']->get('name', $app) ?></a></li>
+        <li><a href="#" onclick="KronolithCore.go('app:<?php echo $app ?>')" id="kronolithApplication-<?php echo $app ?>"><img src="<?php echo $GLOBALS['registry']->get('icon', $app) ?>" /> <?php echo $GLOBALS['registry']->get('name', $app) ?></a></li>
+        <?php endif; ?>
         <?php endif; ?>
         <?php endforeach; ?>
       </ul>
     </div>
     <?php endif; ?>
-    <a href="#" id="kronolithNotifications" class="kronolithNotifications" title="<?php echo ("0 notifications") ?>"></a>
-    <span class="kronolithSeparator">|</span>
-    <a href="#" id="kronolithOptions"><?php echo _("Options") ?></a><?php if ($help_link) echo ' <span class="kronolithSeparator">|</span> ' . $help_link; if (Horde_Menu::showService('logout')) { $ak = Horde::getAccessKey(_("_Logout")); echo ' <span class="kronolithSeparator">|</span> <a href="#" accesskey="' . $ak . '" id="kronolithLogout">' . Horde::highlightAccessKey(_("_Logout"), $ak) . '</a>'; } ?>
+    <ul>
+      <li><a href="#" id="kronolithNotifications" class="kronolithNotifications" title="<?php echo ("0 notifications") ?>"></a></li>
+      <li><a href="#" id="kronolithOptions"><?php echo _("Options") ?></a></li>
+      <?php if ($help_link): ?>
+      <li><?php echo $help_link ?></li>
+      <?php endif ?>
+      <?php if (Horde_Menu::showService('logout')): $ak = Horde::getAccessKey(_("_Logout")); ?>
+      <li><a href="#" accesskey="<?php echo $ak ?>" id="kronolithLogout"><?php echo Horde::highlightAccessKey(_("_Logout"), $ak) ?></a></li>
+      <?php endif ?>
+    </ul>
   </div>
   <!-- end services -->
 
@@ -40,13 +50,14 @@
   <div id="kronolithNav">
     <ul>
       <li><a id="kronolithNavDay" accesskey="1"><span><?php echo _("Day") ?></span></a></li>
-      <li><a id="kronolithNavWeek" accesskey="2"><span><?php echo _("Week") ?></span></a></li>
-      <li><a id="kronolithNavMonth" accesskey="3"><span><?php echo _("Month") ?></span></a></li>
-      <li><a id="kronolithNavYear" accesskey="4"><span><?php echo _("Year") ?></span></a></li>
+      <li><a id="kronolithNavWorkweek" accesskey="2"><span><?php echo _("Work Week") ?></span></a></li>
+      <li><a id="kronolithNavWeek" accesskey="3"><span><?php echo _("Week") ?></span></a></li>
+      <li><a id="kronolithNavMonth" accesskey="4"><span><?php echo _("Month") ?></span></a></li>
+      <li><a id="kronolithNavYear" accesskey="5"><span><?php echo _("Year") ?></span></a></li>
     <?php if (Kronolith::hasApiPermission('tasks')): ?>
-      <li><a id="kronolithNavTasks" accesskey="5"><span><?php echo _("Tasks") ?></span></a></li>
+      <li><a id="kronolithNavTasks" accesskey="6"><span><?php echo _("Tasks") ?></span></a></li>
     <?php endif; ?>
-      <li><a id="kronolithNavAgenda" accesskey="<?php echo Kronolith::hasApiPermission('tasks') ? 6 : 5 ?>"><span><?php echo _("Agenda") ?></span></a></li>
+      <li><a id="kronolithNavAgenda" accesskey="<?php echo Kronolith::hasApiPermission('tasks') ? 7 : 6 ?>"><span><?php echo _("Agenda") ?></span></a></li>
     </ul>
   </div>
 </div>
@@ -91,91 +102,103 @@
     <input id="kronolithSearchButton" type="button" value="<?php echo _("Go") ?>" />
   </form>
 
-  <div id="kronolithMenuCalendars">
+  <div id="kronolithLoadingCalendars">
+    <?php echo _("Loading calendars...") ?>
+  </div>
+
+  <div id="kronolithMenuCalendars" style="display:none">
   <h3 id="kronolithCalendarsFirst">
     <?php if ($GLOBALS['registry']->getAuth() && !$prefs->isLocked('default_share')): ?>
     <a href="#" id="kronolithAddinternal" class="kronolithAdd" title="<?php echo _("New Calendar") ?>">+</a>
     <?php endif; ?>
-    <span><?php echo _("My Calendars") ?></span>
+    <span class="kronolithToggleCollapse" title="<?php echo _("Collapse") ?>"><?php echo _("My Calendars") ?></span>
   </h3>
 
-  <div id="kronolithMyCalendars" class="kronolithCalendars">
-  </div>
+  <div id="kronolithMyCalendars" class="kronolithCalendars"></div>
 
   <?php if (Kronolith::hasApiPermission('tasks')): ?>
   <h3>
     <?php if ($GLOBALS['registry']->getAuth() && !$prefs->isLocked('default_share')): ?>
     <a href="#" id="kronolithAddtasklists" class="kronolithAdd" title="<?php echo _("New Task List") ?>">+</a>
     <?php endif; ?>
-    <span><?php echo _("My Task Lists") ?></span>
+    <span class="kronolithToggleCollapse" title="<?php echo _("Collapse") ?>"><?php echo _("My Task Lists") ?></span>
   </h3>
 
-  <div id="kronolithMyTasklists" class="kronolithCalendars">
-  </div>
+  <div id="kronolithMyTasklists" class="kronolithCalendars"></div>
   <?php endif; ?>
 
   <h3>
     <!-- to be added when searching for shared calendars is implemented <a href="#" id="kronolithAddinternalshared" class="kronolithAdd">+</a>-->
-    <span><?php echo _("Shared Calendars") ?></span>
+    <span class="kronolithToggleExpand" title="<?php echo _("Expand") ?>"><?php echo _("Shared Calendars") ?></span>
   </h3>
 
-  <div class="kronolithDialogInfo"><?php echo _("No items to display") ?></div>
-  <div id="kronolithSharedCalendars" class="kronolithCalendars">
+  <div style="display:none">
+    <div class="kronolithDialogInfo"><?php echo _("No items to display") ?></div>
+    <div id="kronolithSharedCalendars" class="kronolithCalendars"></div>
   </div>
 
   <?php if (Kronolith::hasApiPermission('tasks')): ?>
   <h3>
     <!-- to be added when searching for shared calendars is implemented <a href="#" id="kronolithAddtasklistsshared" class="kronolithAdd">+</a>-->
-    <span><?php echo _("Shared Task Lists") ?></span>
+    <span class="kronolithToggleExpand" title="<?php echo _("Expand") ?>"><?php echo _("Shared Task Lists") ?></span>
   </h3>
 
-  <div class="kronolithDialogInfo"><?php echo _("No items to display") ?></div>
-  <div id="kronolithSharedTasklists" class="kronolithCalendars">
+  <div style="display:none">
+    <div class="kronolithDialogInfo"><?php echo _("No items to display") ?></div>
+    <div id="kronolithSharedTasklists" class="kronolithCalendars"></div>
   </div>
-  <?php endif; ?>
+  <?php endif ?>
+
+  <h3>
+    <?php if ($registry->isAdmin()): ?>
+    <a href="#" id="kronolithAddresource" class="kronolithAdd" title="<?php echo _("Add Resource") ?>">+</a>
+    <?php endif; ?>
+    <span class="kronolithToggleExpand" title="<?php echo _("Expand") ?>"><?php echo _("Resources") ?></span>
+  </h3>
+  <div id="kronolithResourceCalendars" class="kronolithCalendars" style="display:none"></div>
 
   <div id="kronolithExternalCalendars"></div>
 
   <h3>
     <a href="#" id="kronolithAddremote" class="kronolithAdd" title="<?php echo _("Add Remote Calendar") ?>">+</a>
-    <span><?php echo _("Remote Calendars") ?></span>
+    <span class="kronolithToggleExpand" title="<?php echo _("Expand") ?>"><?php echo _("Remote Calendars") ?></span>
   </h3>
 
-  <div class="kronolithDialogInfo"><?php echo _("No items to display") ?></div>
-  <div id="kronolithRemoteCalendars" class="kronolithCalendars">
+  <div style="display:none">
+    <div class="kronolithDialogInfo"><?php echo _("No items to display") ?></div>
+    <div id="kronolithRemoteCalendars" class="kronolithCalendars"></div>
   </div>
 
   <h3>
     <a href="#" id="kronolithAddholiday" class="kronolithAdd" title="<?php echo _("Add Holidays") ?>">+</a>
-    <span><?php echo _("Holidays") ?></span>
+    <span class="kronolithToggleExpand" title="<?php echo _("Expand") ?>"><?php echo _("Holidays") ?></span>
   </h3>
 
-  <div id="kronolithHolidayCalendars" class="kronolithCalendars">
-  </div>
-  </div>
+  <div id="kronolithHolidayCalendars" class="kronolithCalendars" style="display:none"></div>
 
+  </div>
 </div>
 <!-- end left menu -->
 
 <!-- begin edit form -->
-<?php require dirname(__FILE__) . '/edit.inc'; ?>
+<?php require __DIR__ . '/edit.inc'; ?>
 <!-- end edit form -->
 
 <!-- begin body -->
 <div id="kronolithBody">
 <div id="kronolithLoading" style="display:none"></div>
 <?php
-require dirname(__FILE__) . '/month.inc';
-require dirname(__FILE__) . '/week.inc';
-require dirname(__FILE__) . '/day.inc';
-require dirname(__FILE__) . '/year.inc';
+require __DIR__ . '/month.inc';
+require __DIR__ . '/workweek.inc';
+require __DIR__ . '/week.inc';
+require __DIR__ . '/day.inc';
+require __DIR__ . '/year.inc';
 if (Kronolith::hasApiPermission('tasks')) {
-    require dirname(__FILE__) . '/tasks.inc';
-    require dirname(__FILE__) . '/task.inc';
+    require __DIR__ . '/tasks.inc';
+    require __DIR__ . '/task.inc';
 }
-require dirname(__FILE__) . '/agenda.inc';
+require __DIR__ . '/agenda.inc';
 ?>
-<div id="kronolithViewIframe" style="display:none"></div>
 </div>
 <!-- end body -->
 

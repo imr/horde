@@ -2,10 +2,10 @@
 /**
  * Hylax_Image Class
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Marko Djukic <marko@oblo.com>
  * @package Hylax
@@ -124,7 +124,7 @@ class Hylax_Image {
     function &factory($driver, $params = array())
     {
         $driver = basename($driver);
-        include_once dirname(__FILE__) . '/Image/' . $driver . '.php';
+        include_once __DIR__ . '/Image/' . $driver . '.php';
         $class = 'Hylax_Image_' . $driver;
         if (class_exists($class)) {
             $image = &new $class($params);

@@ -2,7 +2,7 @@
  * Provides the javascript for the login.php script.
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
 var HordeLogin = {
@@ -18,12 +18,6 @@ var HordeLogin = {
             $('horde_pass').focus();
         } else {
             $('login-button').disable();
-            if (Prototype.Browser.IE) {
-                try {
-                    document.body.style.behavior = "url(#default#clientCaps)";
-                    $('ie_version').setValue(document.body.getComponentVersion("{89820200-ECBD-11CF-8B85-00AA005B4383}", "componentid"));
-                } catch (e) {}
-            }
             $('login_post').setValue(1);
             $('horde_login').submit();
         }
@@ -48,9 +42,6 @@ var HordeLogin = {
 
     onDomLoad: function()
     {
-        document.observe('change', this._changeHandler.bindAsEventListener(this));
-        document.observe('click', this._clickHandler.bindAsEventListener(this));
-
         // Need to capture hash information if it exists in URL
         if (location.hash) {
             $('anchor_string').setValue(this._removeHash(location.hash));
@@ -60,9 +51,11 @@ var HordeLogin = {
             $('horde_user').focus();
         } else if ($('horde_pass') && !$F('horde_pass')) {
             $('horde_pass').focus();
+        } else {
+            $('login-button').focus();
         }
 
-        /* Activate dynamic view. */
+        /* Activate dynamic view(s). */
         var s = $('horde_select_view');
         if (s) {
             s.down('option[value=dynamic]').show();
@@ -73,7 +66,7 @@ var HordeLogin = {
         }
     },
 
-    _changeHandler: function(e)
+    changeHandler: function(e)
     {
         switch (e.element().readAttribute('id')) {
         case 'new_lang':
@@ -82,7 +75,7 @@ var HordeLogin = {
         }
     },
 
-    _clickHandler: function(e)
+    clickHandler: function(e)
     {
         if (e.isRightClick()) {
             return;
@@ -93,7 +86,9 @@ var HordeLogin = {
         while (Object.isElement(elt)) {
             switch (elt.readAttribute('id')) {
             case 'login-button':
-                this.submit();
+                if (!elt.readAttribute('disabled')) {
+                    this.submit();
+                }
                 e.stop();
                 break;
             }
@@ -105,3 +100,5 @@ var HordeLogin = {
 };
 
 document.observe('dom:loaded', HordeLogin.onDomLoad.bind(HordeLogin));
+document.observe('change', HordeLogin.changeHandler.bindAsEventListener(HordeLogin));
+document.observe('click', HordeLogin.clickHandler.bindAsEventListener(HordeLogin));

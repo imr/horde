@@ -2,14 +2,14 @@
 /**
  * Adds resource table.
  * 
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael J. Rubinsky <mrubinsk@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  Kronolith
  */
 class KronolithUpgradeAddResources extends Horde_Db_Migration_Base
@@ -21,7 +21,7 @@ class KronolithUpgradeAddResources extends Horde_Db_Migration_Base
     {
         $tableList = $this->tables();
         if (!in_array('kronolith_resources', $tableList)) {
-            $t = $this->createTable('kronolith_resources', array('primaryKey' => false));
+            $t = $this->createTable('kronolith_resources', array('autoincrementKey' => false));
             $t->column('resource_id', 'integer', array('null' => false));
             $t->column('resource_name', 'string', array('limit' => 255));
             $t->column('resource_calendar', 'string', array('limit' => 255));

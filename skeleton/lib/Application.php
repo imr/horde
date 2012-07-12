@@ -5,17 +5,17 @@
  * This file defines Horde's core API interface. Other core Horde libraries
  * can interact with Skeleton through this API.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @package Skeleton
  */
 
 /* Determine the base directories. */
 if (!defined('SKELETON_BASE')) {
-    define('SKELETON_BASE', dirname(__FILE__) . '/..');
+    define('SKELETON_BASE', __DIR__ . '/..');
 }
 
 if (!defined('HORDE_BASE')) {
@@ -36,14 +36,13 @@ class Skeleton_Application extends Horde_Registry_Application
 {
     /**
      */
-    public $version = 'H4 (0.1-git)';
+    public $version = 'H5 (0.1-git)';
 
     /**
-     * Global variables defined:
-     * - $variable: List all global variables here.
      */
-    protected function _init()
+    protected function _bootstrap()
     {
+        $GLOBALS['injector']->bindFactory('Skeleton_Driver', 'Skeleton_Factory_Driver', 'create');
     }
 
     /**
@@ -52,5 +51,4 @@ class Skeleton_Application extends Horde_Registry_Application
     {
         $menu->add(Horde::url('list.php'), _("List"), 'user.png');
     }
-
 }

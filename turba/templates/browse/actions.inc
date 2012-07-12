@@ -7,7 +7,7 @@
       }
 ?>
  <?php if ($hasExport): ?>
- <?php echo Horde::widget('#', _("Export"), 'widget', '', "document.contacts.action='" . Horde::url('data.php') . "'; Submit('select'); return false;", _("Export")) . ' | ' ?>
+ <?php echo Horde::widget('#', _("Export"), 'widget', '', "document.contacts.action='" . $GLOBALS['registry']->downloadUrl('', array('actionID' => 'export')) . "'; Submit('select'); return false;", _("Export")) . ' | ' ?>
  <?php endif; ?>
  <?php if (!empty($copymove_source_options)): $id = md5(mt_rand()); ?>
  <form style="display:inline" name="f<?php echo $id ?>" action="javascript:void(0);" onsubmit="return false;">
@@ -45,7 +45,7 @@
 <?php
 $browse_link = Horde::url('browse.php');
 if ($this->getType() == 'directory' &&
-    !empty($cfgSources[$default_source]['map']['__type'])) {
+    !empty($cfgSources[Turba::$source]['map']['__type'])) {
     printf(_("Show %s"), Horde::widget($browse_link->copy()->add('show', 'lists'), _("Show Lists"), 'widget', '', '', _("_Lists")) . ', ' .
         Horde::widget($browse_link->copy()->add('show', 'contacts'), _("Show Contacts"), 'widget', '', '', _("_Contacts")) . ', ' .
         Horde::widget($browse_link->copy()->add('show', 'all'), _("Show Both"), 'widget', '', '', _("Both")));

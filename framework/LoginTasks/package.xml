@@ -3,29 +3,36 @@
  <name>Horde_LoginTasks</name>
  <channel>pear.horde.org</channel>
  <summary>Horde Login Tasks System</summary>
- <description>The Horde_LoginTasks library provides a set of methods for dealing with tasks run upon login to Horde applications.</description>
+ <description>An API for dealing with tasks run upon login to Horde applications.</description>
  <lead>
   <name>Michael Slusarz</name>
   <user>slusarz</user>
   <email>slusarz@horde.org</email>
   <active>yes</active>
  </lead>
- <date>2011-03-16</date>
- <time>18:15:01</time>
+ <date>2012-07-05</date>
+ <time>23:53:18</time>
  <version>
-  <release>1.0.0RC1</release>
+  <release>2.0.0beta1</release>
   <api>1.0.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+ <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
  <notes>
-* First release candidate for Horde 4.
+*
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
+   <dir name="doc">
+    <dir name="Horde">
+     <dir name="LoginTasks">
+      <file name="COPYING" role="doc" />
+     </dir> <!-- /doc/Horde/LoginTasks -->
+    </dir> <!-- /doc/Horde -->
+   </dir> <!-- /doc -->
    <dir name="lib">
     <dir name="Horde">
      <dir name="LoginTasks">
@@ -317,7 +324,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -325,14 +332,24 @@
    <package>
     <name>Horde_Translation</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
+  <optional>
+   <package>
+    <name>Horde_Date</name>
+    <channel>pear.horde.org</channel>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
+   </package>
+  </optional>
  </dependencies>
  <phprelease>
   <filelist>
+   <install as="COPYING" name="doc/Horde/LoginTasks/COPYING" />
    <install as="Horde/LoginTasks.php" name="lib/Horde/LoginTasks.php" />
    <install as="Horde/LoginTasks/Backend.php" name="lib/Horde/LoginTasks/Backend.php" />
    <install as="Horde/LoginTasks/SystemTask.php" name="lib/Horde/LoginTasks/SystemTask.php" />
@@ -444,7 +461,7 @@
     <api>alpha</api>
    </stability>
    <date>2011-03-08</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First alpha release for Horde 4.
 * Add ability to dynamically skip system tasks.
@@ -464,9 +481,119 @@
     <api>beta</api>
    </stability>
    <date>2011-03-16</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First beta release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-22</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* Second release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First stable release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-07-27</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Update Latvian translation.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.2</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-10-03</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Prevent unnecessary URL redirection if no logintasks need to be confirmed.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.3</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-02</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Fix advancing tasks pointer if system tasks also exist for an application (Bug #9767).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First alpha release for Horde 5.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+*
    </notes>
   </release>
  </changelog>

@@ -10,55 +10,26 @@
  * Horde_Release::FOCUS_MAJORSECURITY - Major security fixes
  * Horde_Release::FOCUS_DOCS - Documentation improvements
  */
-$this->notes['fm']['focus'] = array(Horde_Release::FOCUS_MAJORBUG);
+$this->notes['fm']['focus'] = array(Horde_Release::FOCUS_MINORFEATURE);
 
 /* Mailing list release notes. */
 $this->notes['ml']['changes'] = <<<ML
-The Horde Team is pleased to announce the first beta release of the Mnemo Note
-Manager version H4 (3.0).
+The Horde Team is pleased to announce the final release of the Mnemo Note
+Manager version H4 (3.0.6).
 
 The Mnemo Note Manager is the Horde notes/memos application. It allows users to
 keep web-based notes and freeform text. Notes may be shared with other users
 via shared notepads. It requires the Horde Application Framework and an SQL
-database or Kolab server for backend storage.
+database or Kolab server for backend storage. For more information on Mnemo,
+visit http://www.horde.org/apps/mnemo.
 
-IMPORTANT! This is a preview version that should not be used on production
-systems. This version is considered feature complete but there are likely to be
-bugs. You should not use this preview version with existing production
-data. Migration of data from earlier versions has not been fully tested yet and
-is not supported.
-
-We encourage widespread testing and feedback via the mailing lists or our bug
-tracking system. Updated translations are very welcome, though some strings
-might still change before the release candidates are prepared.
-
-To install Mnemo, you need to install Horde first. See
-https://github.com/horde/horde/blob/master/horde/docs/INSTALL for details. Once
-Horde is installed, you can install Mnemo with the following command:
-
-  pear install horde/mnemo-beta
-
-Then log in to Horde with your adminstrator account to configure the
-application and install the database schema from the configuration interface.
-
-The major changes compared to the Mnemo version H4 (3.0-ALPHA1) are:
-
-    * Fixed PDF generation.
-    * Fixed encrypting and decrypting of notes.
-
-The full list of changes (from version H4 (3.0-ALPHA1)) can be viewed here:
-
-https://github.com/horde/horde/blob/5b1192434381aa6787594649dae07d812b0e6e74/mnemo/docs/CHANGES
-
-Have fun!
-
-The Horde Team.
+The major changes compared to the Mnemo version H4 (3.0.5) are:
+    * Updated Hungarian, Italian, and Swedish translations.
 ML;
 
 /* Freshmeat release notes. */
 $this->notes['fm']['changes'] = <<<FM
-Fixed PDF generation.
-Fixed encrypting and decrypting of notes.
+Updated Hungarian, Italian, and Swedish translations.
 FM;
 
 $this->notes['name'] = 'Mnemo';

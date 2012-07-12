@@ -5,16 +5,16 @@
  * This file defines Gollem's external API interface. Other applications
  * can interact with Gollem through this API.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Amith Varghese <amith@xalan.com>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @author   Ben Klang <bklang@alkaloid.net>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  Gollem
  */
 class Gollem_Api extends Horde_Registry_Api
@@ -41,14 +41,14 @@ class Gollem_Api extends Horde_Registry_Api
         if ($path == '') {
             // We are at the root of gollem.  Return a set of folders, one for
             // each backend available.
-            foreach ($backends as $backend => $curBackend) {
-                if (Gollem::checkPermissions('backend', Horde_Perms::SHOW, $backend)) {
-                    $results['gollem/' . $backend]['name'] = $curBackend['name'];
-                    $results['gollem/' . $backend]['browseable'] = true;
-                }
+            foreach (Gollem_Auth::getBackend() as $backend => $curBackend) {
+                $results['gollem/' . $backend]['name'] = $curBackend['name'];
+                $results['gollem/' . $backend]['browseable'] = true;
             }
         } else {
             $backend_key = $this->_getBackend($path);
+
+            throw new Gollem_Exception('Permssion checks not implemented yet.');
 
             // Trim off the backend_key (and '/') to get the VFS relative path
             $fullpath = substr($path, strlen($backend_key) + 1);
@@ -57,7 +57,8 @@ class Gollem_Api extends Horde_Registry_Api
             list($name, $path) = Gollem::getVFSPath($fullpath);
 
             // Check to see if the request is a file or folder
-            if ($GLOBALS['gollem_vfs']->isFolder($path, $name)) {
+            $gollem_vfs = $GLOBALS['injector']->getInstance('Gollem_Vfs');
+            if ($gollem_vfs->isFolder($path, $name)) {
                 // This is a folder request.  Return a directory listing.
                 $list = Gollem::listFolder($path . '/' . $name);
 
@@ -94,7 +95,7 @@ class Gollem_Api extends Horde_Registry_Api
 
                 // Send the file
                 $results['name'] = $name;
-                $results['data'] = $GLOBALS['gollem_vfs']->read($path, $name);
+                $results['data'] = $gollem_vfs->read($path, $name);
                 $results['contentlength'] = $list[$i]['size'];
                 $results['mtime'] = $list[$i]['date'];
             }
@@ -125,13 +126,17 @@ class Gollem_Api extends Horde_Registry_Api
 
         $backend_key = $this->_getBackend($path);
 
+        throw new Gollem_Exception('Permssion checks not implemented yet.');
+
         // Trim off the backend_key (and '/') to get the VFS relative path
         $fullpath = substr($path, strlen($backend_key) + 1);
 
         // Get the VFS-standard $name,$path pair
         list($name, $path) = Gollem::getVFSPath($fullpath);
 
-        return $GLOBALS['gollem_vfs']->writeData($path, $name, $content);
+        return $GLOBALS['injector']
+            ->getInstance('Gollem_Vfs')
+            ->writeData($path, $name, $content);
     }
 
     /**
@@ -154,13 +159,17 @@ class Gollem_Api extends Horde_Registry_Api
 
         $backend_key = $this->_getBackend($path);
 
+        throw new Gollem_Exception('Permssion checks not implemented yet.');
+
         // Trim off the backend_key (and '/') to get the VFS relative path
         $fullpath = substr($path, strlen($backend_key) + 1);
 
         // Get the VFS-standard $name,$path pair
         list($name, $path) = Gollem::getVFSPath($fullpath);
 
-        return $GLOBALS['gollem_vfs']->createFolder($path, $name);
+        return $GLOBALS['injector']
+            ->getInstance('Gollem_Vfs')
+            ->createFolder($path, $name);
     }
 
     /**
@@ -190,6 +199,8 @@ class Gollem_Api extends Horde_Registry_Api
         }
 
         $backend_key = $this->_getBackend($path);
+
+        throw new Gollem_Exception('Permssion checks not implemented yet.');
         $dest_backend_key = substr($path, 0, strpos($path, '/'));
         if ($dest_backend_key != $backend_key) {
             throw new Gollem_Exception(_('Renaming across backends is not supported.'));
@@ -203,7 +214,9 @@ class Gollem_Api extends Horde_Registry_Api
         list($srcname, $srcpath) = Gollem::getVFSPath($srcfullpath);
         list($dstname, $dstpath) = Gollem::getVFSPath($dstfullpath);
 
-        $GLOBALS['gollem_vfs']->rename($srcpath, $srcname, $dstpath, $dstname);
+        $GLOBALS['injector']
+            ->getInstance('Gollem_Vfs')
+            ->rename($srcpath, $srcname, $dstpath, $dstname);
     }
 
     /**
@@ -224,6 +237,8 @@ class Gollem_Api extends Horde_Registry_Api
 
         $backend_key = $this->_getBackend($path);
 
+        throw new Gollem_Exception('Permssion checks not implemented yet.');
+
         // Trim off the backend_key (and '/') to get the VFS relative path
         $fullpath = substr($path, strlen($backend_key) + 1);
 
@@ -234,7 +249,9 @@ class Gollem_Api extends Horde_Registry_Api
         // see a path with a leading '/'
         $path = $backends[$backend_key]['root'] . $path;
 
-        $GLOBALS['gollem_vfs']->isFolder($path, $name)
+        $GLOBALS['injector']
+            ->getInstance('Gollem_Vfs')
+            ->isFolder($path, $name)
             ? Gollem::deleteFolder($path, $name)
             : Gollem::deleteFile($path, $name);
     }
@@ -242,25 +259,23 @@ class Gollem_Api extends Horde_Registry_Api
     /**
      * Returns a link to the gollem file preview interface
      *
-     * @param string $dir       File absolute path
-     * @param string $file      File basename
-     * @param string $backend   Backend key. Defaults to
-     *                          Gollem::getPreferredBackend().
+     * @param string $dir          File absolute path
+     * @param string $file         File basename
+     * @param string $backend_key  Backend key. Defaults to
+     *                             Gollem_Auth::getPreferredBackend().
      *
      * @return Horde_Url  The URL object.
      */
-    public function getViewLink($dir, $file, $backend = '')
+    public function getViewLink($dir, $file, $backend_key = '')
     {
-        if (empty($backend)) {
-            $backend = Gollem::getPreferredBackend();
+        if (empty($backend_key)) {
+            $backend_key = Gollem_Auth::getPreferredBackend();
         }
-
-        $backend_config = $GLOBALS['session']->get('gollem', 'backends/' . $backend);
+        $backend = Gollem_Auth::getBackend($backend_key);
 
         return Horde::url('view.php')->add(array(
-            'actionID' => 'view_file',
             'dir' => $dir,
-            'driver' => $backend_config['driver'],
+            'driver' => $backend['driver'],
             'file' => $file,
             'type' => substr($file, strrpos($file, '.') + 1)
         ));
@@ -295,7 +310,7 @@ class Gollem_Api extends Horde_Registry_Api
     public function selectlistLink($link_text, $link_style, $formid,
                                    $icon = false, $selectid = '')
     {
-        $link = Horde::link('#', $link_text, $link_style, '_blank', Horde::popupJs(Horde::url('selectlist.php'), array('params' => array('formid' => $formid, 'cacheid' => $selectid), 'height' => 500, 'width' => 300, 'urlencode' => true)) . 'return false;');
+        $link = Horde::link('#', $link_text, $link_style, '_blank', Horde::popupJs(Horde::url('selectlist.php'), array('params' => array_filter(array('formid' => $formid, 'cacheid' => $selectid)), 'height' => 500, 'width' => 300, 'urlencode' => true)) . 'return false;');
         if ($icon) {
             $link_text = Horde::img('gollem.png', $link_text);
         }
@@ -346,7 +361,9 @@ class Gollem_Api extends Horde_Registry_Api
         }
 
         list($dir, $filename) = explode('|', $selectlist['files'][$index]);
-        return $GLOBALS['gollem_vfs']->read($dir, $filename);
+        return $GLOBALS['injector']
+            ->getInstance('Gollem_Vfs')
+            ->read($dir, $filename);
     }
 
     /**
@@ -388,6 +405,8 @@ class Gollem_Api extends Horde_Registry_Api
         $backend_key = strchr($path, '/')
             ? substr($path, 0, strpos($path, '/'))
             : $path;
+
+        throw new Gollem_Exception('Not implemented');
 
         // Validate and perform permissions checks on the requested backend
         if (!$GLOBALS['session']->exists('gollem', 'backends/' . $backend_key)) {

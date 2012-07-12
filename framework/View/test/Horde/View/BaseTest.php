@@ -1,12 +1,12 @@
 <?php
 /**
  * Copyright 2007-2008 Maintainable Software, LLC
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * @author     Mike Naberezny <mike@maintainable.com>
  * @author     Derek DeVries <derek@maintainable.com>
  * @author     Chuck Hagenbuch <chuck@horde.org>
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  * @category   Horde
  * @package    View
  * @subpackage UnitTests
@@ -17,7 +17,7 @@
  * @author     Mike Naberezny <mike@maintainable.com>
  * @author     Derek DeVries <derek@maintainable.com>
  * @author     Chuck Hagenbuch <chuck@horde.org>
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  * @category   Horde
  * @package    View
  * @subpackage UnitTests
@@ -29,7 +29,7 @@ class Horde_View_BaseTest extends Horde_Test_Case
     public function setUp()
     {
         $this->_view = new Horde_View();
-        $this->_view->addTemplatePath(dirname(__FILE__) . '/fixtures/');
+        $this->_view->addTemplatePath(__DIR__ . '/fixtures/');
     }
 
     /*##########################################################################
@@ -84,7 +84,7 @@ class Horde_View_BaseTest extends Horde_Test_Case
         $this->_view->addTemplatePath('app/views/shared/');
 
         $expected = array('app/views/shared/',
-                          dirname(__FILE__) . '/fixtures/',
+                          __DIR__ . '/fixtures/',
                           './');
         $this->assertEquals($expected, $this->_view->getTemplatePaths());
     }
@@ -94,7 +94,7 @@ class Horde_View_BaseTest extends Horde_Test_Case
     {
         $this->_view->addTemplatePath('app/views/shared');
         $expected = array('app/views/shared/',
-                          dirname(__FILE__) . '/fixtures/',
+                          __DIR__ . '/fixtures/',
                           './');
         $this->assertEquals($expected, $this->_view->getTemplatePaths());
     }
@@ -132,7 +132,7 @@ class Horde_View_BaseTest extends Horde_Test_Case
         $this->assertEquals($expected, $this->_view->render('testRender'));
 
         // after we specify the 'subdir' path, it should read from subdir path first
-        $this->_view->addTemplatePath(dirname(__FILE__) . '/fixtures/subdir/');
+        $this->_view->addTemplatePath(__DIR__ . '/fixtures/subdir/');
         $expected = "<div>subdir test</div>";
         $this->assertEquals($expected, $this->_view->render('testRender'));
     }

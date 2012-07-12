@@ -7,7 +7,7 @@
  * @category Horde
  * @package  Itip
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL
  * @link     http://pear.horde.org/index.php?package=Itip
  */
 
@@ -18,12 +18,12 @@
  *
  * See the enclosed file COPYING for license information (LGPL). If you did not
  * receive this file, see
- * {@link http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html LGPL}.
+ * {@link http://www.horde.org/licenses/lgpl21 LGPL}.
  *
  * @category Horde
  * @package  Itip
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL
  * @link     http://pear.horde.org/index.php?package=Itip
  */
 class Horde_Itip
@@ -89,6 +89,7 @@ class Horde_Itip
      *
      * @return array A list of two object: The mime headers and the mime
      *               message.
+     * @throws Horde_Itip_Exception
      */
     public function sendSinglepartResponse(
         Horde_Itip_Response_Type $type,
@@ -99,11 +100,15 @@ class Horde_Itip
         list($headers, $body) = $this->_response->getMessage(
             $type, $options
         );
-        $body->send(
-            $this->_response->getRequest()->getOrganizer(),
-            $headers,
-            $transport
-        );
+        try {
+            $body->send(
+                $this->_response->getRequest()->getOrganizer(),
+                $headers,
+                $transport
+            );
+        } catch (Horde_Mime_Exception $e) {
+            throw new Horde_Itip_Exception($e);
+        }
     }
 
     /**
@@ -114,6 +119,7 @@ class Horde_Itip
      * @param Horde_Mail_Transport        $transport The mail transport.
      *
      * @return NULL
+     * @throws Horde_Itip_Exception
      */
     public function sendMultipartResponse(
         Horde_Itip_Response_Type $type,
@@ -124,11 +130,15 @@ class Horde_Itip
         list($headers, $body) = $this->_response->getMultiPartMessage(
             $type, $options
         );
-        $body->send(
-            $this->_response->getRequest()->getOrganizer(),
-            $headers,
-            $transport
-        );
+        try {
+            $body->send(
+                $this->_response->getRequest()->getOrganizer(),
+                $headers,
+                $transport
+            );
+        } catch (Horde_Mime_Exception $e) {
+            throw new Horde_Itip_Exception($e);
+        }
     }
 
     /**

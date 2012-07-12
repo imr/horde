@@ -1,13 +1,13 @@
 <?php
 /**
  * Image effect for determining the best crop based on the center of edginess.
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * Based on ideas and code by Jue Wang <jue@jueseph.com>
  * http://jueseph.com/2010/06/opticrop-usage-and-implementation/
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Michael J. Rubinsky <mrubinsk@horde.org>
  * @package Image
@@ -27,7 +27,6 @@ class Horde_Image_Effect_Imagick_SmartCrop extends Horde_Image_Effect
 
     public function apply()
     {
-        mt_srand(1);
         $this->_params = new Horde_Support_Array($this->_params);
        
         // Existing geometry

@@ -1,15 +1,15 @@
 <?php
 /**
- * Copyright 2000-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2000-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Anil Madhavapeddy <avsm@horde.org>
  * @package Chora
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('chora');
 
 // TODO - This currently doesn't work.
@@ -100,7 +100,7 @@ function _populateGrid($row, $col)
 
 /* Spawn the file object. */
 try {
-    $fl = $VC->getFileObject($where);
+    $fl = $VC->getFile($where);
 } catch (Horde_Vcs_Exception $e) {
     Chora::fatal($e);
 }
@@ -129,7 +129,9 @@ foreach ($grid as $cols) {
 $title = sprintf(_("Source Branching View for %s"), $injector->getInstance('Horde_Core_Factory_TextFilter')->filter($where, 'space2html', array('encode' => true, 'encode_all' => true)));
 $extraLink = Chora::getFileViews($where, 'history');
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 require CHORA_TEMPLATES . '/menu.inc';
 require CHORA_TEMPLATES . '/headerbar.inc';
 require CHORA_TEMPLATES . '/history/header.inc';
@@ -168,10 +170,10 @@ foreach ($grid as $row) {
             /* This cell contains a revision, so render it. */
 //            $bgbr = $VC->strip($rev, 1);
             $bg = isset($branch_colors[$bgbr]) ? $branch_colors[$bgbr] : '#e9e9e9';
-            $log = $fl->logs[$rev];
-            $author = Chora::showAuthorName($log->queryAuthor());
-            $date = strftime('%e %b %Y', $log->queryDate());
-            $lines = $log->queryChangedLines();
+            $log = $fl->getLog($rev);
+            $author = Chora::showAuthorName($log->getAuthor());
+            $date = strftime('%e %b %Y', $log->getDate());
+            $lines = $log->getChanges();
             require CHORA_TEMPLATES . '/history/rev.inc';
 
         } else {
@@ -184,4 +186,4 @@ foreach ($grid as $row) {
 }
 
 require CHORA_TEMPLATES . '/history/footer.inc';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

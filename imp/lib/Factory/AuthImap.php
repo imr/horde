@@ -6,7 +6,7 @@
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @link     http://pear.horde.org/index.php?package=IMP
  * @package  IMP
  */
@@ -14,14 +14,14 @@
 /**
  * A Horde_Injector based Horde_Auth_Imap:: factory.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @link     http://pear.horde.org/index.php?package=IMP
  * @package  IMP
  */
@@ -40,21 +40,25 @@ class IMP_Factory_AuthImap extends Horde_Core_Factory_Injector
             throw new IMP_Exception('No server parameters found.');
         }
 
-        $aparams = $GLOBALS['session']->get('imp', 'imap_admin', Horde_Session::TYPE_ARRAY);
+        foreach ($GLOBALS['session']->get('imp', 'imap_admin', Horde_Session::TYPE_ARRAY) as $key => $val) {
+            switch ($key) {
+            case 'password':
+                $secret = $injector->getInstance('Horde_Secret');
+                $params['admin_password'] = $secret->read($secret->getKey(), $val);
+                break;
 
-        $params = array_merge(
-            $params,
-            (isset($aparams['params']) ? $aparams['params'] : array()),
-            array(
-                'default_user' => $GLOBALS['registry']->getAuth(),
-                'logger' => $injector->getInstance('Horde_Log_Logger')
-            )
-        );
+            case 'user':
+                $key = 'admin_user';
+                // Fall-through
 
-        if (isset($params['admin_password'])) {
-            $secret = $injector->getInstance('Horde_Secret');
-            $params['admin_password'] = $secret->read($secret->getKey('imp'), $params['admin_password']);
+            case 'userhierarchy':
+                $params[$key] = $val;
+                break;
+            }
         }
+
+        $params['default_user'] = $GLOBALS['registry']->getAuth();
+        $params['logger'] = $injector->getInstance('Horde_Log_Logger');
 
         return Horde_Auth::factory('Imap', $params);
     }

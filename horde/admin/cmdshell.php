@@ -1,18 +1,22 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
-Horde_Registry::appInit('horde', array('admin' => true));
+require_once __DIR__ . '/../lib/Application.php';
+Horde_Registry::appInit('horde', array(
+    'permission' => array('horde:administration:cmdshell')
+));
 
 $title = _("Command Shell");
-require HORDE_TEMPLATES . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 require HORDE_TEMPLATES . '/admin/menu.inc';
 
 echo '<div>';
@@ -37,7 +41,7 @@ if ($command = trim(Horde_Util::getFormData('cmd'))) {
 }
 ?>
 
-<form action="cmdshell.php" method="post">
+<form action="<?php echo Horde::url('admin/cmdshell.php') ?>" method="post">
 <?php Horde_Util::pformInput() ?>
 <label for="cmd" class="hidden"><?php echo _("Command") ?></label>
 <h1 class="header"><?php echo $title ?></h1>
@@ -52,4 +56,4 @@ if ($command = trim(Horde_Util::getFormData('cmd'))) {
 </div>
 <?php
 
-require HORDE_TEMPLATES . '/common-footer.inc';
+$page_output->footer();

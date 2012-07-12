@@ -8,29 +8,29 @@
  * @package    Kolab_Format
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
- * @link       http://pear.horde.org/index.php?package=Kolab_Format
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
+ * @link       http://www.horde.org/libraries/Horde_Kolab_Format
  */
 
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/../Autoload.php';
+require_once __DIR__ . '/../Autoload.php';
 
 /**
  * Test task handling.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category   Kolab
  * @package    Kolab_Format
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
- * @link       http://pear.horde.org/index.php?package=Kolab_Format
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
+ * @link       http://www.horde.org/libraries/Horde_Kolab_Format
  */
 class Horde_Kolab_Format_Integration_TaskTest
 extends Horde_Kolab_Format_TestCase
@@ -44,7 +44,7 @@ extends Horde_Kolab_Format_TestCase
         $xml = $this->getFactory()->create('XML', 'task');
 
         // Load XML
-        $task = file_get_contents(dirname(__FILE__) . '/../fixtures/task.xml');
+        $task = file_get_contents(__DIR__ . '/../fixtures/task.xml');
         $result = $xml->load($task);
         // Check that the xml loads fine
         $this->assertEquals($result['body'], 'TEST');

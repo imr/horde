@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * The cache decorator for folder lists from Kolab storage.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_List_Decorator_Cache
@@ -56,10 +56,9 @@ implements Horde_Kolab_Storage_List, Horde_Kolab_Storage_List_Query
      * @param Horde_Kolab_Storage_Cache_List $cache The cache storing data for
      *                                              this decorator.
      */
-    public function __construct(
-        Horde_Kolab_Storage_List $list,
-        Horde_Kolab_Storage_Cache_List $cache
-    ) {
+    public function __construct(Horde_Kolab_Storage_List $list,
+                                Horde_Kolab_Storage_Cache_List $cache)
+    {
         $this->_list = $list;
         $this->_list_cache = $cache;
     }
@@ -112,7 +111,6 @@ implements Horde_Kolab_Storage_List, Horde_Kolab_Storage_List_Query
     private function _init()
     {
         if (!$this->_isInitialized()) {
-            //@todo: Reconsider if we really want an automatic synchronization.
             $this->synchronize();
         }
     }
@@ -263,15 +261,16 @@ implements Horde_Kolab_Storage_List, Horde_Kolab_Storage_List_Query
     /**
      * Synchronize the list information with the information from the backend.
      *
+     * @param array $params Additional parameters.
+     *
      * @return NULL
      */
-    public function synchronize()
+    public function synchronize($params = array())
     {
         $this->_store(
             $this->_list->listFolders(),
             $this->_list->listFolderTypes()
         );
-        $this->_list->synchronize();
     }
 
     /**

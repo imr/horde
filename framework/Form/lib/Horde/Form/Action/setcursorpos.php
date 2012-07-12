@@ -5,10 +5,10 @@
  *
  * The params array contains the desired cursor position.
  *
- * Copyright 2006-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2006-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Chuck Hagenbuch <chuck@horde.org>
  * @package Form
@@ -19,7 +19,7 @@ class Horde_Form_Action_setcursorpos extends Horde_Form_Action {
 
     function getActionScript(&$form, $renderer, $varname)
     {
-        Horde::addScriptFile('form_helpers.js', 'horde');
+        $injector->getInstance('Horde_PageOutput')->addScriptFile('form_helpers.js', 'horde');
 
         $pos = implode(',', $this->_params);
         return 'form_setCursorPosition(document.forms[\'' .

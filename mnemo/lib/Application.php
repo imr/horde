@@ -5,17 +5,17 @@
  * This file defines Horde's core API interface. Other core Horde libraries
  * can interact with Mnemo through this API.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * See the enclosed file LICENSE for license information (ASL). If you
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @package Mnemo
  */
 
 /* Determine the base directories. */
 if (!defined('MNEMO_BASE')) {
-    define('MNEMO_BASE', dirname(__FILE__) . '/..');
+    define('MNEMO_BASE', __DIR__ . '/..');
 }
 
 if (!defined('HORDE_BASE')) {
@@ -36,7 +36,7 @@ class Mnemo_Application extends Horde_Registry_Application
 {
     /**
      */
-    public $version = 'H4 (3.0-BETA1)';
+    public $version = 'H5 (4.0-git)';
 
     /**
      * Global variables defined:
@@ -45,7 +45,6 @@ class Mnemo_Application extends Horde_Registry_Application
     protected function _init()
     {
         Mnemo::initialize();
-        $GLOBALS['injector']->getInstance('Horde_Themes_Css')->addThemeStylesheet('categoryCSS.php');
     }
 
     /**
@@ -64,27 +63,16 @@ class Mnemo_Application extends Horde_Registry_Application
      */
     public function menu($menu)
     {
-        global $conf, $injector, $print_link;
+        global $conf, $injector;
 
-        $menu->add(Horde::url('list.php'), _("_List Notes"), 'mnemo.png', null, null, null, basename($_SERVER['PHP_SELF']) == 'index.php' ? 'current' : null);
-
-        if (Mnemo::getDefaultNotepad(Horde_Perms::EDIT) &&
-            ($injector->getInstance('Horde_Core_Perms')->hasAppPermission('max_notes') === true ||
-             $injector->getInstance('Horde_Core_Perms')->hasAppPermission('max_notes') > Mnemo::countMemos())) {
-            $menu->add(Horde::url(Horde_Util::addParameter('memo.php', 'actionID', 'add_memo')), _("_New Note"), 'add.png', null, null, null, Horde_Util::getFormData('memo') ? '__noselection' : null);
-        }
+        $menu->add(Horde::url('list.php'), _("_List Notes"), 'mnemo-list', null, null, null, basename($_SERVER['PHP_SELF']) == 'index.php' ? 'current' : null);
 
         /* Search. */
-        $menu->add(Horde::url('search.php'), _("_Search"), 'search.png');
+        $menu->add(Horde::url('search.php'), _("_Search"), 'mnemo-search');
 
         /* Import/Export */
         if ($conf['menu']['import_export']) {
-            $menu->add(Horde::url('data.php'), _("_Import/Export"), 'data.png');
-        }
-
-        /* Print */
-        if ($conf['menu']['print'] && isset($print_link)) {
-            $menu->add(Horde::url($print_link), _("_Print"), 'print.png', null, '_blank', 'popup(this.href); return false;');
+            $menu->add(Horde::url('data.php'), _("_Import/Export"), 'horde-data');
         }
     }
 
@@ -92,85 +80,149 @@ class Mnemo_Application extends Horde_Registry_Application
      */
     public function hasPermission($permission, $allowed, $opts = array())
     {
-        switch ($permission) {
-        case 'max_notes':
-            $allowed = max($allowed);
-            break;
-        }
-
-        return $allowed;
-    }
-
-    /**
-     */
-    public function prefsGroup($ui)
-    {
-        foreach ($ui->getChangeablePrefs() as $val) {
-            switch ($val) {
-            case 'default_notepad':
-                $notepads = array();
-                foreach (Mnemo::listNotepads() as $key => $val) {
-                    $notepads[htmlspecialchars($key)] = htmlspecialchars($val->get('name'));
-                }
-                $ui->override['default_notepad'] = $notepads;
+        if (is_array($allowed)) {
+            switch ($permission) {
+            case 'max_notes':
+                $allowed = max($allowed);
                 break;
             }
         }
+        return $allowed;
     }
 
-    /* Sidebar method. */
+    /* Topbar method. */
 
     /**
      */
-    public function sidebarCreate(Horde_Tree_Base $tree, $parent = null,
-                                  array $params = array())
+    public function topbarCreate(Horde_Tree_Renderer_Base $tree, $parent = null,
+                                 array $params = array())
     {
         $add = Horde::url('memo.php')->add('actionID', 'add_memo');
 
-        $tree->addNode(
-            $parent . '__new',
-            $parent,
-            _("New Note"),
-            1,
-            false,
-            array(
+        $tree->addNode(array(
+            'id' => $parent . '__new',
+            'parent' => $parent,
+            'label' => _("New Note"),
+            'expanded' => false,
+            'params' => array(
                 'icon' => Horde_Themes::img('add.png'),
                 'url' => $add
             )
-        );
+        ));
 
         foreach (Mnemo::listNotepads() as $name => $notepad) {
-            if ($notepad->get('owner') != $GLOBALS['registry']->getAuth() &&
-                !empty($GLOBALS['conf']['share']['hidden']) &&
-                !in_array($notepad->getName(), $GLOBALS['display_notepads'])) {
-
-                continue;
-            }
-
-            $tree->addNode(
-                $parent . $name . '__new',
-                $parent . '__new',
-                sprintf(_("in %s"), $notepad->get('name')),
-                2,
-                false,
-                array(
+            $tree->addNode(array(
+                'id' => $parent . $name . '__new',
+                'parent' => $parent . '__new',
+                'label' => sprintf(_("in %s"), $notepad->get('name')),
+                'expanded' => false,
+                'params' => array(
                     'icon' => Horde_Themes::img('add.png'),
                     'url' => $add->copy()->add('memolist', $name)
                 )
-            );
+            ));
         }
 
-        $tree->addNode(
-            $parent . '__search',
-            $parent,
-            _("Search"),
-            1,
-            false,
-            array(
+        $tree->addNode(array(
+            'id' => $parent . '__search',
+            'parent' => $parent,
+            'label' => _("Search"),
+            'expanded' => false,
+            'params' => array(
                 'icon' => Horde_Themes::img('search.png'),
                 'url' => Horde::url('search.php')
             )
-        );
+        ));
+    }
+
+    /**
+     */
+    public function removeUserData($user)
+    {
+        $error = false;
+        $notepads = $GLOBALS['mnemo_shares']->listShares(
+            $user, array('attribtues' => $user));
+        foreach ($notepads as $notepad => $share) {
+            $driver = $GLOBALS['injector']
+                ->getInstance('Mnemo_Factory_Driver')
+                ->create($notepad);
+            try {
+                $driver->deleteAll();
+            } catch (Mnemo_Exception $e) {
+                Horde::logMessage($e, 'NOTICE');
+                $error = true;
+            }
+
+            try {
+                $GLOBALS['mnemo_shares']->removeShare($share);
+            } catch (Horde_Share_Exception $e) {
+                Horde::logMessage($e, 'NOTICE');
+                $error = true;
+            }
+        }
+
+        // Get a list of all shares this user has perms to and remove the perms.
+        try {
+            $shares = $GLOBALS['mnemo_shares']->listShares($user);
+            foreach ($shares as $share) {
+                $share->removeUser($user);
+            }
+        } catch (Horde_Share_Exception $e) {
+            Horde::logMessage($e, 'NOTICE');
+            $error = true;
+        }
+
+        if ($error) {
+            throw new Mnemo_Exception(sprintf(_("There was an error removing notes for %s. Details have been logged."), $user));
+        }
+    }
+
+    /* Download data. */
+
+    /**
+     * @throws Mnemo_Exception
+     */
+    public function download(Horde_Variables $vars)
+    {
+        global $injector, $registry;
+
+        switch ($vars->actionID) {
+        case 'export':
+            /* Create a Mnemo storage instance. */
+            $storage = $injector->getInstance('Mnemo_Factory_Driver')->create($registry->getAuth());
+            $storage->retrieve();
+
+            /* Get the full, sorted memo list. */
+            $notes = Mnemo::listMemos();
+
+            switch ($vars->exportID) {
+            case Horde_Data::EXPORT_CSV:
+                if (count($notes) == 0) {
+                    throw new Mnemo_Exception(_("There were no memos to export."));
+                }
+                                                                                                $data = array();
+                foreach ($notes as $note) {
+                    unset(
+                        $note['desc'],
+                        $note['memo_id'],
+                        $note['memolist_id'],
+                        $nore['uid']
+                    );
+                    $data[] = $note;
+                }
+
+                $injector->getInstance('Horde_Core_Factory_Data')->create('Csv', array('cleanup' => array($this, 'cleanupData')))->exportFile(_("notes.csv"), $data, true);
+                exit;
+            }
+        }
+    }
+
+    /**
+     */
+    public function cleanupData()
+    {
+        $GLOBALS['import_step'] = 1;
+        return Horde_Data::IMPORT_FILE;
     }
 
 }

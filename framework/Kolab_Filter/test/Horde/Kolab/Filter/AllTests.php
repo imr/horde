@@ -8,7 +8,7 @@
  * @package    Kolab_Filter
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Kolab_Filter
  */
 
@@ -65,7 +65,7 @@ class Horde_Kolab_Filter_AllTests extends Horde_Test_AllTests
     {
         $config = getenv('KOLAB_FILTER_TEST_CONFIG');
         if ($config === false) {
-            $config = dirname(__FILE__) . '/conf.php';
+            $config = __DIR__ . '/conf.php';
         }
         if (file_exists($config)) {
             require $config;

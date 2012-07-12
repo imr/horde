@@ -1,9 +1,9 @@
 <?php
 /**
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
 /**
@@ -21,7 +21,7 @@ function shorten_url($url, $separator = '...', $first_chunk_length = 35, $last_c
     return $url;
 }
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('kronolith');
 
 if (Kronolith::showAjaxView()) {
@@ -55,7 +55,7 @@ foreach ($my_calendars as $calendar) {
     $sorted_calendars[$calendar->getName()] = $calendar->get('name');
 }
 if ($registry->isAdmin()) {
-    $system_calendars = $kronolith_shares->listSystemShares();
+    $system_calendars = $injector->getInstance('Kronolith_Shares')->listSystemShares();
     foreach ($system_calendars as $calendar) {
         $calendars[$calendar->getName()] = $calendar;
         $sorted_calendars[$calendar->getName()] = $calendar->get('name');
@@ -72,12 +72,13 @@ $edit_img = Horde::img('edit.png', _("Edit"));
 $perms_img = Horde::img('perms.png', _("Change Permissions"));
 $delete_img = Horde::img('delete.png', _("Delete"));
 
-Horde::addScriptFile('tables.js', 'horde');
-$title = _("Manage Calendars");
-$menu = Horde::menu();
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->addScriptFile('tables.js', 'horde');
+$menu = Kronolith::menu();
+$page_output->header(array(
+    'title' => _("Manage Calendars")
+));
 require KRONOLITH_TEMPLATES . '/javascript_defs.php';
 echo $menu;
 $notification->notify(array('listeners' => 'status'));
 require KRONOLITH_TEMPLATES . '/calendar_list.php';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

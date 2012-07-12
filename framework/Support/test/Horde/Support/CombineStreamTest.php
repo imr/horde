@@ -1,24 +1,23 @@
 <?php
 /**
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
+ *
  * @category   Horde
  * @package    Support
  * @subpackage UnitTests
- * @copyright  2009 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  */
 
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/Autoload.php';
+require_once __DIR__ . '/Autoload.php';
 
 /**
- * @group      support
  * @category   Horde
  * @package    Support
  * @subpackage UnitTests
- * @copyright  2009 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  */
 class Horde_Support_CombineStreamTest extends PHPUnit_Framework_TestCase
 {

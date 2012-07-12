@@ -3,29 +3,42 @@
  <name>Horde_Support</name>
  <channel>pear.horde.org</channel>
  <summary>Horde support package</summary>
- <description>This package provides supporting functionality for Horde that is not tied to Horde but is used by it. These classes can be used outside of Horde as well.</description>
+ <description>Support classes not tied to Horde but is used by it. These classes can be used outside of Horde as well.</description>
  <lead>
   <name>Chuck Hagenbuch</name>
   <user>chuck</user>
   <email>chuck@horde.org</email>
   <active>yes</active>
  </lead>
- <date>2011-03-16</date>
- <time>18:18:43</time>
+ <lead>
+  <name>Jan Schneider</name>
+  <user>jan</user>
+  <email>jan@horde.org</email>
+  <active>yes</active>
+ </lead>
+ <date>2012-07-06</date>
+ <time>00:02:32</time>
  <version>
-  <release>1.0.0RC1</release>
-  <api>1.0.0</api>
+  <release>2.0.0beta1</release>
+  <api>1.1.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+ <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
  <notes>
-* First release candidate for Horde 4.
+*
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
+   <dir name="doc">
+    <dir name="Horde">
+     <dir name="Support">
+      <file name="COPYING" role="doc" />
+     </dir> <!-- /doc/Horde/Support -->
+    </dir> <!-- /doc/Horde -->
+   </dir> <!-- /doc -->
    <dir name="lib">
     <dir name="Horde">
      <dir name="Support">
@@ -44,6 +57,7 @@
       <file name="Inflector.php" role="php" />
       <file name="Memory.php" role="php" />
       <file name="Numerizer.php" role="php" />
+      <file name="ObjectStub.php" role="php" />
       <file name="Randomid.php" role="php" />
       <file name="Stack.php" role="php" />
       <file name="StringStream.php" role="php" />
@@ -71,6 +85,7 @@
       <file name="GuidTest.php" role="test" />
       <file name="InflectorTest.php" role="test" />
       <file name="MemoryTest.php" role="test" />
+      <file name="ObjectStubTest.php" role="test" />
       <file name="RandomidTest.php" role="test" />
       <file name="StackTest.php" role="test" />
       <file name="StringStreamTest.php" role="test" />
@@ -85,7 +100,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -93,21 +108,22 @@
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Stream_Wrapper</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
  </dependencies>
  <phprelease>
   <filelist>
+   <install as="COPYING" name="doc/Horde/Support/COPYING" />
    <install as="Horde/Support/Array.php" name="lib/Horde/Support/Array.php" />
    <install as="Horde/Support/Backtrace.php" name="lib/Horde/Support/Backtrace.php" />
    <install as="Horde/Support/CombineStream.php" name="lib/Horde/Support/CombineStream.php" />
@@ -116,6 +132,7 @@
    <install as="Horde/Support/Inflector.php" name="lib/Horde/Support/Inflector.php" />
    <install as="Horde/Support/Memory.php" name="lib/Horde/Support/Memory.php" />
    <install as="Horde/Support/Numerizer.php" name="lib/Horde/Support/Numerizer.php" />
+   <install as="Horde/Support/ObjectStub.php" name="lib/Horde/Support/ObjectStub.php" />
    <install as="Horde/Support/Randomid.php" name="lib/Horde/Support/Randomid.php" />
    <install as="Horde/Support/Stack.php" name="lib/Horde/Support/Stack.php" />
    <install as="Horde/Support/StringStream.php" name="lib/Horde/Support/StringStream.php" />
@@ -134,6 +151,7 @@
    <install as="Horde/Support/GuidTest.php" name="test/Horde/Support/GuidTest.php" />
    <install as="Horde/Support/InflectorTest.php" name="test/Horde/Support/InflectorTest.php" />
    <install as="Horde/Support/MemoryTest.php" name="test/Horde/Support/MemoryTest.php" />
+   <install as="Horde/Support/ObjectStubTest.php" name="test/Horde/Support/ObjectStubTest.php" />
    <install as="Horde/Support/RandomidTest.php" name="test/Horde/Support/RandomidTest.php" />
    <install as="Horde/Support/StackTest.php" name="test/Horde/Support/StackTest.php" />
    <install as="Horde/Support/StringStreamTest.php" name="test/Horde/Support/StringStreamTest.php" />
@@ -155,7 +173,7 @@
     <api>beta</api>
    </stability>
    <date>2010-07-10</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 * Add Horde_Support_CombineStream.
 * Initial horde/support package
@@ -181,7 +199,7 @@
     <api>alpha</api>
    </stability>
    <date>2011-03-08</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 * First alpha release for Horde 4.
 * Add Horde_Support_Randomid.
@@ -198,9 +216,107 @@
     <api>beta</api>
    </stability>
    <date>2011-03-16</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 * First beta release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-22</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* Second release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First stable release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-22</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* [jan] Fix tests to work with PHPUnit 3.6.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.2</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2012-02-22</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* [mms] Fix failing unit tests.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First alpha release for Horde 5.
+* [mms] Add Horde_Support_ObjectStub.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+*
    </notes>
   </release>
  </changelog>

@@ -5,14 +5,14 @@
  * @subpackage UnitTests
  */
 
-/** Horde_Feed_TestCase */
-require_once dirname(__FILE__) . '/TestCase.php';
+/** Setup testing */
+require_once __DIR__ . '/Autoload.php';
 
 class Horde_Feed_AtomEntryOnlyTest extends PHPUnit_Framework_TestCase {
 
     public function testEntryOnly()
     {
-        $feed = Horde_Feed::readFile(dirname(__FILE__) . '/fixtures/TestAtomFeedEntryOnly.xml');
+        $feed = Horde_Feed::readFile(__DIR__ . '/fixtures/TestAtomFeedEntryOnly.xml');
 
         $this->assertEquals(1, $feed->count(), 'The entry-only feed should report one entry.');
 

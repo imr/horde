@@ -3,17 +3,17 @@
  * Copyright Obala d.o.o. (www.obala.si)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Duck <duck@obala.net>
  * @package Folks
  */
 
-require_once dirname(__FILE__) . '/../../lib/base.php';
+require_once __DIR__ . '/../../lib/base.php';
 require_once FOLKS_BASE . '/lib/Friends.php';
 
 if (!$registry->isAuthenticated()) {
-    $registry->authenticateFailure('folks');
+    throw new Horde_Exception_AuthenticationFailure();
 }
 
 $user = Horde_Util::getGet('user');

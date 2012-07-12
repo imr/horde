@@ -1,13 +1,18 @@
 <?php
 /**
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you did
  * did not receive this file, see http://cvs.horde.org/co.php/jonah/LICENSE.
  *
  * @author Ben Klang <ben@alkaloid.net>
  */
+require_once __DIR__ . '/../lib/Application.php';
+$jonah = Horde_Registry::appInit('jonah', array(
+    'authentication' => 'none',
+    'session_control' => 'readonly'
+));
 $parts = explode('/', Horde_Util::getPathInfo());
 $lastpart = null;
 $deliveryType = null;
@@ -69,4 +74,4 @@ if (empty($deliveryType)) {
     $deliveryType = 'html';
 }
 
-include dirname(__FILE__) . '/' . basename($deliveryType) . '.php';
+include __DIR__ . '/' . basename($deliveryType) . '.php';

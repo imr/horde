@@ -1,13 +1,12 @@
-<div id="login-form">
+<div class="modal-form">
 
 <?php $notification->notify(array('listeners' => 'status')) ?>
 
-<form name="horde_login" id="horde_login" method="post" action="<?php echo Horde::selfUrl(false, true, false, true) ?>"<?php echo $conf['menu']['always'] ? ' target="_parent"' : '' ?>>
+<form name="horde_login" id="horde_login" method="post" action="<?php echo Horde::selfUrl(false, true, false, true) ?>">
  <input type="hidden" name="app" id="app" value="<?php echo htmlspecialchars($vars->app) ?>" />
  <input type="hidden" name="login_post" id="login_post" value="0" />
  <input type="hidden" name="url" value="<?php echo htmlspecialchars($vars->url) ?>" />
  <input type="hidden" name="anchor_string" id="anchor_string" value="<?php echo htmlspecialchars($vars->anchor_string) ?>" />
- <input type="hidden" name="ie_version" value="" />
 
 <?php foreach ($loginparams as $key => $val): ?>
 <?php if ($val['type'] == 'hidden'): ?>
@@ -22,7 +21,11 @@
 <?php elseif ($val['type'] == 'select'): ?>
        <select id="<?php echo $key ?>" name="<?php echo $key ?>">
 <?php foreach ($val['value'] as $k2 => $v2): ?>
+<?php if (is_null($v2)): ?>
+        <option value="" disabled="disabled">- - - - - - - - - -</option>
+<?php else: ?>
         <option value="<?php echo $k2 ?>"<?php echo !empty($v2['selected']) ?' selected="selected"' : '' ?><?php echo !empty($v2['hidden']) ? ' style="display:none"' : '' ?>><?php echo htmlspecialchars($v2['name']) ?></option>
+<?php endif; ?>
 <?php endforeach ?>
        </select>
 <?php endif; ?>
@@ -40,12 +43,12 @@
 <?php endif; ?>
 
 <div>
- <input id="login-button" name="login_button" class="button" value="<?php echo _("Log in") ?>" type="submit" />
+ <input id="login-button" name="login_button" class="button submit-button" value="<?php echo _("Log in") ?>" type="submit" />
 </div>
 
 <?php
-    $add_user = (!empty($conf['signup']['allow']) && $auth->hasCapability('add'));
-    $reset_passwd = $auth->hasCapability('resetpassword');
+$add_user = (!empty($conf['signup']['allow']) && $auth->hasCapability('add'));
+$reset_passwd = !empty($conf['auth']['resetpassword']) && $auth->hasCapability('resetpassword');
 ?>
 
 <?php if ($add_user || $reset_passwd): ?>
@@ -55,6 +58,9 @@
 <?php endif; ?>
 
 <?php if ($reset_passwd): ?>
+<?php if ($add_user): ?>
+ <br />
+<?php endif; ?>
  <?php echo Horde::link(Horde::url('services/resetpassword.php', false, array('app' => 'horde'))->add('url', $vars->url), _("Forgot your password?"), 'light') . _("Forgot your password?") ?></a>
 <?php endif; ?>
 </div>

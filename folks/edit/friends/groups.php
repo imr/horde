@@ -3,13 +3,13 @@
  * Copyright Obala d.o.o. (www.obala.si)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Duck <duck@obala.net>
  * @package Folks
  */
 
-require_once dirname(__FILE__) . '/../../lib/base.php';
+require_once __DIR__ . '/../../lib/base.php';
 require_once FOLKS_BASE . '/lib/base.php';
 require_once FOLKS_BASE . '/edit/tabs.php';
 
@@ -112,10 +112,10 @@ $perms_img = Horde::img('perms.png');
 $members_url = Horde::url('edit/friends/friends.php');
 $members_img = Horde::img('group.png');
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 require FOLKS_TEMPLATES . '/menu.inc';
-
 echo $tabs->render('groups');
 require FOLKS_TEMPLATES . '/edit/groups.php';
-
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

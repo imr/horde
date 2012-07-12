@@ -10,41 +10,38 @@
   <email>chuck@horde.org</email>
   <active>yes</active>
  </lead>
- <date>2011-03-16</date>
- <time>18:13:44</time>
+ <date>2012-07-05</date>
+ <time>23:50:18</time>
  <version>
-  <release>1.0.0RC1</release>
+  <release>2.0.0beta1</release>
   <api>1.0.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+ <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
  <notes>
-* First release candidate for Horde 4.
+* 
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
    <dir name="doc">
     <dir name="Horde">
      <dir name="Injector">
+      <dir name="examples">
+       <file name="annotatedsetters.php" role="doc" />
+       <file name="binder.php" role="doc" />
+       <file name="closure.php" role="doc" />
+       <file name="factory.php" role="doc" />
+       <file name="implementation.php" role="doc" />
+       <file name="setget.php" role="doc" />
+      </dir> <!-- /doc/Horde/Injector/examples -->
+      <file name="COPYING" role="doc" />
       <file name="Readme.html" role="doc" />
      </dir> <!-- /doc/Horde/Injector -->
     </dir> <!-- /doc/Horde -->
    </dir> <!-- /doc -->
-   <dir name="examples">
-    <dir name="Horde">
-     <dir name="Injector">
-      <file name="annotatedsetters.php" role="doc" />
-      <file name="binder.php" role="doc" />
-      <file name="closure.php" role="doc" />
-      <file name="factory.php" role="doc" />
-      <file name="implementation.php" role="doc" />
-      <file name="setget.php" role="doc" />
-     </dir> <!-- /examples/Horde/Injector -->
-    </dir> <!-- /examples/Horde -->
-   </dir> <!-- /examples -->
    <dir name="lib">
     <dir name="Horde">
      <dir name="Injector">
@@ -84,7 +81,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -92,21 +89,22 @@
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
  </dependencies>
  <phprelease>
   <filelist>
-   <install as="Horde/Injector/Readme.html" name="doc/Horde/Injector/Readme.html" />
-   <install as="Horde/Injector/annotatedsetters.php" name="examples/Horde/Injector/annotatedsetters.php" />
-   <install as="Horde/Injector/binder.php" name="examples/Horde/Injector/binder.php" />
-   <install as="Horde/Injector/closure.php" name="examples/Horde/Injector/closure.php" />
-   <install as="Horde/Injector/factory.php" name="examples/Horde/Injector/factory.php" />
-   <install as="Horde/Injector/implementation.php" name="examples/Horde/Injector/implementation.php" />
-   <install as="Horde/Injector/setget.php" name="examples/Horde/Injector/setget.php" />
+   <install as="COPYING" name="doc/Horde/Injector/COPYING" />
+   <install as="Readme.html" name="doc/Horde/Injector/Readme.html" />
+   <install as="examples/annotatedsetters.php" name="doc/Horde/Injector/examples/annotatedsetters.php" />
+   <install as="examples/binder.php" name="doc/Horde/Injector/examples/binder.php" />
+   <install as="examples/closure.php" name="doc/Horde/Injector/examples/closure.php" />
+   <install as="examples/factory.php" name="doc/Horde/Injector/examples/factory.php" />
+   <install as="examples/implementation.php" name="doc/Horde/Injector/examples/implementation.php" />
+   <install as="examples/setget.php" name="doc/Horde/Injector/examples/setget.php" />
    <install as="Horde/Injector.php" name="lib/Horde/Injector.php" />
    <install as="Horde/Injector/Binder.php" name="lib/Horde/Injector/Binder.php" />
    <install as="Horde/Injector/DependencyFinder.php" name="lib/Horde/Injector/DependencyFinder.php" />
@@ -138,7 +136,7 @@
     <api>alpha</api>
    </stability>
    <date>2011-03-08</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 * First alpha release for Horde 4.
 * Add Horde_Injector#hasInstance().
@@ -155,9 +153,93 @@
     <api>beta</api>
    </stability>
    <date>2011-03-16</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 * First beta release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-22</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* Second release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First stable release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-22</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* [jan] Fix tests to work with PHPUnit 3.6.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First alpha release for Horde 5.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* 
    </notes>
   </release>
  </changelog>

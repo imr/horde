@@ -38,7 +38,7 @@
  * @author    Michael Slusarz <slusarz@horde.org>
  * @copyright 2010 Chuck Hagenbuch
  * @copyright 2010 Michael Slusarz
- * @license   http://opensource.org/licenses/bsd-license.php New BSD License
+ * @license   http://www.horde.org/licenses/bsd New BSD License
  */
 
 /**
@@ -53,21 +53,11 @@ class Horde_Mail_Transport_Mail extends Horde_Mail_Transport
      * Constructor.
      *
      * @param array $params  Additional parameters:
-     * <pre>
-     * 'args' - (string) Extra arguments for the mail() function.
-     * </pre>
+     *   - args: (string) Extra arguments for the mail() function.
      */
     public function __construct(array $params = array())
     {
         $this->_params = array_merge($this->_params, $params);
-
-        /* Because the mail() function may pass headers as command
-         * line arguments, we can't guarantee the use of the standard
-         * "\r\n" separator.  Instead, we use the system's native line
-         * separator. */
-        $this->sep = defined('PHP_EOL')
-            ? PHP_EOL
-            : (strpos(PHP_OS, 'WIN') === false) ? "\n" : "\r\n";
     }
 
     /**
@@ -124,11 +114,18 @@ class Horde_Mail_Transport_Mail extends Horde_Mail_Transport
         // to a string.
         if (is_resource($body)) {
             $body_str = '';
+
+            stream_filter_register('horde_eol', 'Horde_Stream_Filter_Eol');
+            stream_filter_append($body, 'horde_eol', STREAM_FILTER_READ, array('eol' => $this->sep));
+
             rewind($body);
             while (!feof($body)) {
                 $body_str .= fread($body, 8192);
             }
             $body = $body_str;
+        } else {
+            // Convert EOL characters in body.
+            $body = $this->_normalizeEOL($body);
         }
 
         // We only use mail()'s optional fifth parameter if the additional

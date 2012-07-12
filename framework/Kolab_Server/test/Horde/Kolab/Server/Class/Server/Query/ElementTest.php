@@ -7,27 +7,27 @@
  * @category Kolab
  * @package  Kolab_Server
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Server
  */
 
 /**
  * Require our basic test case definition
  */
-require_once dirname(__FILE__) . '/../../../Autoload.php';
+require_once __DIR__ . '/../../../Autoload.php';
 
 /**
  * Test the LDAP query elements.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Server
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Server
  */
 class Horde_Kolab_Server_Class_Server_Query_ElementTest extends PHPUnit_Framework_TestCase
@@ -115,7 +115,7 @@ class Horde_Kolab_Server_Class_Server_Query_ElementTest extends PHPUnit_Framewor
     {
         $less = new Horde_Kolab_Server_Query_Element_Less('', '');
         $not = new Horde_Kolab_Server_Query_Element_Not($less);
-        $this->assertType('array', $not->getElements());
+        $this->assertInternalType('array', $not->getElements());
     }
 
     public function testClassNotMethodConvertHasResultMixedTheConvertedElement()
@@ -149,7 +149,7 @@ class Horde_Kolab_Server_Class_Server_Query_ElementTest extends PHPUnit_Framewor
     }
 
     /**
-     * @expectedException Exception
+     * @expectedException Horde_Kolab_Server_Exception
      */
     public function testClassGroupMethodGetnameThrowsException()
     {
@@ -158,7 +158,7 @@ class Horde_Kolab_Server_Class_Server_Query_ElementTest extends PHPUnit_Framewor
     }
 
     /**
-     * @expectedException Exception
+     * @expectedException Horde_Kolab_Server_Exception
      */
     public function testClassGroupMethodGetvalueThrowsException()
     {
@@ -202,7 +202,7 @@ class Horde_Kolab_Server_Class_Server_Query_ElementTest extends PHPUnit_Framewor
     }
 
     /**
-     * @expectedException Exception
+     * @expectedException Horde_Kolab_Server_Exception
      */
     public function testClassSingleMethodGetelementsThrowsException()
     {

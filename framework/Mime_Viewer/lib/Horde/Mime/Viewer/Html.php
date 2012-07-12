@@ -3,16 +3,16 @@
  * The Horde_Mime_Viewer_Html class renders out HTML text with an effort to
  * remove potentially malicious code.
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Anil Madhavapeddy <anil@recoil.org>
  * @author   Jon Parise <jon@horde.org>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Mime_Viewer
  */
 class Horde_Mime_Viewer_Html extends Horde_Mime_Viewer_Base
@@ -56,13 +56,11 @@ class Horde_Mime_Viewer_Html extends Horde_Mime_Viewer_Base
      * @param Horde_Mime_Part $mime_part  The object with the data to be
      *                                    rendered.
      * @param array $conf                 Configuration:
-     * <pre>
-     * browser - (Horde_Browser) A browser object.
-     * external_callback - (callback) A callback function that a href URL is
-     *                     passed through. The function must take the original
-     *                     URL as the first parameter.
-     *                     DEFAULT: No callback
-     * </pre>
+     *   - browser: (Horde_Browser) A browser object.
+     *   - external_callback: (callback) A callback function that a href URL
+     *                        is passed through. The function must take the
+     *                        original URL as the first parameter.
+     *                        DEFAULT: No callback
      *
      * @throws InvalidArgumentException
      */
@@ -85,7 +83,7 @@ class Horde_Mime_Viewer_Html extends Horde_Mime_Viewer_Base
         $html = $this->_cleanHTML($this->_mimepart->getContents(), array('inline' => false));
 
         return $this->_renderReturn(
-            $html,
+            $html->returnHtml(),
             $this->_mimepart->getType(true)
         );
     }
@@ -100,7 +98,7 @@ class Horde_Mime_Viewer_Html extends Horde_Mime_Viewer_Base
         $html = $this->_cleanHTML($this->_mimepart->getContents(), array('inline' => true));
 
         return $this->_renderReturn(
-            Horde_String::convertCharset($html, $this->_mimepart->getCharset(), 'UTF-8'),
+            Horde_String::convertCharset($html->returnHtml(), $this->_mimepart->getCharset(), 'UTF-8'),
             'text/html; charset=UTF-8'
         );
     }
@@ -114,23 +112,24 @@ class Horde_Mime_Viewer_Html extends Horde_Mime_Viewer_Base
      *
      * @param string $data    The HTML data.
      * @param array $options  Additional options:
-     * <pre>
-     * 'charset' - (string) The charset of $data.
-     *             DEFAULT: The base part charset.
-     * 'inline' - (boolean) Are we viewing inline?
-     *            DEFAULT: false
-     * 'noprefetch' - (boolean) Disable DNS prefetching?
-     *                DEFAULT: false
-     * 'phishing' - (boolean) Do phishing highlighting even if not viewing
-     *              inline.
-     *              DEFAULT: false.
-     * </pre>
+     *   - charset: (string) The charset of $data.
+     *              DEFAULT: The base part charset.
+     *   - inline: (boolean) Are we viewing inline?
+     *             DEFAULT: false
+     *   - noprefetch: (boolean) Disable DNS prefetching?
+     *                 DEFAULT: false
+     *   - phishing: (boolean) Do phishing highlighting even if not viewing
+     *               inline.
+     *               DEFAULT: false.
      *
-     * @return string  The cleaned HTML string.
+     * @return Horde_Domhtml  The cleaned HTML data.
      */
     protected function _cleanHTML($data, $options = array())
     {
         $browser = $this->getConfigParam('browser');
+        if (($tidy_limit = $this->getConfigParam('tidy_size_limit')) === null) {
+            $tidy_limit = false;
+        }
         $charset = isset($options['charset'])
             ? $options['charset']
             : $this->_mimepart->getCharset();
@@ -142,7 +141,8 @@ class Horde_Mime_Viewer_Html extends Horde_Mime_Viewer_Base
 
         $data = $this->_textFilter($data, array('cleanhtml', 'xss'), array(
             array(
-                'charset' => $charset
+                'charset' => $charset,
+                'size' => $tidy_limit
             ),
             array(
                 'charset' => $charset,
@@ -160,9 +160,11 @@ class Horde_Mime_Viewer_Html extends Horde_Mime_Viewer_Base
         );
         $this->_phishWarn = false;
 
-        $this->_node($data->dom, $data->dom);
+        foreach ($data as $node) {
+            $this->_node($data->dom, $node);
+        }
 
-        return $data->returnHtml();
+        return $data;
     }
 
     /**
@@ -173,63 +175,56 @@ class Horde_Mime_Viewer_Html extends Horde_Mime_Viewer_Base
      */
     protected function _node($doc, $node)
     {
-        if ($node->hasChildNodes()) {
-            foreach ($node->childNodes as $child) {
-                if ($child instanceof DOMElement) {
-                    switch (strtolower($child->tagName)) {
-                    case 'base':
-                        /* Deal with <base> tags in the HTML, since they will
-                         * screw up our own relative paths. */
-                        if ($this->_tmp['inline'] &&
-                            $child->hasAttribute('href')) {
-                            $base = $child->getAttribute('href');
-                            if (substr($base, -1) != '/') {
-                                $base .= '/';
-                            }
+        if (!($node instanceof DOMElement)) {
+            return;
+        }
 
-                            $this->_tmp['base'] = $base;
-                            $child->removeAttribute('href');
-                        }
-                        break;
-                    }
+        switch (Horde_String::lower($node->tagName)) {
+        case 'a':
+            /* Strip whitespace from href links. This is bad HTML, but may
+             * prevent viewing of the link. PHP DOM will already strip this
+             * out for us, but if using tidy it will have URL encoded the
+             * spaces. */
+            if ($node->hasAttribute('href')) {
+                $node->setAttribute('href', preg_replace('/^(\%20)+/', '', trim($node->getAttribute('href'))));
+            }
+            break;
 
-                    foreach ($child->attributes as $val) {
-                        /* Attempt to fix paths that were relying on a <base>
-                         * tag. */
-                        if (!is_null($this->_tmp['base']) &&
-                            in_array($val->name, array('href', 'src'))) {
-                            $child->setAttribute($val->name, $this->_tmp['base'] . ltrim($val->value, '/'));
-                        }
-
-                        if ($val->name == 'href') {
-                            if ($this->_tmp['phish'] &&
-                                $this->_phishingCheck($val->value, $child->textContent)) {
-                                $this->_phishWarn = true;
-                                $child->setAttribute('style', ($child->hasAttribute('style') ? rtrim($child->getAttribute('style'), '; ') . ';' : '') . $this->_phishCss);
-                            }
-
-                            if (isset($this->_params['external_callback'])) {
-                                /* Try to derefer all external references. */
-                                $child->setAttribute('href', call_user_func($this->_params['external_callback'], $val->value));
-                            }
-                        }
-                    }
+        case 'base':
+            /* Deal with <base> tags in the HTML, since they will screw up our
+             * own relative paths. */
+            if ($this->_tmp['inline'] && $node->hasAttribute('href')) {
+                $base = $node->getAttribute('href');
+                if (substr($base, -1) != '/') {
+                    $base .= '/';
                 }
 
-                $this->_nodeCallback($doc, $child);
-                $this->_node($doc, $child);
+                $this->_tmp['base'] = $base;
+                $node->removeAttribute('href');
+            }
+            break;
+        }
+
+        foreach ($node->attributes as $val) {
+            /* Attempt to fix paths that were relying on a <base> tag. */
+            if (!is_null($this->_tmp['base']) &&
+                in_array($val->name, array('href', 'src'))) {
+                $node->setAttribute($val->name, $this->_tmp['base'] . ltrim($val->value, '/'));
+            }
+
+            if ($val->name == 'href') {
+                if ($this->_tmp['phish'] &&
+                    $this->_phishingCheck($val->value, $node->textContent)) {
+                    $this->_phishWarn = true;
+                    $node->setAttribute('style', ($node->hasAttribute('style') ? rtrim($node->getAttribute('style'), '; ') . ';' : '') . $this->_phishCss);
+                }
+
+                if (isset($this->_params['external_callback'])) {
+                    /* Try to derefer all external references. */
+                    $node->setAttribute('href', call_user_func($this->_params['external_callback'], $val->value));
+                }
             }
         }
-    }
-
-    /**
-     * Process DOM node (callback).
-     *
-     * @param DOMDocument $doc  Document node.
-     * @param DOMNode $node     Node.
-     */
-    protected function _nodeCallback($doc, $node)
-    {
     }
 
     /**
@@ -251,6 +246,9 @@ class Horde_Mime_Viewer_Html extends Horde_Mime_Viewer_Base
         }
 
         $href_url = parse_url($href);
+        if (!isset($href_url['host'])) {
+            $href_url['host'] = '';
+        }
 
         /* Only concern ourselves with HTTP and FTP links. */
         if (!isset($href_url['scheme']) ||

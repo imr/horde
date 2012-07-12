@@ -3,15 +3,17 @@
  * The Agora script to post a new message, edit an existing message, or reply
  * to a message.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Marko Djukic <marko@oblo.com>
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+/* TODO total message count doesn't increase in forum and threads view
+ * (cache problem) */
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('agora');
 
 list($forum_id, $message_id, $scope) = Agora::getAgoraId();
@@ -22,7 +24,7 @@ $vars->set('scope', $scope);
 $formname = $vars->get('formname');
 
 /* Set up the messages control object. */
-$messages = &Agora_Messages::singleton($scope, $forum_id);
+$messages = $injector->getInstance('Agora_Factory_Driver')->create($scope, $forum_id);
 if ($messages instanceof PEAR_Error) {
     $notification->push(_("Could not post the message: ") . $messages->getMessage(), 'horde.warning');
     Horde::url('forums.php', true)->redirect();
@@ -119,9 +121,9 @@ $notification->notify(array('listeners' => 'status'));
 $view->notify = Horde::endBuffer();
 
 Horde::startBuffer();
-$form->renderActive(null, $vars, 'edit.php', 'post');
+$form->renderActive(null, $vars, Horde::url('message/edit.php'), 'post');
 $view->formbox = Horde::endBuffer();
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
-echo $view->render('messages/edit.html.php');
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->header();
+echo $view->render('messages/edit');
+$page_output->footer();

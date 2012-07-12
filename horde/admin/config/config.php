@@ -1,15 +1,17 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../../lib/Application.php';
-Horde_Registry::appInit('horde', array('admin' => true));
+require_once __DIR__ . '/../../lib/Application.php';
+Horde_Registry::appInit('horde', array(
+    'permission' => array('horde:administration:configuration')
+));
 
 if (!Horde_Util::extensionExists('domxml') &&
     !Horde_Util::extensionExists('dom')) {
@@ -48,27 +50,11 @@ if (Horde_Util::getFormData('submitbutton') == _("Revert Configuration")) {
     }
 } elseif ($form->validate($vars)) {
     $config = new Horde_Config($app);
-    $php = $config->generatePHPConfig($vars);
-    if (file_exists($configFile)) {
-        if (@copy($configFile, $path . '/conf.bak.php')) {
-            $notification->push(sprintf(_("Successfully saved the backup configuration file %s."), Horde_Util::realPath($path . '/conf.bak.php')), 'horde.success');
-        } else {
-            $notification->push(sprintf(_("Could not save the backup configuration file %s."), Horde_Util::realPath($path . '/conf.bak.php')), 'horde.warning');
-        }
-    }
-    if ($fp = @fopen($configFile, 'w')) {
-        /* Can write, so output to file. */
-        fwrite($fp, $php);
-        fclose($fp);
-        $notification->push(sprintf(_("Successfully wrote %s"), Horde_Util::realPath($configFile)), 'horde.success');
-        $registry->rebuild();
+    if ($config->writePHPConfig($vars, $php)) {
         Horde::url('admin/config/index.php', true)->redirect();
     } else {
-        /* Cannot write. */
-        $notification->push(sprintf(_("Could not save the configuration file %s. You can either use one of the options to save the code back on %s or copy manually the code below to %s."), Horde_Util::realPath($configFile), Horde::link(Horde::url('admin/config/index.php') . '#update', _("Configuration")) . _("Configuration") . '</a>', Horde_Util::realPath($configFile)), 'horde.warning', array('content.raw'));
-
-        /* Save to session. */
-        $session->set('horde', 'config/' . $app, $php);
+        $notification->push(sprintf(_("Could not save the configuration file %s. You can either use one of the options to save the code back on %s or copy manually the code below to %s."), Horde_Util::realPath($configFile), Horde::link(Horde::url('admin/config/index.php') . '#update', _("Configuration")) . _("Configuration") . '</a>', Horde_Util::realPath($configFile)), 'horde.warning', array('content.raw', 'sticky'));
+        $page_output->addInlineScript('document.observe(\'Growler:linkClick\', function(e) { window.location.assign(e.memo.href); });');
     }
 } elseif ($form->isSubmitted()) {
     $notification->push(_("There was an error in the configuration form. Perhaps you left out a required field."), 'horde.error');
@@ -86,16 +72,25 @@ if ($session->exists('horde', 'config/' . $app)) {
 $template->set('diff_popup', $diff_link, true);
 $template->setOption('gettext', true);
 
-require HORDE_TEMPLATES . '/common-header.inc';
+Horde::startBuffer();
 require HORDE_TEMPLATES . '/admin/menu.inc';
+$menu_output = Horde::endBuffer();
 
 /* Render the configuration form. */
 $renderer = $form->getRenderer();
 $renderer->setAttrColumnWidth('50%');
 
+/* Buffer the form template */
 Horde::startBuffer();
-$form->renderActive($renderer, $vars, 'config.php', 'post');
+$form->renderActive($renderer, $vars, Horde::url('admin/config/config.php'), 'post');
 $template->set('form', Horde::endBuffer());
 
+/* Send headers */
+$page_output->header(array(
+    'title' => $title
+));
+
+/* Output page */
+echo $menu_output;
 echo $template->fetch(HORDE_TEMPLATES . '/admin/config/config.html');
-require HORDE_TEMPLATES . '/common-footer.inc';
+$page_output->footer();

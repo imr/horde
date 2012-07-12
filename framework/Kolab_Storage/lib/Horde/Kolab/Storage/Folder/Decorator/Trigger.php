@@ -7,7 +7,7 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
@@ -17,7 +17,7 @@
  * Copyright 2008-2010 Klarälvdalens Datakonsult AB
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Gunnar Wrobel <wrobel@pardus.de>
  * @package Kolab_Storage
@@ -38,10 +38,9 @@ extends Horde_Kolab_Storage_Folder_Decorator_Base
      * @param Horde_Kolab_Storage_Folder $folder The folder to be decorated.
      * @param Horde_Log_Logger           $logger The logger.
      */
-    public function __construct(
-        Horde_Kolab_Storage_Folder $folder,
-        Horde_Log_Logger $logger
-    ) {
+    public function __construct(Horde_Kolab_Storage_Folder $folder,
+                                Horde_Log_Logger $logger)
+    {
         $this->_logger = $logger;
         parent::__construct($folder);
     }
@@ -73,7 +72,6 @@ extends Horde_Kolab_Storage_Folder_Decorator_Base
                                       $e->getMessage()), 'ERR');
         }
 
-
         /** Finally trigger the folder after saving.*/
         try {
             $this->trigger();
@@ -81,8 +79,6 @@ extends Horde_Kolab_Storage_Folder_Decorator_Base
             Horde::logMessage(sprintf('Failed triggering folder %s! Error was: %s',
                                       $this->name, $e->getMessage()), 'ERR');
         }
-
-
     }
 
     /**

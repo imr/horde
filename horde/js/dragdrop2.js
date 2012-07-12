@@ -85,7 +85,7 @@
  *     hoverclass: 'dragdrop',
  *
  *     // If true, will re-render caption if a keypress is detected while a
- *     // drop is active (useful forCTRL/SHIFT combo actions).
+ *     // drop is active (useful for CTRL/SHIFT combo actions).
  *     keypress: false
  * });
  *
@@ -121,7 +121,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * @author  Michael Slusarz <slusarz@horde.org>
  * @package Horde
@@ -135,10 +135,23 @@ var DragDrop = {
 
         register: function(obj)
         {
+            var func;
+
             if (!this.div) {
+                /* Once-only initialization. */
                 this.div = new Element('DIV', { className: obj.options.classname }).setStyle({ position: 'absolute' }).hide();
                 $(document.body).insert(this.div);
-                document.observe('mousedown', this._mouseHandler.bindAsEventListener(this));
+
+                func = this._mouseHandler.bindAsEventListener(this);
+                document.observe('mousedown', func);
+                document.observe('mousemove', func);
+                document.observe('mouseup', func);
+                document.observe('keydown', func);
+                document.observe('keyup', func);
+
+                if (Prototype.Browser.IE) {
+                    document.observe('selectstart', func);
+                }
             }
 
             this.drags.set(obj.element.identify(), obj);
@@ -166,34 +179,51 @@ var DragDrop = {
                 this.deactivate();
             }
             this.drag = drag;
-            this.mousemoveE = drag._mouseMove.bindAsEventListener(drag);
-            this.mouseupE = drag._mouseUp.bindAsEventListener(drag);
-            this.keypressE = drag._keyPress.bindAsEventListener(drag);
-            document.observe('mousemove', this.mousemoveE);
-            document.observe('mouseup', this.mouseupE);
-            document.observe('keydown', this.keypressE);
-            document.observe('keyup', this.keypressE);
         },
 
         deactivate: function()
         {
-            if (this.drag) {
-                this.drag = DragDrop.Drops.drop = null;
-                document.stopObserving('mousemove', this.mousemoveE);
-                document.stopObserving('mouseup', this.mouseupE);
-                document.stopObserving('keydown', this.keypressE);
-                document.stopObserving('keyup', this.keypressE);
-            }
+            this.drag = DragDrop.Drops.drop = null;
         },
 
         _mouseHandler: function(e)
         {
-            var elt = e.findElement('.DragElt');
-            if (this.drags.size() && elt) {
-                this.getDrag(elt).mouseDown(e);
+            var elt;
+
+            switch (e.type) {
+            case 'keydown':
+            case 'keyup':
+                if (this.drag) {
+                    this.drag._keyPress(e);
+                }
+                break;
+
+            case 'mousedown':
+                if (this.drags.size() &&
+                    (elt = e.findElement('.DragElt'))) {
+                    this.getDrag(elt).mouseDown(e);
+                }
+                break;
+
+            case 'mousemove':
+                if (this.drag) {
+                    this.drag._mouseMove(e);
+                }
+                break;
+
+            case 'mouseup':
+                if (this.drag) {
+                    this.drag._mouseUp(e);
+                }
+                break;
+
+            case 'selectstart':
+                if (this.drag) {
+                    e.stop();
+                }
+                break;
             }
         }
-
     },
 
     Drops: {
@@ -262,9 +292,7 @@ Drag = Class.create({
         // Stopping the event on mousedown works on all browsers, but avoid
         // that if possible because it will prevent any event handlers further
         // up the DOM tree from firing.
-        if (Prototype.Browser.IE) {
-            document.observe('selectstart', Event.stop);
-        } else if (Prototype.Browser.Gecko) {
+        if (Prototype.Browser.Gecko) {
             this.element.setStyle({ MozUserSelect: 'none' });
         }
     },
@@ -304,8 +332,8 @@ Drag = Class.create({
             }, this);
         }
 
-        // Stop event to prevent text selection. IE and Gecko are handled in
-        // initialize().
+        // Stop event to prevent text selection. Gecko is handled in
+        // initialize(); IE is handled by DragDrop selectstart event handler.
         if (!Prototype.Browser.IE && !Prototype.Browser.Gecko) {
             e.stop();
         }
@@ -470,6 +498,7 @@ Drag = Class.create({
 
         this.element.fire(this.wasMoved ? 'DragDrop2:end' : 'DragDrop2:mouseup', Object.clone(e));
 
+        this.wasMoved = false;
         tmp = null;
     },
 
@@ -514,7 +543,7 @@ Drag = Class.create({
             }
 
             if (d_update) {
-                this._updateCaption(d, div, e);
+                this._updateCaption(d, div, e, e.pointerX(), e.pointerY());
             }
         }
 
@@ -523,7 +552,7 @@ Drag = Class.create({
         }
     },
 
-    _updateCaption: function(d, div, e)
+    _updateCaption: function(d, div, e, x, y)
     {
         var caption, cname, c_opt, vo;
 
@@ -556,7 +585,7 @@ Drag = Class.create({
                     className: cname || this.options.classname
                 });
 
-                this.caption = this._prepareHover(div, e.pointerX(), e.pointerY(), 'caption');
+                this.caption = this._prepareHover(div, x, y, 'caption');
             }
         }
     },
@@ -594,7 +623,7 @@ Drag = Class.create({
     {
         if (DragDrop.Drops.drop &&
             DragDrop.Drops.drop.options.keypress) {
-            this._updateCaption(DragDrop.Drops.drop, DragDrop.Drags.div, e);
+            this._updateCaption(DragDrop.Drops.drop, DragDrop.Drags.div, e, this.lastCoord[0], this.lastCoord[1]);
         }
     },
 

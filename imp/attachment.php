@@ -8,17 +8,17 @@
  * Copyright 2004-2007 Andrew Coleman <mercury@appisolutions.net>
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Andrew Coleman <mercury@appisolutions.net>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 
 // We do not need to be authenticated to get the file. Most users won't send
 // linked attachments just to other IMP users.
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('imp', array('authentication' => 'none', 'session_control' => 'none'));
 
 // Lets see if we are even able to send the user an attachment.
@@ -27,8 +27,8 @@ if (!$conf['compose']['link_attachments']) {
 }
 
 // Gather required form variables.
-$vars = Horde_Variables::getDefaultVariables();
-if (!$vars->mail_user || !$vars->$time_stamp || !$vars->file_name) {
+$vars = $injector->getInstance('Horde_Variables');
+if (!$vars->u || !$vars->t || !$vars->f) {
     throw new IMP_Exception(_("The attachment was not found."));
 }
 
@@ -40,9 +40,9 @@ try {
 }
 
 // Check if the file exists.
-$mail_user = basename($vars->mail_user);
-$time_stamp = basename($vars->time_stamp);
-$file_name = escapeshellcmd(basename($vars->file_name));
+$mail_user = basename($vars->u);
+$time_stamp = basename($vars->t);
+$file_name = escapeshellcmd(basename($vars->f));
 $full_path = sprintf(IMP_Compose::VFS_LINK_ATTACH_PATH . '/%s/%d', $mail_user, $time_stamp);
 if (!$vfsroot->exists($full_path, $file_name)) {
     throw new IMP_Exception(_("The specified attachment does not exist. It may have been deleted by the original sender."));
@@ -87,7 +87,7 @@ if ($conf['compose']['link_attachments_notify']) {
                 /* Set up the mail headers and read the log file. */
                 $msg_headers = new Horde_Mime_Headers();
                 $msg_headers->addReceivedHeader(array(
-                    'dns' => $injector->getInstance('Net_DNS_Resolver'),
+                    'dns' => $injector->getInstance('Net_DNS2_Resolver'),
                     'server' => $conf['server']['name']
                 ));
                 $msg_headers->addMessageIdHeader();
@@ -96,6 +96,7 @@ if ($conf['compose']['link_attachments_notify']) {
                 $msg_headers->addHeader('From', $mail_address_full);
                 $msg_headers->addHeader('To', $mail_address_full);
                 $msg_headers->addHeader('Subject', _("Notification: Linked attachment downloaded"));
+                $msg_headers->addHeader('Auto-Submitted', 'auto-generated');
 
                 $msg = new Horde_Mime_Part();
                 $msg->setType('text/plain');
@@ -104,7 +105,8 @@ if ($conf['compose']['link_attachments_notify']) {
                 $d_url = new Horde_Url(Horde::selfUrl(true, false, true));
                 $msg->setContents(Horde_String::wrap(sprintf(_("Your linked attachment has been downloaded by at least one user.\n\nAttachment name: %s\nAttachment date: %s\n\nClick on the following link to permanently delete the attachment:\n%s"), $file_name, date('r', $time_stamp), $d_url->add('d', $id))));
 
-                $msg->send($mail_address, $msg_headers);
+                $msg->send($mail_address, $msg_headers,
+                           $GLOBALS['injector']->getInstance('Horde_Mail'));
             }
         } catch (Horde_Vfs_Exception $e) {
             Horde::logMessage($e, 'ERR');

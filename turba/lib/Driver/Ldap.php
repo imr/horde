@@ -2,15 +2,15 @@
 /**
  * Turba directory driver implementation for PHP's LDAP extension.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you did
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @author   Jon Parise <jon@csh.rit.edu>
  * @category Horde
- * @license  http://www.horde.org/licenses/asl.php ASL
+ * @license  http://www.horde.org/licenses/apache ASL
  * @package  Turba
  */
 class Turba_Driver_Ldap extends Turba_Driver
@@ -21,13 +21,6 @@ class Turba_Driver_Ldap extends Turba_Driver
      * @var resource
      */
     protected $_ds = 0;
-
-    /**
-     * Schema object.
-     *
-     * @var Net_LDAP_Schema
-     */
-    protected $_schema;
 
     /**
      * Cache _getSyntax() calls.
@@ -61,6 +54,19 @@ class Turba_Driver_Ldap extends Turba_Driver
         ), $params);
 
         parent::__construct($name, $params);
+    }
+
+    /**
+     * Initiate LDAP connection.
+     *
+     * Not done in __construct(), only when a read or write action is
+     * necessary.
+     */
+    protected function _connect()
+    {
+        if ($this->_ds) {
+            return;
+        }
 
         if (!($this->_ds = @ldap_connect($this->_params['server'], $this->_params['port']))) {
             throw new Turba_Exception(_("Connection failure"));
@@ -123,7 +129,7 @@ class Turba_Driver_Ldap extends Turba_Driver
                                 ? $hash[$mapfield]
                                 : '';
                         }
-                        $hash[$turbaname] = trim(vsprintf($this->map[$turbaname]['format'], $fieldarray), " \t\n\r\0\x0B,");
+                        $hash[$turbaname] = Turba::formatCompositeField($this->map[$turbaname]['format'], $fieldarray);
                     }
                 }
             }
@@ -147,6 +153,8 @@ class Turba_Driver_Ldap extends Turba_Driver
      */
     protected function _search(array $criteria, array $fields, array $blobFields = array())
     {
+        $this->_connect();
+
         /* Build the LDAP filter. */
         $filter = '';
         if (count($criteria)) {
@@ -193,30 +201,33 @@ class Turba_Driver_Ldap extends Turba_Driver
             : 'ldap_search';
 
         if (!($res = @$func($this->_ds, $this->_params['root'], $filter, $attr, 0, $sizelimit))) {
-            throw Turba_Exception(sprintf(_("Query failed: (%s) %s"), ldap_errno($this->_ds), ldap_error($this->_ds)));
+            throw new Turba_Exception(sprintf(_("Query failed: (%s) %s"), ldap_errno($this->_ds), ldap_error($this->_ds)));
         }
 
         return $this->_getResults($fields, $res);
     }
 
     /**
-     * Reads the LDAP directory for a given element and returns
-     * the results.
+     * Reads the LDAP directory for a given element and returns the results.
      *
-     * @param string $key    The primary key field to use.
-     * @param mixed $ids     The ids of the contacts to load.
-     * @param string $owner  Only return contacts owned by this user.
-     * @param array $fields  List of fields to return.
+     * @param string $key        The primary key field to use.
+     * @param mixed $ids         The ids of the contacts to load.
+     * @param string $owner      Only return contacts owned by this user.
+     * @param array $fields      List of fields to return.
+     * @param array $blobFields  Array of fields containing binary data.
      *
      * @return array  Hash containing the search results.
      * @throws Turba_Exception
      */
-    protected function _read($key, $ids, $owner, array $fields)
+    protected function _read($key, $ids, $owner, array $fields,
+                             array $blobFields = array())
     {
         /* Only DN. */
         if ($key != 'dn') {
             return array();
         }
+
+        $this->_connect();
 
         if (empty($this->_params['objectclass'])) {
             $filter = null;
@@ -232,7 +243,7 @@ class Turba_Driver_Ldap extends Turba_Driver
         }
 
         /* Handle a request for multiple records. */
-        if (is_array($ids)) {
+        if (is_array($ids) && !empty($ids)) {
             $results = array();
             foreach ($ids as $d) {
                 $res = @ldap_read($this->_ds, Horde_String::convertCharset($d, 'UTF-8', $this->_params['charset']), $filter, $attr);
@@ -246,7 +257,7 @@ class Turba_Driver_Ldap extends Turba_Driver
             return $results;
         }
 
-        $res = @ldap_read($this->_ds, Horde_String::convertCharset($ids, 'UTF-8', $this->_params['charset']), $filter, $attr);
+        $res = @ldap_read($this->_ds, Horde_String::convertCharset($this->_params['root'], 'UTF-8', $this->_params['charset']), $filter, $attr);
         if (!$res) {
             throw new Turba_Exception(sprintf(_("Read failed: (%s) %s"), ldap_errno($this->_ds), ldap_error($this->_ds)));
         }
@@ -255,19 +266,23 @@ class Turba_Driver_Ldap extends Turba_Driver
     }
 
     /**
-     * Adds the specified entry to the LDAP directory.
+     * Adds the specified contact to the addressbook.
      *
-     * @param array $attributes  The initial attributes for the new object.
+     * @param array $attributes  The attribute values of the contact.
+     * @param array $blob_fields TODO
      *
      * @throws Turba_Exception
      */
-    protected function _add(array $attributes)
+    protected function _add(array $attributes, array $blob_fields = array())
     {
         if (empty($attributes['dn'])) {
             throw new Turba_Exception('Tried to add an object with no dn: [' . serialize($attributes) . '].');
-        } elseif (empty($this->_params['objectclass'])) {
+        }
+        if (empty($this->_params['objectclass'])) {
             throw new Turba_Exception('Tried to add an object with no objectclass: [' . serialize($attributes) . '].');
         }
+
+        $this->_connect();
 
         /* Take the DN out of the attributes array. */
         $dn = $attributes['dn'];
@@ -329,6 +344,8 @@ class Turba_Driver_Ldap extends Turba_Driver
             throw new Turba_Exception(_("Invalid key specified."));
         }
 
+        $this->_connect();
+
         if (!@ldap_delete($this->_ds, Horde_String::convertCharset($object_id, 'UTF-8', $this->_params['charset']))) {
             throw new Turba_Exception(sprintf(_("Delete failed: (%s) %s"), ldap_errno($this->_ds), ldap_error($this->_ds)));
         }
@@ -342,8 +359,10 @@ class Turba_Driver_Ldap extends Turba_Driver
      * @return string  The object id, possibly updated.
      * @throw Turba_Exception
      */
-    protected function _save($object)
+    protected function _save(Turba_Object $object)
     {
+        $this->_connect();
+
         list($object_key, $object_id) = each($this->toDriverKeys(array('__key' => $object->getValue('__key'))));
         $attributes = $this->toDriverKeys($object->getAttributes());
 
@@ -395,6 +414,10 @@ class Turba_Driver_Ldap extends Turba_Driver
                     throw new Turba_Exception(sprintf(_("Modify failed: (%s) %s"), ldap_errno($this->_ds), ldap_error($this->_ds)));
                 }
                 unset($attributes[$key]);
+            } elseif (isset($attributes[$key]) &&
+                      $var[0] == $attributes[$key]) {
+                /* Drop unchanged elements from list of attributes to write. */
+                unset($attributes[$key]);
             }
         }
 
@@ -402,11 +425,17 @@ class Turba_Driver_Ldap extends Turba_Driver
         $this->_encodeAttributes($attributes);
         $attributes = array_filter($attributes, array($this, '_emptyAttributeFilter'));
 
-        /* Modify objectclass if old one is outdated. */
+        /* Modify objectclasses only if they really changed. */
+        $oldClasses = array_map(array('Horde_String', 'lower'), $info['objectclass']);
+        array_shift($oldClasses);
         $attributes['objectclass'] = array_unique(array_map('strtolower', array_merge($info['objectclass'], $this->_params['objectclass'])));
         unset($attributes['objectclass']['count']);
         $attributes['objectclass'] = array_values($attributes['objectclass']);
 
+        /* Do not handle object classes unless they have changed. */
+        if ((!array_diff($oldClasses, $attributes['objectclass']))) {
+            unset($attributes['objectclass']);
+        }
         if (!@ldap_modify($this->_ds, Horde_String::convertCharset($object_id, 'UTF-8', $this->_params['charset']), $attributes)) {
             throw new Turba_Exception(sprintf(_("Modify failed: (%s) %s"), ldap_errno($this->_ds), ldap_error($this->_ds)));
         }
@@ -619,26 +648,26 @@ class Turba_Driver_Ldap extends Turba_Driver
      */
     protected function _checkRequiredAttributes(array $objectclasses)
     {
-       $retval = array();
-       $schema = $this->_ldap->schema();
+        $ldap = new Horde_Ldap($this->_convertParameters($this->_params));
+        $schema = $ldap->schema();
 
-       foreach ($objectclasses as $oc) {
-           if (Horde_String::lower($oc) == 'top') {
-               continue;
-           }
+        $retval = array();
+        foreach ($objectclasses as $oc) {
+            if (Horde_String::lower($oc) == 'top') {
+                continue;
+            }
 
-           $required = $schema->must($oc);
+            $required = $schema->must($oc, true);
+            if (is_array($required)) {
+                foreach ($required as $v) {
+                    if ($this->_isString($v)) {
+                        $retval[] = Horde_String::lower($v);
+                    }
+                }
+            }
+        }
 
-           if (is_array($required)) {
-               foreach ($required as $v) {
-                   if ($this->_isString($v)) {
-                       $retval[] = Horde_String::lower($v);
-                   }
-               }
-           }
-       }
-
-       return $retval;
+        return $retval;
     }
 
     /**
@@ -695,7 +724,8 @@ class Turba_Driver_Ldap extends Turba_Driver
      */
     protected function _getSyntax($att)
     {
-        $schema = $this->_ldap->schema();
+        $ldap = new Horde_Ldap($this->_convertParameters($this->_params));
+        $schema = $ldap->schema();
 
         if (!isset($this->_syntaxCache[$att])) {
             $attv = $schema->get('attribute', $att);
@@ -707,4 +737,41 @@ class Turba_Driver_Ldap extends Turba_Driver
         return $this->_syntaxCache[$att];
     }
 
+    /**
+     * Converts Turba connection parameter so Horde_Ldap parameters.
+     *
+     * @param array $in  Turba parameters.
+     *
+     * @return array  Horde_Ldap parameters.
+     */
+    protected function _convertParameters(array $in)
+    {
+        $map = array(
+            'server' => 'hostspec',
+            'port' => 'port',
+            'tls' => 'tls',
+            'version' => 'version',
+            'root' => 'basedn',
+            'bind_dn' => 'binddn',
+            'bind_password' => 'bindpw',
+            // can both be specified in Turba but only one in Horde_Ldap.
+            //'objectclass',
+            //'filter' => 'filter',
+            'scope' => 'scope',
+            // charset is always utf-8
+            //'charset',
+            // Not yet implemented.
+            //'deref',
+            //'referrals',
+            //'sizelimit',
+            //'dn',
+        );
+        $out = array();
+        foreach ($in as $key => $value) {
+            if (isset($map[$key])) {
+                $out[$map[$key]] = $value;
+            }
+        }
+        return $out;
+    }
 }

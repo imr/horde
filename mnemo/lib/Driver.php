@@ -2,10 +2,10 @@
 /**
  * Mnemo_Driver:: defines an API for implementing storage backends for Mnemo.
  *
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL). If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author  Jon Parise <jon@horde.org>
  * @author  Michael J. Rubinsky <mrubinsk@horde.org>
@@ -34,7 +34,6 @@ abstract class Mnemo_Driver
      * @var Horde_Crypt_pgp
      */
     protected $_pgp;
-
 
     /**
      * Lists memos based on the given criteria. All memos will be
@@ -76,18 +75,41 @@ abstract class Mnemo_Driver
     }
 
     /**
+     * Remove ALL notes belonging to current user.
+     *
+     * @throws Mnemo_Exception
+     */
+    public function deleteAll()
+    {
+        $ids = $this->_deleteAll();
+
+        // Update History.
+        $history = $GLOBALS['injector']->getInstance('Horde_History');
+        try {
+            foreach ($ids as $id) {
+                $history->log(
+                    'mnemo:' . $this->_notepad . ':' . $id,
+                    array('action' => 'delete'),
+                    true);
+            }
+        } catch (Exception $e) {
+            Horde::logMessage($e, 'ERR');
+        }
+    }
+
+    /**
      * Loads the PGP encryption driver.
      *
      * @TODO: Inject *into* driver from the factory binder
      */
     protected function _loadPGP()
     {
-        if (empty($GLOBALS['conf']['utils']['gnupg'])) {
+        if (empty($GLOBALS['conf']['gnupg']['path'])) {
             throw new Mnemo_Exception(_("Encryption support has not been configured, please contact your administrator."));
         }
 
         $this->_pgp = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Crypt')->create('pgp', array(
-            'program' => $GLOBALS['conf']['utils']['gnupg']
+            'program' => $GLOBALS['conf']['gnupg']['path']
         ));
     }
 
@@ -232,4 +254,12 @@ abstract class Mnemo_Driver
      * @thows Mnemo_Exception
      */
     abstract public function retrieve();
+
+    /**
+     * Remove all notes belonging to the current notepad.
+     *
+     * @return array  An array of note uids that have been removed.
+     * @throws Mnemo_Exception
+     */
+    abstract protected function _deleteAll();
 }

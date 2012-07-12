@@ -2,6 +2,9 @@
 /**
  * The main Horde_Ldap class.
  *
+ * Copyright 2003-2007 Tarjej Huse, Jan Wagner, Del Elson, Benedikt Hallinger
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
+ *
  * @package   Ldap
  * @author    Tarjej Huse <tarjei@bergfald.no>
  * @author    Jan Wagner <wagner@netsols.de>
@@ -10,8 +13,6 @@
  * @author    Ben Klang <ben@alkaloid.net>
  * @author    Chuck Hagenbuch <chuck@horde.org>
  * @author    Jan Schneider <jan@horde.org>
- * @copyright 2009-2011 The Horde Project
- * @copyright 2003-2007 Tarjej Huse, Jan Wagner, Del Elson, Benedikt Hallinger
  * @license   http://www.gnu.org/licenses/lgpl-3.0.txt LGPLv3
  */
 class Horde_Ldap
@@ -134,6 +135,9 @@ class Horde_Ldap
      */
     public function __construct($config = array())
     {
+        if (!Horde_Util::loadExtension('ldap')) {
+            throw new Horde_Ldap_Exception('No PHP LDAP extension');
+        }
         $this->setConfig($config);
         $this->bind();
     }
@@ -493,7 +497,7 @@ class Horde_Ldap
         try {
             $rootDSE = $this->rootDSE();
         } catch (Exception $e) {
-            throw new Horde_Ldap_Exception('Unable to fetch rootDSE entry to see if TLS is supoported: ' . $e->getMessage(), $e->getCode());
+            throw new Horde_Ldap_Exception('Unable to fetch rootDSE entry to see if TLS is supported: ' . $e->getMessage(), $e->getCode());
         }
 
         try {
@@ -732,7 +736,7 @@ class Horde_Ldap
      * case its DN will be used.
      *
      * $params may contain:
-     * - scope: The scope which will be used for searching:
+     * - scope: The scope which will be used for searching, defaults to 'sub':
      *          - base: Just one entry
      *          - sub: The whole tree
      *          - one: Immediately below $base
@@ -866,7 +870,7 @@ class Horde_Ldap
             $filter,
             array('attributes' => array($this->_config['user']['uid'])));
         if (!$search->count()) {
-            throw new Horde_Exception_NotFound();
+            throw new Horde_Exception_NotFound('DN for user ' . $user . ' not found');
         }
         $entry = $search->shiftEntry();
         return $entry->currentDN();
@@ -1317,8 +1321,6 @@ class Horde_Ldap
     {
         if (!extension_loaded('ldap') && !@dl('ldap.' . PHP_SHLIB_SUFFIX)) {
             throw new Horde_Ldap_Exception('Unable to locate PHP LDAP extension. Please install it before using the Horde_Ldap package.');
-        } else {
-            return true;
         }
     }
 

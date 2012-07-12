@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * A modifiable message object.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Data_Modifiable
@@ -48,14 +48,17 @@ class Horde_Kolab_Storage_Data_Modifiable
 
     public function setPart($mime_id, $new_part)
     {
-        $this->_object[1]->getPart(0)->setContents('');
+        $part = $this->_object[1]->getPart(0);
+        if (!empty($part)) {
+            $part->setContents('');
+        }
         $this->_object[1]->alterPart($mime_id, $new_part);
         $this->_object[1]->buildMimeIds();
     }
 
     public function store()
     {
-        return $this->_driver->appendMessage(
+        $result = $this->_driver->appendMessage(
             $this->_folder,
             $this->_object[1]->toString(
                 array(
@@ -65,5 +68,11 @@ class Horde_Kolab_Storage_Data_Modifiable
                 )
             )
         );
+        if (is_object($result) || $result === false || $result === null) {
+            throw new Horde_Kolab_Storage_Exception(
+                'Unexpected return value when modifying an object!'
+            );
+        }
+        return $result;
     }
 }

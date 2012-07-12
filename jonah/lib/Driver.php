@@ -3,7 +3,7 @@
  * Jonah_Driver:: is responsible for storing, searching, sorting and filtering
  * locally generated and managed articles.  Aggregation is left to Hippo.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you did not
  * did not receive this file, see http://cvs.horde.org/co.php/jonah/LICENSE.
@@ -186,10 +186,11 @@ class Jonah_Driver
      */
     public function getStoryLink($channel, $story)
     {
-        $story_url = $channel->get('story_url');
-        if ((empty($story['url']) || !empty($story['body'])) &&
-            !empty($story_url)) {
-            $url = $story_url;
+        if (!empty($story['url']) && empty($story['body'])) {
+            $url = $story['url'];
+        } elseif ((empty($story['url']) || !empty($story['body'])) &&
+            !empty($channel['channel_story_url'])) {
+            $url = $channel['channel_story_url'];
         } else {
             $url = Horde::url('stories/view.php', true, -1)->add(array('channel_id' => '%c', 'id' => '%s'))->setRaw(false);
         }

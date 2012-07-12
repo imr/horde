@@ -7,27 +7,27 @@
  * @category Kolab
  * @package  Kolab_Server
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Server
  */
 
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/../../../../Autoload.php';
+require_once __DIR__ . '/../../../../Autoload.php';
 
 /**
  * Test the guid search operation.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Server
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Server
  */
 class Horde_Kolab_Server_Class_Server_Search_Operation_GuidTest
@@ -52,7 +52,7 @@ extends PHPUnit_Framework_TestCase
     public function testMethodGetStructureHasResultStructureTheStructureAssociatedWithThisSearch()
     {
         $search = new Horde_Kolab_Server_Search_Operation_Guid($this->structure);
-        $this->assertType('Horde_Kolab_Server_Structure_Interface', $search->getStructure());
+        $this->assertInstanceOf('Horde_Kolab_Server_Structure_Interface', $search->getStructure());
     }
 
     public function testMethodSearchguidHasResultArrayTheGuidsOfTheSearchResult()

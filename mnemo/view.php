@@ -1,13 +1,13 @@
 <?php
 /**
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL). If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @package Mnemo
  */
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('mnemo');
 
 /* Check if a passphrase has been sent. */
@@ -60,7 +60,7 @@ $modifiedby = '';
 if (!empty($memo['uid'])) {
     $log = $GLOBALS['injector']->getInstance('Horde_History')->getHistory('mnemo:' . $memolist_id . ':' . $memo['uid']);
     if ($log) {
-	foreach ($log as $entry) {
+    foreach ($log as $entry) {
             switch ($entry['action']) {
             case 'add':
                 $created = $entry['ts'];
@@ -112,23 +112,11 @@ if ($memo['body'] instanceof Mnemo_Exception) {
 }
 
 /* Set the page title to the current note's name, if it exists. */
-$title = $memo ? $memo['desc'] : _("Note Details");
-$print_view = (bool)Horde_Util::getFormData('print');
-if (!$print_view) {
-    Horde::addScriptFile('popup.js', 'horde', true);
-}
-require $registry->get('templates', 'horde') . '/common-header.inc';
-
-if ($print_view) {
-    require $registry->get('templates', 'horde') . '/javascript/print.js';
-} else {
-    $print_link = Horde_Util::addParameter('view.php', array('memo' => $memo_id,
-                                                       'memolist' => $memolist_id,
-                                                       'print' => 'true'));
-    $print_link = Horde::url($print_link);
-    Horde::addScriptFile('stripe.js', 'horde', true);
-    echo Horde::menu();
-}
-
+$page_output->addScriptFile('stripe.js', 'horde');
+$page_output->header(array(
+    'title' => $memo ? $memo['desc'] : _("Note Details")
+));
+echo Mnemo::menu();
+$notification->notify();
 require MNEMO_TEMPLATES . '/view/memo.inc';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

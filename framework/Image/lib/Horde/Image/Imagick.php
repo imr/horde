@@ -2,10 +2,10 @@
 /**
  * Imagick driver for the Horde_Image API
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Michael J. Rubinsky <mrubinsk@horde.org>
  * @package Image
@@ -129,12 +129,14 @@ class Horde_Image_Imagick extends Horde_Image_Base
      */
     public function setType($type)
     {
-        parent::setType($type);
+        $old = parent::setType($type);
         try {
             $this->_imagick->setImageFormat($this->_type);
         } catch (ImagickException $e) {
             // Don't care about an empty wand here.
         }
+
+        return $old;
     }
 
     /*

@@ -2,15 +2,29 @@
 /**
  * This class provides the data structure for a message flag.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
+ *
+ * @property string $abbreviation  The abbreviation to use in the mimp view.
+ * @property string $bgcolor  The background color.
+ * @property boolean $bgdefault  Is the backgroud color the default?
+ * @property boolean $canset  Can this flag be set by the user?
+ * @property string $css  The CSS class for the icon when the flag is set.
+ * @property string $cssicon  The CSS class for the icon.
+ * @property string $fgcolor  The foreground (text) color.
+ * @property string $form_set  Form value to use when setting flag.
+ * @property string $form_unset  Form value to use when unsetting flag.
+ * @property string $id  Unique ID.
+ * @property string $label  The query label.
+ * @property string $span  Return SPAN HTML to output the icon for use in a
+ *                         mailbox row.
  */
 abstract class IMP_Flag_Base implements Serializable
 {
@@ -60,26 +74,6 @@ abstract class IMP_Flag_Base implements Serializable
     protected $_id = '';
 
     /**
-     * Get object properties.
-     *
-     * @param string $name  Available properties:
-     * <pre>
-     * 'abbreviation' - (string) The abbreviation to use in the mimp view.
-     * 'bgcolor' - (string) The background color.
-     * 'bgdefault' - (boolean) Is the backgroud color the default?
-     * 'canset' - (boolean) Can this flag be set by the user?
-     * 'css' - (string) The CSS class for the icon when the flag is set.
-     * 'cssicon' - (string) The CSS class for the icon.
-     * 'div' - (string) Return DIV HTML to output the icon for use in a
-     *         mailbox row.
-     * 'fgcolor' - (string) The foreground (text) color.
-     * 'form_set' - (string) Form value to use when setting flag.
-     * 'form_unset' - (string) Form value to use when unsetting flag.
-     * 'id' - (string) Unique ID.
-     * 'label' - (string) The query label.
-     * </pre>
-     *
-     * @return mixed  Property value.
      */
     public function __get($name)
     {
@@ -106,9 +100,9 @@ abstract class IMP_Flag_Base implements Serializable
                 ? $this->_cssIcon
                 : $this->_css;
 
-        case 'div':
+        case 'span':
             return $this->_css
-                ? '<div class="iconImg msgflags ' . $this->css . '" title="' . htmlspecialchars($this->label) . '"></div>'
+                ? '<span class="iconImg msgflags ' . $this->css . '" title="' . htmlspecialchars($this->label) . '">&nbsp;</span>'
                 : '';
 
         case 'fgcolor':
@@ -134,9 +128,7 @@ abstract class IMP_Flag_Base implements Serializable
      * Set properties.
      *
      * @param string $name   Available properties:
-     * <pre>
-     * 'bgcolor' - (string) The background color.
-     * </pre>
+     *   - bgcolor: (string) The background color.
      * @param string $value  Property value.
      */
     public function __set($name, $value)
@@ -187,7 +179,10 @@ abstract class IMP_Flag_Base implements Serializable
      *
      * @return boolean  True if flag exists.
      */
-    abstract public function match($data);
+    public function match($data)
+    {
+        return false;
+    }
 
     /**
      * Return the flag label.

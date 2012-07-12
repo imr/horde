@@ -3,7 +3,7 @@
  <name>Horde_Text_Filter</name>
  <channel>pear.horde.org</channel>
  <summary>Horde Text Filter API</summary>
- <description>The Horde_Text_Filter library provides common methods for fitering and converting text.</description>
+ <description>Common methods for fitering and converting text.</description>
  <lead>
   <name>Chuck Hagenbuch</name>
   <user>chuck</user>
@@ -22,22 +22,31 @@
   <email>slusarz@horde.org</email>
   <active>yes</active>
  </developer>
- <date>2011-03-16</date>
- <time>18:19:27</time>
+ <date>2012-07-06</date>
+ <time>00:04:31</time>
  <version>
-  <release>1.0.0RC1</release>
-  <api>1.0.0</api>
+  <release>2.0.0beta1</release>
+  <api>1.1.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+ <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
  <notes>
-* First release candidate for Horde 4.
+* [mms] Merge upstream changes to jsmin filter that caused broken compression of jQuery Mobile file.
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
+   <dir name="doc">
+    <dir name="Horde">
+     <dir name="Text">
+      <dir name="Filter">
+       <file name="COPYING" role="doc" />
+      </dir> <!-- /doc/Horde/Text/Filter -->
+     </dir> <!-- /doc/Horde/Text -->
+    </dir> <!-- /doc/Horde -->
+   </dir> <!-- /doc -->
    <dir name="lib">
     <dir name="Horde">
      <dir name="Text">
@@ -337,7 +346,11 @@
     <dir name="Horde">
      <dir name="Text">
       <dir name="Filter">
+       <dir name="fixtures">
+        <file name="bug_11116.txt" role="test" />
+       </dir> <!-- /test/Horde/Text/Filter/fixtures -->
        <file name="AllTests.php" role="test" />
+       <file name="Autoload.php" role="test" />
        <file name="EmailsTest.php" role="test" />
        <file name="EnvironmentTest.php" role="test" />
        <file name="Html2textTest.php" role="test" />
@@ -355,7 +368,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -363,44 +376,38 @@
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Util</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
   <optional>
    <package>
-    <name>Horde_Text_Filter_Csstidy</name>
-    <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
-   </package>
-   <package>
     <name>Horde_Text_Flowed</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Translation</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </optional>
  </dependencies>
  <phprelease>
   <filelist>
+   <install as="COPYING" name="doc/Horde/Text/Filter/COPYING" />
    <install as="Horde/Text/Filter.php" name="lib/Horde/Text/Filter.php" />
    <install as="Horde/Text/Filter/Base.php" name="lib/Horde/Text/Filter/Base.php" />
    <install as="Horde/Text/Filter/Bbcode.php" name="lib/Horde/Text/Filter/Bbcode.php" />
@@ -511,6 +518,7 @@
    <install as="locale/zh_TW/LC_MESSAGES/Horde_Text_Filter.mo" name="locale/zh_TW/LC_MESSAGES/Horde_Text_Filter.mo" />
    <install as="locale/zh_TW/LC_MESSAGES/Horde_Text_Filter.po" name="locale/zh_TW/LC_MESSAGES/Horde_Text_Filter.po" />
    <install as="Horde/Text/Filter/AllTests.php" name="test/Horde/Text/Filter/AllTests.php" />
+   <install as="Horde/Text/Filter/Autoload.php" name="test/Horde/Text/Filter/Autoload.php" />
    <install as="Horde/Text/Filter/EmailsTest.php" name="test/Horde/Text/Filter/EmailsTest.php" />
    <install as="Horde/Text/Filter/EnvironmentTest.php" name="test/Horde/Text/Filter/EnvironmentTest.php" />
    <install as="Horde/Text/Filter/Html2textTest.php" name="test/Horde/Text/Filter/Html2textTest.php" />
@@ -519,6 +527,7 @@
    <install as="Horde/Text/Filter/Space2htmlTest.php" name="test/Horde/Text/Filter/Space2htmlTest.php" />
    <install as="Horde/Text/Filter/Text2htmlTest.php" name="test/Horde/Text/Filter/Text2htmlTest.php" />
    <install as="Horde/Text/Filter/XssTest.php" name="test/Horde/Text/Filter/XssTest.php" />
+   <install as="Horde/Text/Filter/fixtures/bug_11116.txt" name="test/Horde/Text/Filter/fixtures/bug_11116.txt" />
   </filelist>
  </phprelease>
  <changelog>
@@ -532,7 +541,7 @@
     <api>alpha</api>
    </stability>
    <date>2004-10-12</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 Initial release as a PEAR package
    </notes>
@@ -548,7 +557,7 @@ Initial release as a PEAR package
     <release>alpha</release>
     <api>alpha</api>
    </stability>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * Don&apos;t strip BASE tags when &apos;strip_styles&apos; is false.
 * Added ability to link &lt;test@example.com&gt; e-mail addresses in plain text.
@@ -568,7 +577,7 @@ Initial release as a PEAR package
     <api>alpha</api>
    </stability>
    <date>2011-03-08</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First alpha release for Horde 4.
 * Html2text filter will use horde/Text_Filter, if available, to wrap text.
@@ -596,9 +605,211 @@ Initial release as a PEAR package
     <api>beta</api>
    </stability>
    <date>2011-03-16</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * Horde_Text_Filter#filter() now throws an exception on error (Bug #9640).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-22</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* Second release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First stable release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-04-20</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Remove dependency on Horde_Text_Filter_Csstidy.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.2</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-04-24</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Fix deletion of unwanted HTML nodes in XSS filter.
+* [mms] Make sure tidy can parse incoming HTML string (Bug #9946).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.3</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-04-25</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Correct fix for deletion of unwanted HTML nodes in XSS filter.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.4</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-07-27</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Update Latvian translation.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.1.0</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-09-21</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Horde_Text_Filter_Text2Html now accepts a Horde_Text_Flowed object as input to filter(); allows proper quoting of input text.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.1.1</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-02</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Add some more questionable tags/attributes to strip in the XSS filter.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.1.2</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-12-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Fix unnecessary use of POSIX collating element in Linkurls filter (jr@yaina.de, Bug #10828).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.1.3</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2012-02-22</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Merge upstream updates to JsMin filter.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.1.4</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2012-04-10</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Fix preg backtrack issue in the Linkurls filter (Bug #11116).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.1.5</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2012-05-01</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Support definition lists in HTML-to-text filter (Nathan Barhorst).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First alpha release for Horde 5.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Merge upstream changes to jsmin filter that caused broken compression of jQuery Mobile file.
    </notes>
   </release>
  </changelog>

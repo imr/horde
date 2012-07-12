@@ -2,14 +2,14 @@
 /**
  * Login system task for performing periodical garbage collection.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_LoginTasks_SystemTask_GarbageCollection extends Horde_LoginTasks_SystemTask
@@ -36,25 +36,12 @@ class IMP_LoginTasks_SystemTask_GarbageCollection extends Horde_LoginTasks_Syste
         if ($GLOBALS['conf']['compose']['use_vfs']) {
             try {
                 $vfs = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Vfs')->create();
-                VFS_GC::gc($vfs, IMP_Compose::VFS_ATTACH_PATH, 86400);
+                Horde_Vfs_Gc::gc($vfs, IMP_Compose::VFS_ATTACH_PATH, 86400);
             } catch (Horde_Vfs_Exception $e) {}
         }
 
         /* Purge non-existent search sorts. */
-        $imp_search = $GLOBALS['injector']->getInstance('IMP_Search');
-        $update = false;
-        $sortpref = @unserialize($GLOBALS['prefs']->getValue('sortpref'));
-
-        foreach (array_keys($sortpref) as $key) {
-            if ($imp_search->isSearchMbox($key) && !$imp_search[$key]) {
-                unset($sortpref[$key]);
-                $update = true;
-            }
-        }
-
-        if ($update) {
-            $GLOBALS['prefs']->setValue('sortpref', serialize($sortpref));
-        }
+        $GLOBALS['injector']->getInstance('IMP_Prefs_Sort')->gc();
     }
 
 }

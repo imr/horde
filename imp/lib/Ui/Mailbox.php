@@ -3,14 +3,14 @@
  * The IMP_Ui_Mailbox:: class is designed to provide a place to store common
  * code shared among IMP's various UI views for the mailbox page.
  *
- * Copyright 2006-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2006-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Ui_Mailbox
@@ -46,90 +46,57 @@ class IMP_Ui_Mailbox
      * Get From address information for display on mailbox page.
      *
      * @param Horde_Imap_Client_Data_Envelope $ob  An envelope object.
-     * @param array $options                       Additional options:
-     *   - fullfrom: (boolean) If true, returns 'fullfrom' information.
-     *               DEFAULT: false
-     *   - specialchars: (string) If set, run 'from' return through
-     *                   htmlspecialchars() using the given charset.
      *
      * @return array  An array of information:
-     * <pre>
-     * 'error' - (boolean)
-     * 'from' - (string)
-     * 'fullfrom' - (string)
-     * 'to' - (boolean)
-     * </pre>
+     *   - from: (string) The personal part(s) of the From address.
+     *   - from_list: (Horde_Mail_Rfc822_List) From address list.
+     *   - to: (boolean) True if this is who the message was sent to.
      */
-    public function getFrom($ob, $options = array())
+    public function getFrom($ob)
     {
-        $ret = array('error' => false, 'to' => false);
-
-        if (empty($ob->from)) {
-            $ret['from'] = $ret['fullfrom'] = _("Invalid Address");
-            $ret['error'] = true;
-            return $ret;
-        }
+        $ret = array(
+            'from' => '',
+            'to' => false
+        );
 
         if (!isset($this->_cache['drafts_sm_folder'])) {
             $this->_cache['drafts_sm_folder'] = $this->_mailbox->special_outgoing;
         }
 
-        $from = Horde_Mime_Address::getAddressesFromObject($ob->from, array('charset' => 'UTF-8'));
-        $from = reset($from);
+        if ($GLOBALS['injector']->getInstance('IMP_Identity')->hasAddress($ob->from)) {
+            if (!$this->_cache['drafts_sm_folder']) {
+                $ret['from'] = _("To:") . ' ';
+            }
+            $ret['to'] = true;
+            $addrs = $ob->to;
 
-        if (empty($from)) {
-            $ret['from'] = _("Invalid Address");
-            $ret['error'] = true;
+            if (!count($addrs)) {
+                $ret['from'] .= _("Undisclosed Recipients");
+                $ret['from_list'] = new Horde_Mail_Rfc822_List();
+                return $ret;
+            }
         } else {
-            if ($GLOBALS['injector']->getInstance('IMP_Identity')->hasAddress($from['inner'])) {
-                /* This message was sent by one of the user's identity
-                 * addresses - show To: information instead. */
-                if (empty($ob->to)) {
-                    $ret['from'] = _("Undisclosed Recipients");
-                    $ret['error'] = true;
-                } else {
-                    $to = Horde_Mime_Address::getAddressesFromObject($ob->to, array('charset' => 'UTF-8'));
-                    $first_to = reset($to);
-                    if (empty($first_to)) {
-                        $ret['from'] = _("Undisclosed Recipients");
-                        $ret['error'] = true;
-                    } else {
-                        $ret['from'] = empty($first_to['personal'])
-                            ? $first_to['inner']
-                            : $first_to['personal'];
-                        if (!empty($options['fullfrom'])) {
-                            $ret['fullfrom'] = $first_to['display'];
-                        }
-                    }
-                }
-                if (!$this->_cache['drafts_sm_folder']) {
-                    $ret['from'] = _("To") . ': ' . $ret['from'];
-                }
-                $ret['to'] = true;
-            } else {
-                $ret['from'] = empty($from['personal'])
-                    ? $from['inner']
-                    : $from['personal'];
-                if ($this->_cache['drafts_sm_folder']) {
-                    $ret['from'] = _("From") . ': ' . $ret['from'];
-                }
-                if (!empty($options['fullfrom'])) {
-                    $ret['fullfrom'] = $from['display'];
-                }
+            $addrs = $ob->from;
+            if ($this->_cache['drafts_sm_folder']) {
+                $ret['from'] = _("From:") . ' ';
+            }
+
+            if (!count($addrs)) {
+                $ret['from'] = _("Invalid Address");
+                $ret['from_list'] = new Horde_Mail_Rfc822_List();
+                return $ret;
             }
         }
 
-        if (!empty($options['fullfrom']) && !isset($ret['fullfrom'])) {
-            $ret['fullfrom'] = $ret['from'];
+        $parts = array();
+
+        $addrs->unique();
+        foreach ($addrs->base_addresses as $val) {
+            $parts[] = $val->label;
         }
 
-        if (!empty($ret['from']) && !empty($options['specialchars'])) {
-            $res = @htmlspecialchars($ret['from'], ENT_QUOTES, $options['specialchars']);
-            if (empty($res)) {
-                $res = @htmlspecialchars($ret['from']);
-            }
-            $ret['from'] = $res;
-        }
+        $ret['from'] .= implode(', ', $parts);
+        $ret['from_list'] = $addrs;
 
         return $ret;
     }
@@ -143,15 +110,9 @@ class IMP_Ui_Mailbox
      */
     public function getSize($size)
     {
-        if (!isset($this->_cache['localeinfo'])) {
-            $this->_cache['localeinfo'] = Horde_Nls::getLocaleInfo();
-        }
-
-        $size = $size / 1024;
-
-        return ($size > 1024)
-            ? sprintf(_("%s MB"), number_format($size / 1024, 1, $this->_cache['localeinfo']['decimal_point'], $this->_cache['localeinfo']['thousands_sep']))
-            : sprintf(_("%s KB"), number_format($size, 0, $this->_cache['localeinfo']['decimal_point'], $this->_cache['localeinfo']['thousands_sep']));
+        return ($size >= 1048576)
+            ? sprintf(_("%s MB"), IMP::numberFormat($size / 1048576, 1))
+            : sprintf(_("%s KB"), IMP::numberFormat($size / 1024, 0));
     }
 
     /**
@@ -160,9 +121,9 @@ class IMP_Ui_Mailbox
      * @param mixed $date      The date object. Either a DateTime object or a
      *                         date string.
      * @param integer $format  Mask of formatting options:
-     *   - IMP_Mailbox_Ui::DATE_FORCE - Force use of date formatting, instead
+     *   - IMP_Ui_Mailbox::DATE_FORCE - Force use of date formatting, instead
      *                                  of time formatting, for all dates.
-     *   - IMP_Mailbox_Ui::DATE_FULL - Use full representation of date,
+     *   - IMP_Ui_Mailbox::DATE_FULL - Use full representation of date,
      *                                 including time information.
      *
      * @return string  The formatted date header.
@@ -209,15 +170,14 @@ class IMP_Ui_Mailbox
     /**
      * Formats the subject header.
      *
-     * @param string $subject     The MIME encoded subject header.
+     * @param string $subject     The subject header.
      * @param string $htmlspaces  HTML-ize spaces?
      *
      * @return string  The formatted subject header.
      */
     public function getSubject($subject, $htmlspaces = false)
     {
-        $subject = Horde_Mime::decode($subject, 'UTF-8');
-        if (empty($subject)) {
+        if (!strlen($subject)) {
             return _("[No Subject]");
         }
 
@@ -231,19 +191,6 @@ class IMP_Ui_Mailbox
         }
 
         return empty($new_subject) ? $subject : $new_subject;
-    }
-
-    /**
-     * Determines if a message is a draft and can be resumed.
-     *
-     * @param array $flags  The list of IMAP flags.
-     *
-     * @return boolean  True if the message is a draft.
-     */
-    public function isDraft($flags = array())
-    {
-        return (in_array(Horde_Imap_Client::FLAG_DRAFT, $flags) ||
-                $this->_mailbox->drafts);
     }
 
 }

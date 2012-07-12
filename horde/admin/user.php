@@ -1,15 +1,17 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
-Horde_Registry::appInit('horde', array('admin' => true));
+require_once __DIR__ . '/../lib/Application.php';
+Horde_Registry::appInit('horde', array(
+    'permission' => array('horde:administration:users')
+));
 
 $auth = $injector->getInstance('Horde_Core_Factory_Auth')->create();
 
@@ -116,7 +118,7 @@ case 'remove':
         try {
             $registry->removeUser($f_user_name);
             $notification->push(sprintf(_("Successfully removed \"%s\" from the system."), $f_user_name), 'horde.success');
-        } catch (Horde_Auth_Exception $e) {
+        } catch (Horde_Exception $e) {
             $notification->push(sprintf(_("There was a problem removing \"%s\" from the system: ") . $e->getMessage(), $f_user_name), 'horde.error');
         }
     }
@@ -136,7 +138,7 @@ case 'clear':
         try {
             $registry->removeUserData($f_user_name);
             $notification->push(sprintf(_("Successfully cleared data for user \"%s\" from the system."), $f_user_name), 'horde.success');
-        } catch (Horde_Auth_Exception $e) {
+        } catch (Horde_Exception $e) {
             $notification->push(sprintf(_("There was a problem clearing data for user \"%s\" from the system: ") . $e->getMessage(), $f_user_name), 'horde.error');
         }
     }
@@ -175,7 +177,15 @@ case 'update':
             }
         }
     }
-
+    if ($auth->hasCapability('lock')) {
+        $user_locked = Horde_Util::getPost('user_locked');
+        /* only execute lock/unlock if it would result in a change */
+        if (($auth->isLocked($user_name_2)) && (!$user_locked)) {
+            $auth->unlockUser($user_name_2);
+        } elseif ((!$auth->isLocked($user_name_2)) && ($user_locked)) {
+            $auth->lockUser($user_name_2);
+        }
+    }
     $identity = $injector->getInstance('Horde_Core_Factory_Identity')->create($user_name_1);
     $identity->setValue('fullname', $fullname);
     $identity->setValue('from_addr', $email);
@@ -213,16 +223,17 @@ case 'removequeued':
     break;
 }
 
-Horde::addScriptFile('stripe.js', 'horde');
+$page_output->addScriptFile('stripe.js', 'horde');
 if (isset($update_form) && $auth->hasCapability('list')) {
-    Horde::addScriptFile('userupdate.js', 'horde');
-    Horde::addInlineJsVars(array(
+    $page_output->addScriptFile('userupdate.js', 'horde');
+    $page_output->addInlineJsVars(array(
         'HordeAdminUserUpdate.pass_error' => _("Passwords must match.")
     ));
 }
 
-$title = _("User Administration");
-require HORDE_TEMPLATES . '/common-header.inc';
+$page_output->header(array(
+    'title' => _("User Administration")
+));
 require HORDE_TEMPLATES . '/admin/menu.inc';
 
 if (isset($update_form) && $auth->hasCapability('list')) {
@@ -276,4 +287,4 @@ if ($auth->hasCapability('list')) {
     require HORDE_TEMPLATES . '/admin/user/nolist.inc';
 }
 
-require HORDE_TEMPLATES . '/common-footer.inc';
+$page_output->footer();

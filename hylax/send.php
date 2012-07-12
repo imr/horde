@@ -3,10 +3,10 @@
  * The Hylax script to show a fax view.
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 $hylax = Horde_Registry::appInit('hylax');
 
 $fax_id = Horde_Util::getFormData('fax_id');
@@ -55,7 +55,7 @@ require_once 'Horde/Form/Renderer.php';
 $renderer = new Horde_Form_Renderer();
 
 Horde::startBuffer();
-$form->renderActive($renderer, $vars, 'send.php', 'post');
+$form->renderActive($renderer, $vars, Horde::url('send.php'), 'post');
 $send_form = Horde::endBuffer();
 
 /* Set up template. */
@@ -68,6 +68,8 @@ Horde::startBuffer();
 $notification->notify(array('listeners' => 'status'));
 $template->set('notify', Horde::endBuffer());
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 echo $template->fetch(HYLAX_TEMPLATES . '/fax/fax.html');
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

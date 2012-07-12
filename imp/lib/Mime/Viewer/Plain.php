@@ -3,15 +3,15 @@
  * The IMP_Mime_Viewer_Plain class renders out text/plain MIME parts
  * with URLs made into hyperlinks.
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Anil Madhavapeddy <anil@recoil.org>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Mime_Viewer_Plain extends Horde_Mime_Viewer_Plain
@@ -33,7 +33,7 @@ class IMP_Mime_Viewer_Plain extends Horde_Mime_Viewer_Plain
         $data = $this->_impRender(false);
         $item = reset($data);
         Horde::startBuffer();
-        Horde::includeStylesheetFiles();
+        $GLOBALS['page_output']->includeStylesheetFiles();
         $item['data'] = '<html><head>' . Horde::endBuffer() . '</head><body>' . $item['data'] . '</body></html>';
         $data[key($data)] = $item;
         return $data;
@@ -73,7 +73,6 @@ class IMP_Mime_Viewer_Plain extends Horde_Mime_Viewer_Plain
             return array(
                 $mime_id => array(
                     'data' => '',
-                    'status' => array(),
                     'type' => 'text/html; charset=' . $charset
                 )
             );
@@ -100,12 +99,20 @@ class IMP_Mime_Viewer_Plain extends Horde_Mime_Viewer_Plain
 
         $text = IMP::filterText($text);
 
-        /* Done processing if in mimp mode. */
-        if ($GLOBALS['session']->get('imp', 'view') == 'mimp') {
+        /* Done processing if in minimal mode. */
+        if ($GLOBALS['registry']->getView() == Horde_Registry::VIEW_MINIMAL) {
+            $filters = array(
+                'text2html' => array(
+                    'charset' => $charset,
+                    'parselevel' => Horde_Text_Filter_Text2html::NOHTML_NOBREAK
+                )
+            );
+
+            $text = $this->_textFilter($text, array_keys($filters), array_values($filters));
+
             return array(
                 $mime_id => array(
                     'data' => $text,
-                    'status' => array(),
                     'type' => $type
                 )
             );
@@ -127,12 +134,22 @@ class IMP_Mime_Viewer_Plain extends Horde_Mime_Viewer_Plain
                 (($show == 'hidden') ||
                  (($show == 'thread') && (basename(Horde::selfUrl()) == 'thread.php')));
             if (!$hideBlocks && in_array($show, array('list', 'listthread'))) {
-                $header = $this->getConfigParam('imp_contents')->getHeaderOb();
+                $header = $this->getConfigParam('imp_contents')->getHeader();
                 $imp_ui = new IMP_Ui_Message();
                 $list_info = $imp_ui->getListInformation($header);
                 $hideBlocks = $list_info['exists'];
             }
-            $filters['highlightquotes'] = array('hideBlocks' => $hideBlocks, 'noJS' => !$inline, 'outputJS' => false);
+
+            if ($inline) {
+                $filters['highlightquotes'] = array(
+                    'hideBlocks' => $hideBlocks,
+                    'noJS' => ($GLOBALS['registry']->getView() == Horde_Registry::VIEW_DYNAMIC)
+                );
+            } else {
+                $filters['Horde_Text_Filter_Highlightquotes'] = array(
+                    'hideBlocks' => $hideBlocks
+                );
+            }
         }
 
         // Highlight simple markup of an email.
@@ -161,7 +178,6 @@ class IMP_Mime_Viewer_Plain extends Horde_Mime_Viewer_Plain
         return array(
             $mime_id => array(
                 'data' => "<div class=\"fixed leftAlign\">\n" . $text . '</div>',
-                'status' => array(),
                 'type' => $type
             )
         );
@@ -241,7 +257,8 @@ class IMP_Mime_Viewer_Plain extends Horde_Mime_Viewer_Plain
 
             case Horde_Crypt_Pgp::ARMOR_MESSAGE:
                 $part = new Horde_Mime_Part();
-                $part->setType('multipart/signed');
+                $part->setType('multipart/encrypted');
+                $part->setMetadata(IMP_Mime_Viewer_Pgp::PGP_ARMOR, true);
                 // TODO: add micalg parameter
                 $part->setContentTypeParameter('protocol', 'application/pgp-encrypted');
 
@@ -277,13 +294,14 @@ class IMP_Mime_Viewer_Plain extends Horde_Mime_Viewer_Plain
 
                     $part2 = new Horde_Mime_Part();
                     $part2->setType('application/pgp-signature');
-                    $part2->setContents(Horde_String::convertCharset(implode("\n", $val['data']) . "\n" . implode("\n", $sig['data']), $charset, 'UTF-8'));
+                    $part2->setContents(implode("\n", $val['data']) . "\n" . implode("\n", $sig['data']));
                     // A true pgp-signature part would only contain the
                     // detached signature. However, we need to carry around
                     // the entire armored text to verify correctly. Use a
                     // IMP-specific content-type parameter to clue the PGP
                     // driver into this fact.
-                    $part2->setMetadata('imp-pgp-signature', true);
+                    $part2->setMetadata(IMP_Mime_Viewer_Pgp::PGP_SIG, true);
+                    $part2->setMetadata(IMP_Mime_Viewer_Pgp::PGP_CHARSET, $charset);
 
                     $part->addPart($part1);
                     $part->addPart($part2);

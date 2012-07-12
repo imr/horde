@@ -5,18 +5,17 @@
  * This file defines Horde's application interface. Other Horde libraries
  * and applications can interact with Beatnik through this API.
  *
- * Copyright 2006-2010 Alkaloid Networks, LLC (http://projects.alkaloid.net/)
+ * Copyright 2006-2012 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file LICENSE for license information (BSD). If you did not
- * did not receive this file, see
- * http://www.opensource.org/licenses/bsd-license.html.
+ * See the enclosed file LICENSE for license information (GPL). If you did not
+ * did not receive this file, see http://www.horde.org/licenses/gpl
  *
- * @author  Ben Klang <ben@alkaloid.net>
+ * @author  Ben Klang <bklang@horde.org>
  * @package Beatnik
  */
 
 if (!defined('BEATNIK_BASE')) {
-    define('BEATNIK_BASE', dirname(__FILE__). '/..');
+    define('BEATNIK_BASE', __DIR__. '/..');
 }
 
 if (!defined('HORDE_BASE')) {
@@ -36,11 +35,11 @@ require_once HORDE_BASE . '/lib/core.php';
 
 class Beatnik_Application extends Horde_Registry_Application
 {
-    public $version = 'H4 (1.0-git)';
+    public $version = 'H5 (1.0-git)';
     public $driver = null;
     public $domains = null;
 
-    function _init()
+    protected function _init()
     {
         $this->driver = Beatnik_Driver::factory();
 

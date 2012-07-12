@@ -7,22 +7,22 @@
  * @category Horde
  * @package  Core
  * @author   Michael Slusarz <slusarz@horde.org>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Core
  */
 
 /**
  * A Horde_Injector:: based Horde_Tree:: factory.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Core
  * @author   Michael Slusarz <slusarz@horde.org>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Core
  */
 class Horde_Core_Factory_Tree extends Horde_Core_Factory_Base
@@ -46,7 +46,7 @@ class Horde_Core_Factory_Tree extends Horde_Core_Factory_Base
      *               DEFAULT: false
      * </pre>
      *
-     * @return Horde_Tree_Base  The singleton instance.
+     * @return Horde_Tree_Renderer_Base  The singleton instance.
      * @throws Horde_Tree_Exception
      */
     public function create($name, $renderer, array $params = array())
@@ -57,26 +57,28 @@ class Horde_Core_Factory_Tree extends Horde_Core_Factory_Base
         if (!isset($this->_instances[$id])) {
             switch ($lc_renderer) {
             case 'html':
-                $renderer = 'Horde_Core_Tree_Html';
+                $renderer = 'Horde_Core_Tree_Renderer_Html';
                 break;
 
             case 'javascript':
-                $renderer = 'Horde_Core_Tree_Javascript';
+                $renderer = 'Horde_Core_Tree_Renderer_Javascript';
                 break;
 
             case 'simplehtml':
-                $renderer = 'Horde_Core_Tree_Simplehtml';
+                $renderer = 'Horde_Core_Tree_Renderer_Simplehtml';
                 break;
             }
 
+            $params['name'] = $name;
+
             if (empty($params['nosession'])) {
                 $params['session'] = array(
-                    'get' => array($this, 'getSession'),
-                    'set' => array($this, 'setSession')
+                    'get' => array(__CLASS__, 'getSession'),
+                    'set' => array(__CLASS__, 'setSession')
                 );
             }
 
-            $this->_instances[$id] = Horde_Tree::factory($name, $renderer, $params);
+            $this->_instances[$id] = Horde_Tree_Renderer::factory($renderer, $params);
         }
 
         return $this->_instances[$id];
@@ -84,14 +86,14 @@ class Horde_Core_Factory_Tree extends Horde_Core_Factory_Base
 
     /**
      */
-    public function getSession($instance, $id, $mask = 0)
+    static public function getSession($instance, $id, $mask = 0)
     {
         return $GLOBALS['session']->get('horde', 'tree-' . $instance . '/' . $id, $mask);
     }
 
     /**
      */
-    public function setSession($instance, $id, $val)
+    static public function setSession($instance, $id, $val)
     {
         if ($val) {
             $GLOBALS['session']->set('horde', 'tree-' . $instance . '/' . $id, $val);

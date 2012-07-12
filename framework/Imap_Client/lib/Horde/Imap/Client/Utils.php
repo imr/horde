@@ -1,20 +1,19 @@
 <?php
 /**
- * Horde_Imap_Client_Utils provides utility functions for the Horde IMAP
- * client.
+ * Utility functions for the Horde IMAP client.
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * getBaseSubject() code adapted from imap-base-subject.c (Dovecot 1.2)
- *   Original code released under the LGPL v2.1
+ *   Original code released under the LGPL-2.0.1
  *   Copyright (c) 2002-2008 Timo Sirainen <tss@iki.fi>
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Imap_Client
  */
 class Horde_Imap_Client_Utils
@@ -22,23 +21,20 @@ class Horde_Imap_Client_Utils
     /**
      * Create an IMAP message sequence string from a list of indices.
      *
-     * <pre>
      * Index Format: range_start:range_end,uid,uid2,...
+     *
      * Mailbox Format: {mbox_length}[mailbox]range_start:range_end,uid,uid2,...
-     * </pre>
      *
      * @param mixed $in       An array of indices (or a single index). See
      *                        'mailbox' below.
      * @param array $options  Additional options:
-     * <pre>
-     * 'mailbox' - (boolean) If true, store mailbox information with the
-     *             ID list.  $ids should be an array of arrays, with keys as
-     *             mailbox names and values as IDs.
+     *   - mailbox: (boolean) If true, store mailbox information with the
+     *              ID list.  $in should be an array of arrays, with keys as
+     *              mailbox names and values as IDs.
+     *              DEFAULT: false
+     *   - nosort: (boolean) Do not numerically sort the IDs before creating
+     *             the range?
      *             DEFAULT: false
-     * 'nosort' - (boolean) Do not numerically sort the IDs before creating
-     *            the range?
-     *            DEFAULT: false
-     * </pre>
      *
      * @return string  The IMAP message sequence string.
      */
@@ -101,9 +97,9 @@ class Horde_Imap_Client_Utils
 
     /**
      * Parse an IMAP message sequence string into a list of indices.
-     * See Horde_Imap_Client_Utils::toSequenceString() for allowed formats.
+     * See toSequenceString() for allowed formats.
      *
-     * @see self::toSequenceString()
+     * @see toSequenceString()
      *
      * @param string $str  The IMAP message sequence string.
      *
@@ -210,22 +206,20 @@ class Horde_Imap_Client_Utils
      *
      * @param string $str     The original subject string.
      * @param array $options  Additional options:
-     * <pre>
-     * 'keepblob' - (boolean) Don't remove any "blob" information (i.e. text
-     *              leading text between square brackets) from string.
-     * </pre>
+     *   - keepblob: (boolean) Don't remove any "blob" information (i.e. text
+     *               leading text between square brackets) from string.
      *
      * @return string  The cleaned up subject string.
      */
     public function getBaseSubject($str, $options = array())
     {
-        // Rule 1a: MIME decode to UTF-8.
-        $str = Horde_Mime::decode($str, 'UTF-8');
+        // Rule 1a: MIME decode.
+        $str = Horde_Mime::decode($str);
 
         // Rule 1b: Remove superfluous whitespace.
-        $str = preg_replace("/\b\s+\b/", ' ', $str);
+        $str = preg_replace("/[\t\r\n ]+/", ' ', $str);
 
-        if (!$str) {
+        if (!strlen($str)) {
             return '';
         }
 
@@ -260,37 +254,32 @@ class Horde_Imap_Client_Utils
      * Parse a POP3 (RFC 2384) or IMAP (RFC 5092/5593) URL.
      *
      * Absolute IMAP URLs takes one of the following forms:
-     * <pre>
-     * imap://<iserver>[/]
-     * imap://<iserver>/<enc-mailbox>[<uidvalidity>][?<enc-search>]
-     * imap://<iserver>/<enc-mailbox>[<uidvalidity>]<iuid>
-     *  [<isection>][<ipartial>][<iurlauth>]
-     * </pre>
+     *   - imap://<iserver>[/]
+     *   - imap://<iserver>/<enc-mailbox>[<uidvalidity>][?<enc-search>]
+     *   - imap://<iserver>/<enc-mailbox>[<uidvalidity>]<iuid>[<isection>][<ipartial>][<iurlauth>]
      *
      * POP URLs take one of the following forms:
-     * pop://<user>;auth=<auth>@<host>:<port>
+     *   - pop://<user>;auth=<auth>@<host>:<port>
      *
      * @param string $url  A URL string.
      *
      * @return mixed  False if the URL is invalid.  If valid, an array with
      *                the following fields:
-     * <pre>
-     * 'auth' - (string) The authentication method to use.
-     * 'hostspec' - (string) The remote server. (Not present for relative
-     *              URLs).
-     * 'mailbox' - (string) The IMAP mailbox.
-     * 'partial' - (string) A byte range for use with IMAP FETCH.
-     * 'port' - (integer) The remote port. (Not present for relative URLs).
-     * 'relative' - (boolean) True if this is a relative URL.
-     * 'search' - (string) A search query to be run with IMAP SEARCH.
-     * 'section' - (string) A MIME part ID.
-     * 'type' - (string) Either 'imap' or 'pop'. (Not present for relative
-     *          URLs).
-     * 'username' - (string) The username to use on the remote server.
-     * 'uid' - (string) The IMAP UID.
-     * 'uidvalidity' - (integer) The IMAP UIDVALIDITY for the given mailbox.
-     * 'urlauth' - (string) URLAUTH info (not parsed).
-     * </pre>
+     *   - auth: (string) The authentication method to use.
+     *   - hostspec: (string) The remote server. (Not present for relative
+     *               URLs).
+     *   - mailbox: (string) The IMAP mailbox.
+     *   - partial: (string) A byte range for use with IMAP FETCH.
+     *   - port: (integer) The remote port. (Not present for relative URLs).
+     *   - relative: (boolean) True if this is a relative URL.
+     *   - search: (string) A search query to be run with IMAP SEARCH.
+     *   - section: (string) A MIME part ID.
+     *   - type: (string) Either 'imap' or 'pop'. (Not present for relative
+     *           URLs).
+     *   - username: (string) The username to use on the remote server.
+     *   - uid: (string) The IMAP UID.
+     *   - uidvalidity: (integer) The IMAP UIDVALIDITY for the given mailbox.
+     *   - urlauth: (string) URLAUTH info (not parsed).
      */
     public function parseUrl($url)
     {
@@ -316,7 +305,7 @@ class Horde_Imap_Client_Utils
 
         /* Check for username/auth information. */
         if (isset($data['user'])) {
-            if (($pos = stripos($url, ';AUTH=')) !== false) {
+            if (($pos = stripos($data['user'], ';AUTH=')) !== false) {
                 $auth = substr($data['user'], $pos + 6);
                 if ($auth != '*') {
                     $ret_array['auth'] = $auth;
@@ -324,7 +313,9 @@ class Horde_Imap_Client_Utils
                 $data['user'] = substr($data['user'], 0, $pos);
             }
 
-            $ret_array['username'] = $data['user'];
+            if (strlen($data['user'])) {
+                $ret_array['username'] = $data['user'];
+            }
         }
 
         /* IMAP-only information. */
@@ -338,7 +329,7 @@ class Horde_Imap_Client_Utils
                     $ret_array['uidvalidity'] = substr($mbox, $pos + 13);
                     $mbox = substr($mbox, 0, $pos);
                 }
-                $ret_array['mailbox'] = $mbox;
+                $ret_array['mailbox'] = urldecode($mbox);
 
             }
 
@@ -422,6 +413,127 @@ class Horde_Imap_Client_Utils
     }
 
     /**
+     * Parses a client command array to create a server command string.
+     *
+     * @param string $out         The unprocessed command string.
+     * @param callback $callback  A callback function to use if literal data
+     *                            is found. Two arguments are passed: the
+     *                            command string (as built so far) and the
+     *                            literal data. The return value should be the
+     *                            new value for the current command string.
+     * @param array $query        An array with the following format:
+     * <ul>
+     *  <li>
+     *   Array
+     *   <ul>
+     *    <li>
+     *     Array with keys 't' and 'v'
+     *     <ul>
+     *      <li>t: IMAP data type (Horde_Imap_Client::DATA_* constants)</li>
+     *      <li>v: Data value</li>
+     *     </ul>
+     *    </li>
+     *    <li>
+     *     Array with only values
+     *     <ul>
+     *      <li>Treated as a parenthesized list</li>
+     *     </ul>
+     *    </li>
+     *   </ul>
+     *  </li>
+     *  <li>
+     *   Null
+     *   <ul>
+     *    <li>Ignored</li>
+     *   </ul>
+     * </li>
+     *  <li>
+     *   Resource
+     *   <ul>
+     *    <li>Treated as literal data</li>
+     *   </ul>
+     * </li>
+     *  <li>
+     *   String
+     *   <ul>
+     *    <li>Output as-is (raw)</li>
+     *   </ul>
+     *  </li>
+     * </ul>
+     *
+     * @return string  The command string.
+     */
+    public function parseCommandArray($query, $callback = null, $out = '')
+    {
+        foreach ($query as $val) {
+            if (is_null($val)) {
+                continue;
+            }
+
+            if (is_array($val)) {
+                if (isset($val['t'])) {
+                    if ($val['t'] == Horde_Imap_Client::DATA_NUMBER) {
+                        $out .= intval($val['v']);
+                    } elseif (($val['t'] != Horde_Imap_Client::DATA_ATOM) &&
+                              preg_match('/[\x80-\xff\n\r]/', $val['v'])) {
+                        if (is_callable($callback)) {
+                            $out = call_user_func_array($callback, array($out, $val['v']));
+                        }
+                    } else {
+                        switch ($val['t']) {
+                        case Horde_Imap_Client::DATA_ASTRING:
+                        case Horde_Imap_Client::DATA_MAILBOX:
+                            /* Only requires quoting if an atom-special is
+                             * present (besides resp-specials). */
+                            $out .= $this->escape($val['v'], preg_match('/[\x00-\x1f\x7f\(\)\{\s%\*"\\\\]/', $val['v']));
+                            break;
+
+
+                        case Horde_Imap_Client::DATA_ATOM:
+                            $out .= $val['v'];
+                            break;
+
+                        case Horde_Imap_Client::DATA_STRING:
+                            /* IMAP strings MUST be quoted. */
+                            $out .= $this->escape($val['v'], true);
+                            break;
+
+                        case Horde_Imap_Client::DATA_DATETIME:
+                            $out .= '"' . $val['v'] . '"';
+                            break;
+
+                        case Horde_Imap_Client::DATA_LISTMAILBOX:
+                            $out .= $this->escape($val['v'], preg_match('/[\x00-\x1f\x7f\(\)\{\s"\\\\]/', $val['v']));
+                            break;
+
+                        case Horde_Imap_Client::DATA_NSTRING:
+                            $out .= strlen($val['v'])
+                                ? $this->escape($val['v'], true)
+                                : 'NIL';
+                            break;
+                        }
+                    }
+                } else {
+                    $out = rtrim($this->parseCommandArray($val, $callback, $out . '(')) . ')';
+                }
+
+                $out .= ' ';
+            } elseif (is_resource($val)) {
+                /* Resource indicates literal data. */
+                if (is_callable($callback)) {
+                    $out = call_user_func_array($callback, array($out, $val)) . ' ';
+                }
+            } else {
+                $out .= $val . ' ';
+            }
+        }
+
+        return $out;
+    }
+
+    /* Internal methods. */
+
+    /**
      * Remove all prefix text of the subject that matches the subj-leader
      * ABNF.
      *
@@ -434,49 +546,46 @@ class Horde_Imap_Client_Utils
     {
         $ret = false;
 
-        if (!$str) {
+        if (!strlen($str)) {
             return $ret;
         }
 
-        if ($str[0] == ' ') {
-            $str = substr($str, 1);
+        if ($len = strspn($str, " \t")) {
+            $str = substr($str, $len);
             $ret = true;
         }
 
         $i = 0;
 
         if (!$keepblob) {
-            while ($str[$i] == '[') {
+            while (isset($str[$i]) && ($str[$i] == '[')) {
                 if (($i = $this->_removeBlob($str, $i)) === false) {
                     return $ret;
                 }
             }
         }
 
-        $cmp_str = substr($str, $i);
-        if (stripos($cmp_str, 're') === 0) {
+        if (stripos($str, 're', $i) === 0) {
             $i += 2;
-        } elseif (stripos($cmp_str, 'fwd') === 0) {
+        } elseif (stripos($str, 'fwd', $i) === 0) {
             $i += 3;
-        } elseif (stripos($cmp_str, 'fw') === 0) {
+        } elseif (stripos($str, 'fw', $i) === 0) {
             $i += 2;
         } else {
             return $ret;
         }
 
-        if ($str[$i] == ' ') {
-            ++$i;
-        }
+        $i += strspn($str, " \t", $i);
 
         if (!$keepblob) {
-            while ($str[$i] == '[') {
+            while (isset($str[$i]) && ($str[$i] == '[')) {
                 if (($i = $this->_removeBlob($str, $i)) === false) {
                     return $ret;
                 }
             }
         }
 
-        if ($str[$i] != ':') {
+        if (!isset($str[$i]) || ($str[$i] != ':')) {
             return $ret;
         }
 

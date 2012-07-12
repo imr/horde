@@ -3,20 +3,20 @@
  * Test cases for Ingo_Script_sieve:: class
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author     Jason M. Felice <jason.m.felice@gmail.com>
  * @package    Ingo
  * @subpackage UnitTests
  */
 
-require_once dirname(__FILE__) . '/TestBase.php';
+require_once __DIR__ . '/TestBase.php';
 
 class Ingo_SieveTest extends Ingo_TestBase {
 
     function store($ob)
     {
-        return $GLOBALS['ingo_storage']->store($ob);
+        $GLOBALS['ingo_storage']->store($ob);
     }
 
     function setUp()
@@ -24,17 +24,17 @@ class Ingo_SieveTest extends Ingo_TestBase {
         $GLOBALS['conf']['spam'] = array('enabled' => true,
                                          'char' => '*',
                                          'header' => 'X-Spam-Level');
-        $GLOBALS['ingo_storage'] = Ingo_Storage::factory(
-            'mock',
-            array('maxblacklist' => 3,
-                  'maxwhitelist' => 3));
-        $GLOBALS['ingo_script'] = Ingo_Script::factory(
-            'sieve',
-            array('spam_compare' => 'string',
-                  'spam_header' => 'X-Spam-Level',
-                  'spam_char' => '*',
-                  'date_format' => '%x',
-                  'time_format' => '%R'));
+        $GLOBALS['ingo_storage'] = new Ingo_Storage_Mock(array(
+            'maxblacklist' => 3,
+            'maxwhitelist' => 3
+        ));
+        $GLOBALS['ingo_script'] = new Ingo_Script_Sieve(array(
+            'spam_compare' => 'string',
+            'spam_header' => 'X-Spam-Level',
+            'spam_char' => '*',
+            'date_format' => '%x',
+            'time_format' => '%R'
+        ));
     }
 
     function testForwardKeep()

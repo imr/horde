@@ -125,27 +125,9 @@ th {
 #tags {
     padding: 4px;
 }
-#tags li {
-    list-style: none;
-}
-#tagform {
+#tags form {
     white-space: nowrap;
-    padding: 4px;
-}
-.tag-list {
-    display: inline;
-    margin: 0;
-    padding: 0;
-    list-style-type: none;
-    font-size: 80%;
-}
-.tag-list li {
-    margin: 0;
-    padding: 0 .2em;
-    display: inline;
-}
-.tag-list img {
-    vertical-align: middle;
+    margin-top: 4px;
 }
 #gallery-actions a:hover {
     text-decoration: underline;
@@ -260,9 +242,8 @@ a.latest:link, a.latest:visited, a.latest:hover, a.latest:active {
     padding: 3px;
 }
 .image-tile-highlight {
-    background-color: red;
+    background-color: #ccc;
 }
-
 /* Actions */
 .anselActions {
     margin-left: 0;
@@ -305,7 +286,7 @@ a.latest:link, a.latest:visited, a.latest:hover, a.latest:active {
     height: 18px;
 }
 
- /* Google Map stuff */
+ /* Map */
 #ansel_map {
     width:100%;
     height:250px;
@@ -350,6 +331,11 @@ a.latest:link, a.latest:visited, a.latest:hover, a.latest:active {
     font-style: italic;
 }
 
+/* OL specific tweaks */
+.olControlZoomPanel {
+  top: 10px !important;
+}
+
 /* Autocomplete styles. */
 .autocomplete {
     background: #f4f4f4;
@@ -383,6 +369,14 @@ a.latest:link, a.latest:visited, a.latest:hover, a.latest:active {
 .uploaderContainer {
     border: solid 1px #999999;
     margin: 3px;
+}
+.uploadnotification {
+  min-height: 20px;
+  padding-left: 8px;
+}
+.twitterbutton {
+  background: url('graphics/twitter.png') none-repeat;
+  padding-left: 16px !important;
 }
 
 /* Horizontal Carousel */

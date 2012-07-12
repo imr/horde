@@ -1,23 +1,38 @@
 <?php
 /**
- * Connector class for exporting ActiveSync messages to the wbxml output stream.
- * Contains code written by the Z-Push project. Original file header preserved
- * below.
+ * Horde_ActiveSync_Connector_Exporter::
  *
- * @copyright 2010-2011 The Horde Project (http://www.horde.org)
- * @author Michael J. Rubinsky <mrubinsk@horde.org>
- * @package ActiveSync
+ * Portions of this class were ported from the Z-Push project:
+ *   File      :   wbxml.php
+ *   Project   :   Z-Push
+ *   Descr     :   WBXML mapping file
+ *
+ *   Created   :   01.10.2007
+ *
+ *   � Zarafa Deutschland GmbH, www.zarafaserver.de
+ *   This file is distributed under GPL-2.0.
+ *   Consult COPYING file for details
+ *
+ * @license   http://www.horde.org/licenses/gpl GPLv2
+ *            NOTE: According to sec. 8 of the GENERAL PUBLIC LICENSE (GPL),
+ *            Version 2, the distribution of the Horde_ActiveSync module in or
+ *            to the United States of America is excluded from the scope of this
+ *            license.
+ * @copyright 2009-2012 Horde LLC (http://www.horde.org)
+ * @author    Michael J Rubinsky <mrubinsk@horde.org>
+ * @package   ActiveSync
  */
 /**
- * File      :   streamimporter.php
- * Project   :   Z-Push
- * Descr     :   Stream import classes
+ * Horde_ActiveSync_Connector_Exporter:: Outputs necessary wbxml to device.
  *
- * Created   :   01.10.2007
- *
- * � Zarafa Deutschland GmbH, www.zarafaserver.de
- * This file is distributed under GPL v2.
- * Consult LICENSE file for details
+ * @license   http://www.horde.org/licenses/gpl GPLv2
+ *            NOTE: According to sec. 8 of the GENERAL PUBLIC LICENSE (GPL),
+ *            Version 2, the distribution of the Horde_ActiveSync module in or
+ *            to the United States of America is excluded from the scope of this
+ *            license.
+ * @copyright 2009-2012 Horde LLC (http://www.horde.org)
+ * @author    Michael J Rubinsky <mrubinsk@horde.org>
+ * @package   ActiveSync
  */
 class Horde_ActiveSync_Connector_Exporter
 {
@@ -73,7 +88,9 @@ class Horde_ActiveSync_Connector_Exporter
      *
      * @return Horde_ActiveSync_Connector_Exporter
      */
-    public function __construct($encoder = null, $class = null)
+    public function __construct(
+        Horde_ActiveSync_Wbxml_Encoder $encoder = null,
+        $class = null)
     {
         $this->_encoder = $encoder;
         $this->_class = $class;
@@ -82,34 +99,34 @@ class Horde_ActiveSync_Connector_Exporter
     /**
      * Send a message change over the wbxml stream
      *
-     * @param string $id                              Thenuid of the message
+     * @param string $id                              The uid of the message
      * @param Horde_ActiveSync_Message_Base $message  The message object
      *
      * @return boolean
      */
-    public function messageChange($id, $message)
+    public function messageChange($id, Horde_ActiveSync_Message_Base $message)
     {
-        /* Just ignore any messages that are not from this collection */
+        // Just ignore any messages that are not from this collection
         if ($message->getClass() != $this->_class) {
             return true;
         }
 
-        /* Prevent sending the same object twice in one request */
+        // Prevent sending the same object twice in one request
         if (in_array($id, $this->_seenObjects)) {
         	return true;
         }
 
-        /* Remember this message */
+        // Remember this message
         $this->_seenObjects[] = $id;
 
-        /* Specify if this is an ADD or a MODIFY change? */
+        // Specify if this is an ADD or a MODIFY change?
         if ($message->flags === false || $message->flags === Horde_ActiveSync::FLAG_NEWMESSAGE) {
             $this->_encoder->startTag(Horde_ActiveSync::SYNC_ADD);
         } else {
             $this->_encoder->startTag(Horde_ActiveSync::SYNC_MODIFY);
         }
 
-        /* Send the message */
+        // Send the message
         $this->_encoder->startTag(Horde_ActiveSync::SYNC_SERVERENTRYID);
         $this->_encoder->content($id);
         $this->_encoder->endTag();
@@ -147,21 +164,20 @@ class Horde_ActiveSync_Connector_Exporter
      *
      * @return boolean
      */
-    public function messageReadFlag($id, $flags)
+    public function messageReadFlag($id, $flag)
     {
-        /* This only applies to mail folders */
-        if ($this->_class != "syncmail") {
+        // This only applies to mail folders
+        if ($this->_class != Horde_ActiveSync::CLASS_EMAIL) {
             return true;
         }
-
         /* Encode and stream */
         $this->_encoder->startTag(Horde_ActiveSync::SYNC_MODIFY);
         $this->_encoder->startTag(Horde_ActiveSync::SYNC_SERVERENTRYID);
         $this->_encoder->content($id);
         $this->_encoder->endTag();
         $this->_encoder->startTag(Horde_ActiveSync::SYNC_DATA);
-        $this->_encoder->startTag(SYNC_POOMMAIL_READ);
-        $this->_encoder->content($flags);
+        $this->_encoder->startTag(Horde_ActiveSync_Message_Mail::POOMMAIL_READ);
+        $this->_encoder->content($flag);
         $this->_encoder->endTag();
         $this->_encoder->endTag();
         $this->_encoder->endTag();
@@ -169,9 +185,25 @@ class Horde_ActiveSync_Connector_Exporter
         return true;
     }
 
+    public function messageFlag($id, $flag)
+    {
+        $this->_encoder->startTag(Horde_ActiveSync::SYNC_MODIFY);
+        $this->_encoder->startTag(Horde_ActiveSync::SYNC_SERVERENTRYID);
+        $this->_encoder->content($id);
+        $this->_encoder->endTag();
+        $this->_encoder->startTag(Horde_ActiveSync::SYNC_DATA);
+        $pflag = new Horde_ActiveSync_Message_Flag();
+        $pflag->flagstatus = $flag == 1 ? Horde_ActiveSync_Message_Flag::FLAG_STATUS_ACTIVE : Horde_ActiveSync_Message_Flag::FLAG_STATUS_CLEAR;
+        $this->_encoder->startTag(Horde_ActiveSync_Message_Mail::POOMMAIL_FLAG);
+        $pflag->encodeStream($this->_encoder);
+        $this->_encoder->endTag();
+        $this->_encoder->endTag();
+        $this->_encoder->endTag();
+    }
+
     /**
      * Move a message to a different folder.
-     * @TODO
+     *
      * @param Horde_ActiveSync_Message_Base $message  The message
      *
      * @return boolean
@@ -182,13 +214,13 @@ class Horde_ActiveSync_Connector_Exporter
     }
 
     /**
-     * Add a folder change to the cache. (used during FolderSync Requests).
+     * Add a folder change to the cache (used during FolderSync requests).
      *
      * @param Horde_ActiveSync_Message_Folder $folder
      *
      * @return boolean
      */
-    public function folderChange($folder)
+    public function folderChange(Horde_ActiveSync_Message_Folder $folder)
     {
         array_push($this->changed, $folder);
         $this->count++;
@@ -210,4 +242,5 @@ class Horde_ActiveSync_Connector_Exporter
 
         return true;
     }
+
 }

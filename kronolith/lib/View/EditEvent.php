@@ -68,7 +68,7 @@ class Kronolith_View_EditEvent
         }
         if (!$this->_event->hasPermission(Horde_Perms::EDIT)) {
             try {
-                $calendar_id .= ':' . $this->_event->getShare()->get('owner');
+                $calendar_id .= '\\' . $this->_event->getShare()->get('owner');
             } catch (Exception $e) {
             }
         }
@@ -122,8 +122,9 @@ class Kronolith_View_EditEvent
             'full_weekdays' => true
         ));
 
-        Horde::addScriptFile('edit.js', 'kronolith');
-        Horde::addScriptFile('popup.js', 'horde');
+        global $page_output;
+        $page_output->addScriptFile('edit.js');
+        $page_output->addScriptFile('popup.js', 'horde');
 
         echo '<div id="EditEvent"' . ($active ? '' : ' style="display:none"') . '>';
         require KRONOLITH_TEMPLATES . '/edit/edit.inc';

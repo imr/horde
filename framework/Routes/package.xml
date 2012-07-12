@@ -4,7 +4,7 @@
  <channel>pear.horde.org</channel>
  <extends>Routes</extends>
  <summary>Horde Routes URL mapping system</summary>
- <description>This package provides classes for mapping URLs into the controllers and actions of an MVC system. It is a port of a Python library, Routes, by Ben Bangert (http://routes.groovie.org).</description>
+ <description>Classes for mapping URLs into the controllers and actions of an MVC system. It is a port of a Python library, Routes, by Ben Bangert (http://routes.groovie.org).</description>
  <lead>
   <name>Mike Naberezny</name>
   <user>mnaberez</user>
@@ -17,25 +17,26 @@
   <email>chuck@horde.org</email>
   <active>yes</active>
  </lead>
- <date>2011-03-16</date>
- <time>18:16:52</time>
+ <date>2012-07-05</date>
+ <time>23:57:44</time>
  <version>
-  <release>1.0.0RC1</release>
-  <api>1.0.0</api>
+  <release>2.0.0beta1</release>
+  <api>1.1.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+ <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
  <notes>
-* First release candidate for Horde 4.
+*
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
    <dir name="doc">
     <dir name="Horde">
      <dir name="Routes">
+      <file name="COPYING" role="doc" />
       <file name="integration.txt" role="doc" />
       <file name="manual.txt" role="doc" />
      </dir> <!-- /doc/Horde/Routes -->
@@ -46,6 +47,7 @@
      <dir name="Routes">
       <file name="Exception.php" role="php" />
       <file name="Mapper.php" role="php" />
+      <file name="Matcher.php" role="php" />
       <file name="Printer.php" role="php" />
       <file name="Route.php" role="php" />
       <file name="Utils.php" role="php" />
@@ -78,7 +80,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -86,18 +88,27 @@
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
+   </package>
+   <package>
+    <name>Horde_Util</name>
+    <channel>pear.horde.org</channel>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
  </dependencies>
  <phprelease>
   <filelist>
+   <install as="COPYING" name="doc/Horde/Routes/COPYING" />
    <install as="Horde/Routes/integration.txt" name="doc/Horde/Routes/integration.txt" />
    <install as="Horde/Routes/manual.txt" name="doc/Horde/Routes/manual.txt" />
    <install as="Horde/Routes/Exception.php" name="lib/Horde/Routes/Exception.php" />
    <install as="Horde/Routes/Mapper.php" name="lib/Horde/Routes/Mapper.php" />
+   <install as="Horde/Routes/Matcher.php" name="lib/Horde/Routes/Matcher.php" />
    <install as="Horde/Routes/Printer.php" name="lib/Horde/Routes/Printer.php" />
    <install as="Horde/Routes/Route.php" name="lib/Horde/Routes/Route.php" />
    <install as="Horde/Routes/Utils.php" name="lib/Horde/Routes/Utils.php" />
@@ -123,7 +134,7 @@
     <api>beta</api>
    </stability>
    <date>2009-03-04</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 * Added ability to pretty-print routes with Horde_Routes_Printer.
    </notes>
@@ -138,9 +149,119 @@
     <api>beta</api>
    </stability>
    <date>2011-03-16</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 * First beta release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-22</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* Second release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First stable release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.1.0</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-08-30</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* [mjr] Added Horde_Routes_Matcher helper class.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.1.1</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-08</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* [gwr] Only remove the "_controller" suffix if it exists.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.1.2</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-22</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* [jan] Make Horde_Routes_Utils::controllerScan() Windows compatible.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First alpha release for Horde 5.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+*
    </notes>
   </release>
  </changelog>

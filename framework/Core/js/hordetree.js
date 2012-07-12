@@ -13,10 +13,10 @@
  * 'Horde_Tree:collapse'
  *   Fired when a tree element is collapsed.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Marko Djukic <marko@oblo.com>
  * @author   Michael Slusarz <slusarz@horde.org>
@@ -26,9 +26,23 @@
 
 var Horde_Tree = Class.create({
 
+    charlist: 'abcdefghijklmnopqrstuvwxyz',
+    childid: '',
+    randstrlen: 4,
+    toggleid: '',
+
     initialize: function(opts)
     {
+        var i, randstr = '';
+
         this.opts = opts;
+
+        for (i = 0; i < this.randstrlen; ++i) {
+            randstr += this.charlist.charAt(Math.floor(Math.random() * 26));
+        }
+
+        this.childid = 'child_' + randstr + '_';
+        this.toggleid = 'toggle_' + randstr + '_';
 
         if (this.opts.initTree) {
             this.renderTree(this.opts.initTree.nodes, this.opts.initTree.root_nodes, this.opts.initTree.is_static);
@@ -36,8 +50,6 @@ var Horde_Tree = Class.create({
         }
 
         $(this.opts.target).observe('click', this._onClick.bindAsEventListener(this));
-
-        this.opts.ie6 = (navigator.userAgent.toLowerCase().substr(25,6)=="msie 6");
     },
 
     renderTree: function(nodes, rootNodes, renderStatic)
@@ -56,19 +68,6 @@ var Horde_Tree = Class.create({
 
         $(this.opts.target).update('');
         $(this.opts.target).appendChild(this.output);
-
-        if (this.opts.ie6) {
-            /* Correct for frame scrollbar in IE6 by determining if a scrollbar
-             * is present, and if not readjusting the marginRight property to
-             * 0. See http://www.xs4all.nl/~ppk/js/doctypes.html for why this
-             * works */
-            if (document.documentElement.clientHeight == document.documentElement.offsetHeight) {
-                // no scrollbar present, take away extra margin
-                $(document.body).setStyle({ marginRight: 0 });
-            } else {
-                $(document.body).setStyle({ marginRight: '15px' });
-            }
-        }
 
         // If using alternating row shading, work out correct shade.
         if (this.opts.options.alternate) {
@@ -113,7 +112,7 @@ var Horde_Tree = Class.create({
 
         if (!Object.isUndefined(node.children)) {
             last_subnode = node.children.last();
-            tmp = new Element('DIV', { id: 'nodeChildren_' + nodeId });
+            tmp = new Element('DIV', { id: this.childid + nodeId });
             [ tmp ].invoke(node.expanded ? 'show' : 'hide');
 
             node.children.each(function(c) {
@@ -254,7 +253,7 @@ var Horde_Tree = Class.create({
             this.dropline[node.indent] = !node.node_last;
         }
 
-        return new Element('SPAN', { id: "nodeToggle_" + nodeId }).addClassName('treeToggle').addClassName('treeImg').addClassName('treeImg' + this._getNodeToggle(nodeId));
+        return new Element('SPAN', { id: this.toggleid + nodeId }).addClassName('treeToggle').addClassName('treeImg').addClassName('treeImg' + this._getNodeToggle(nodeId));
     },
 
     _getNodeToggle: function(nodeId)
@@ -398,7 +397,7 @@ var Horde_Tree = Class.create({
         }
 
         node.expanded = !node.expanded;
-        if (children = $('nodeChildren_' + nodeId)) {
+        if (children = $(this.childid + nodeId)) {
             children.setStyle({ display: node.expanded ? 'block' : 'none' });
         }
 
@@ -419,7 +418,7 @@ var Horde_Tree = Class.create({
             this.stripe();
         }
 
-        if (toggle = $('nodeToggle_' + nodeId)) {
+        if (toggle = $(this.toggleid + nodeId)) {
             toggle.writeAttribute('class', 'treeToggle treeImg').addClassName('treeImg' + this._getNodeToggle(nodeId));
         }
 
@@ -503,8 +502,8 @@ var Horde_Tree = Class.create({
         }
 
         id = elt.readAttribute('id');
-        if (id && id.startsWith('nodeToggle_')) {
-            this.toggle(id.substr(11));
+        if (id && id.startsWith(this.toggleid)) {
+            this.toggle(id.substr(this.toggleid.length));
             e.stop();
         }
     }

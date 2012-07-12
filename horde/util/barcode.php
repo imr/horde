@@ -2,17 +2,17 @@
 /**
  * Barcode generator.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('horde', array('authentication' => 'none'));
 
 $vars = Horde_Variables::getDefaultVariables();

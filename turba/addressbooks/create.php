@@ -2,13 +2,13 @@
 /**
  * Turba addressbooks - create.
  *
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL). If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('turba');
 
 // Exit if this isn't an authenticated user, or if there's no source
@@ -34,8 +34,9 @@ if ($form->validate($vars)) {
     Horde::url('addressbooks/', true)->redirect();
 }
 
-$title = $form->getTitle();
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $form->getTitle()
+));
 require TURBA_TEMPLATES . '/menu.inc';
 echo $form->renderActive($form->getRenderer(), $vars, Horde::url('addressbooks/create.php'), 'post');
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

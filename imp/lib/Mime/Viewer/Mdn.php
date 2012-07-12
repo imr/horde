@@ -3,14 +3,14 @@
  * The IMP_Mime_Viewer_Mdn class handles multipart/report messages that
  * that refer to message disposition notification (MDN) messages (RFC 3798).
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Mime_Viewer_Mdn extends Horde_Mime_Viewer_Base
@@ -45,12 +45,6 @@ class IMP_Mime_Viewer_Mdn extends Horde_Mime_Viewer_Base
      */
     protected function _renderInline()
     {
-        /* If this is a straight message/disposition-notification part, just
-         * output the text. */
-        if ($this->_mimepart->getType() == 'message/disposition-notification') {
-            return $this->getConfigParam('imp_contents')->renderMIMEPart($this->_mimepart->getMIMEId(), IMP_Contents::RENDER_FULL, array('type' => 'text/plain'));
-        }
-
         return $this->_renderInfo();
     }
 
@@ -64,12 +58,8 @@ class IMP_Mime_Viewer_Mdn extends Horde_Mime_Viewer_Base
         $mdn_id = $this->_mimepart->getMimeId();
         $parts = array_keys($this->_mimepart->contentTypeMap());
 
-        $status = array(
-            array(
-                'icon' => Horde::img('info_icon.png', _("Info")),
-                'text' => array(_("A message you have sent has resulted in a return notification from the recipient."))
-            )
-        );
+        $status = new IMP_Mime_Status(_("A message you have sent has resulted in a return notification from the recipient."));
+        $status->icon('info_icon.png', _("Info"));
 
         /* RFC 3798 [3]: There are three parts to a delivery status
          * multipart/report message:
@@ -77,37 +67,30 @@ class IMP_Mime_Viewer_Mdn extends Horde_Mime_Viewer_Base
          *   (2) Machine parsable body part (message/disposition-notification)
          *   (3) Original message (optional) */
 
-        /* Print the human readable message. */
+        /* Get the human readable message. */
         reset($parts);
-        $curr_id = $first_id = next($parts);
-        $first_part = $this->getConfigParam('imp_contents')->renderMIMEPart($curr_id, IMP_Contents::RENDER_INLINE_AUTO);
+        $part1_id = next($parts);
 
         /* Display a link to more detailed message. */
-        $curr_id = Horde_Mime::mimeIdArithmetic($curr_id, 'next');
-        $part = $this->getConfigParam('imp_contents')->getMIMEPart($curr_id);
+        $part2_id = Horde_Mime::mimeIdArithmetic($part1_id, 'next');
+        $part = $this->getConfigParam('imp_contents')->getMIMEPart($part2_id);
         if ($part) {
-            $status[0]['text'][] = sprintf(_("Additional information can be viewed %s."), $this->getConfigParam('imp_contents')->linkViewJS($part, 'view_attach', _("HERE"), array('jstext' => _("Additional information details"), 'params' => array('mode' => IMP_Contents::RENDER_INLINE))));
+            $status->addText(sprintf(_("Technical details can be viewed %s."), $this->getConfigParam('imp_contents')->linkViewJS($part, 'view_attach', _("HERE"), array('jstext' => _("Technical details"), 'params' => array('ctype' => 'text/plain', 'mode' => IMP_Contents::RENDER_FULL)))));
         }
+        $ret[$part2_id] = null;
 
-        /* Display a link to the sent message. Try to download the text of
-           the message/rfc822 part first, if it exists. */
-        $curr_id = Horde_Mime::mimeIdArithmetic($curr_id, 'next');
-        $part = $this->getConfigParam('imp_contents')->getMIMEPart($curr_id);
+        /* Display a link to the sent message. */
+        $part3_id = Horde_Mime::mimeIdArithmetic($part2_id, 'next');
+        $part = $this->getConfigParam('imp_contents')->getMIMEPart($part3_id);
         if ($part) {
-            $status[0]['text'][] = sprintf(_("The text of the sent message can be viewed %s."), $this->getConfigParam('imp_contents')->linkViewJS($part, 'view_attach', _("HERE"), array('jstext' => _("The text of the sent message"))));
+            $status->addText(sprintf(_("The text of the sent message can be viewed %s."), $this->getConfigParam('imp_contents')->linkViewJS($part, 'view_attach', _("HERE"), array('jstext' => _("The text of the sent message"), 'params' => array('ctype' => 'message/rfc822', 'mode' => IMP_Contents::RENDER_FULL)))));
+            foreach ($part->contentTypeMap() as $key => $val) {
+                $ret[$key] = null;
+            }
         }
 
-        if (empty($first_part)) {
-            $data = '';
-        } else {
-            $status[0]['text'][] = _("The mail server generated the following informational message:");
-            $status = array_merge($status, $first_part[$first_id]['status']);
-            $data = $first_part[$first_id]['data'];
-        }
-
-        $ret = array_combine($parts, array_fill(0, count($parts), null));
         $ret[$mdn_id] = array(
-            'data' => $data,
+            'data' => '',
             'status' => $status,
             'type' => 'text/html; charset=' . $this->getConfigParam('charset'),
             'wrap' => 'mimePartWrap'

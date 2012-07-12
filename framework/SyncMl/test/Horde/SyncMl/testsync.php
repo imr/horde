@@ -9,10 +9,10 @@
  * See http://wiki.horde.org/SyncHowTo for a description how to create a test
  * case.
  *
- * Copyright 2006-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2006-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Karsten Fourmont <karsten@horde.org>
  * @package SyncML
@@ -86,7 +86,7 @@ require_once 'SyncML/Backend.php';
 
 /* Do Horde includes if test for horde backend: */
 if ($syncml_backend_driver == 'Horde') {
-    require_once dirname(__FILE__) . '/../../../lib/Application.php';
+    require_once __DIR__ . '/../../../lib/Application.php';
     Horde_Registry::appInit('horde', array('cli' => true, 'session_control' => 'none'));
 }
 
@@ -448,7 +448,7 @@ function testPre($name, $number)
             $result = $GLOBALS['testbackend']->addEntry($service, $data, $contentType);
             if (is_a($result, 'PEAR_Error')) {
                 echo "error importing data into $service:\n$data\n";
-                throw new Horde_Exception_Prior($result);
+                throw new Horde_Exception_Wrapped($result);
             }
 
             if ($debuglevel >= 2) {
@@ -520,7 +520,7 @@ function testPre($name, $number)
             $result = $GLOBALS['testbackend']->replaceEntry($service, $data, $contentType, $suid);
             if (is_a($result, 'PEAR_Error')) {
                 echo "Error replacing data $locuri suid=$suid!\n";
-                throw new Horde_Exception_Prior($result);
+                throw new Horde_Exception_Wrapped($result);
             }
 
             if ($debuglevel >= 2) {
@@ -559,7 +559,7 @@ function testPre($name, $number)
             // @TODO: simulate a delete by just faking some history data.
             if (is_a($result, 'PEAR_Error')) {
                 echo "Error deleting data $locuri!";
-                throw new Horde_Exception_Prior($result);
+                throw new Horde_Exception_Wrapped($result);
             }
             if ($debuglevel >= 2) {
                 echo "simulated $service delete of $suid!\n";

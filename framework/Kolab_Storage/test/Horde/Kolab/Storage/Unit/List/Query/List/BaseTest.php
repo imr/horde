@@ -8,28 +8,28 @@
  * @package    Kolab_Storage
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/../../../../Autoload.php';
+require_once __DIR__ . '/../../../../Autoload.php';
 
 /**
  * Test the basic list query.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category   Kolab
  * @package    Kolab_Storage
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Unit_List_Query_List_BaseTest
@@ -37,7 +37,7 @@ extends Horde_Kolab_Storage_TestCase
 {
     public function testByTypeReturnsArray()
     {
-        $this->assertType('array', $this->getNullQuery()->listByType('test'));
+        $this->assertInternalType('array', $this->getNullQuery()->listByType('test'));
     }
 
     public function testListCalendarsListsCalendars()
@@ -58,7 +58,7 @@ extends Horde_Kolab_Storage_TestCase
 
     public function testTypeReturnsArray()
     {
-        $this->assertType('array', $this->getNullQuery()->listTypes());
+        $this->assertInternalType('array', $this->getNullQuery()->listTypes());
     }
 
     public function testTypeReturnsAnnotations()
@@ -84,7 +84,7 @@ extends Horde_Kolab_Storage_TestCase
 
     public function testListOwnersReturn()
     {
-        $this->assertType(
+        $this->assertInternalType(
             'array',
             $this->getAnnotatedQuery()->listOwners()
         );
@@ -128,7 +128,7 @@ extends Horde_Kolab_Storage_TestCase
 
     public function testDefaultReturn()
     {
-        $this->assertType(
+        $this->assertInternalType(
             'string',
             $this->getNamespaceQuery()->getDefault('event')
         );
@@ -182,7 +182,7 @@ extends Horde_Kolab_Storage_TestCase
 
     public function testForeignDefaultReturn()
     {
-        $this->assertType(
+        $this->assertInternalType(
             'string',
             $this->getEventQuery()->getForeignDefault(
                 'someone@example.com', 'event'
@@ -269,7 +269,7 @@ extends Horde_Kolab_Storage_TestCase
 
     public function testDataByTypeReturnsArray()
     {
-        $this->assertType('array', $this->getNullQuery()->dataByType('test'));
+        $this->assertInternalType('array', $this->getNullQuery()->dataByType('test'));
     }
 
     public function testListCalendarsListsCalendarData()
@@ -311,81 +311,71 @@ extends Horde_Kolab_Storage_TestCase
      */
     public function testMissingFolderData()
     {
-        $this->assertType('array', $this->getNullQuery()->folderData('INBOX/Calendar'));
+        $this->assertInternalType('array', $this->getNullQuery()->folderData('INBOX/Calendar'));
     }
 
     public function testFolderDataReturnsArray()
     {
-        $this->assertType('array', $this->getAnnotatedQuery()->folderData('INBOX/Calendar'));
+        $this->assertInternalType('array', $this->getAnnotatedQuery()->folderData('INBOX/Calendar'));
     }
 
     public function testFolderDataHasOwner()
     {
         $data = $this->getAnnotatedQuery()->folderData('INBOX/Calendar');
-        $this->assertEquals(
-            'test@example.com',
-            $data['owner']
-        );
+        $this->assertEquals('test@example.com', $data['owner']);
     }
 
     public function testFolderDataHasTitle()
     {
         $data = $this->getAnnotatedQuery()->folderData('INBOX/Calendar');
-        $this->assertEquals(
-            'Calendar',
-            $data['name']
-        );
+        $this->assertEquals('Calendar', $data['name']);
     }
 
     public function testFolderDataHasType()
     {
         $data = $this->getAnnotatedQuery()->folderData('INBOX/Calendar');
-        $this->assertEquals(
-            'event',
-            $data['type']
-        );
+        $this->assertEquals('event', $data['type']);
     }
 
     public function testFolderDataHasDefault()
     {
         $data = $this->getAnnotatedQuery()->folderData('INBOX/Calendar');
-        $this->assertTrue(
-            $data['default']
-        );
+        $this->assertTrue($data['default']);
     }
 
     public function testMailFolderDataType()
     {
         $data = $this->getAnnotatedQuery()->folderData('INBOX');
-        $this->assertEquals(
-            'mail',
-            $data['type']
-        );
+        $this->assertEquals('mail', $data['type']);
     }
 
     public function testMailFolderDataNoDefault()
     {
         $data = $this->getAnnotatedQuery()->folderData('INBOX');
-        $this->assertFalse(
-            $data['default']
-        );
+        $this->assertFalse($data['default']);
     }
 
     public function testFolderDataHasNamespace()
     {
         $data = $this->getAnnotatedQuery()->folderData('INBOX/Calendar');
-        $this->assertEquals(
-            'personal',
-            $data['namespace']
-        );
+        $this->assertEquals('personal', $data['namespace']);
+    }
+
+    public function testFolderDataHasNamespacePrefix()
+    {
+        $data = $this->getAnnotatedQuery()->folderData('INBOX/Calendar');
+        $this->assertEquals('INBOX', $data['prefix']);
     }
 
     public function testFolderDataHasSubpath()
     {
         $data = $this->getAnnotatedQuery()->folderData('INBOX/Calendar');
-        $this->assertEquals(
-            'Calendar',
-            $data['subpath']
-        );
+        $this->assertEquals('Calendar', $data['subpath']);
+    }
+
+    public function testFolderDataHasDelimiter()
+    {
+        $data = $this->getAnnotatedQuery()->folderData('INBOX/Calendar');
+        $this->assertEquals('/', $data['delimiter']);
     }
 }

@@ -2,11 +2,11 @@
 /**
  * Require our basic test case definition
  */
-require_once dirname(__FILE__) . '/Autoload.php';
+require_once __DIR__ . '/Autoload.php';
 
 /**
  * @author     Jan Schneider <jan@horde.org>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @category   Horde
  * @package    Core
  * @subpackage UnitTests
@@ -290,6 +290,37 @@ class Horde_Core_UrlTest extends PHPUnit_Framework_TestCase
         }
     }
 
+    public function testFullUrl()
+    {
+        $GLOBALS['registry'] = new RegistryFull();
+        $GLOBALS['conf']['server']['name'] = 'www.example.com';
+        $GLOBALS['conf']['use_ssl'] = 1;
+
+        $this->assertEquals(
+            'http://www.example.com/hordeurl/foo',
+            (string)Horde::url('foo', true, array('append_session' => -1)));
+        $this->assertEquals(
+            'http://www.example.com/hordeurl/foo',
+            (string)Horde::url('/hordeurl/foo', true, array('append_session' => -1)));
+        $this->assertEquals(
+            'http://www.example.com/hordeurl/foo/bar',
+            (string)Horde::url('http://www.example.com/hordeurl/foo/bar', true, array('append_session' => -1)));
+    }
+
+    public function testBug9712()
+    {
+        $GLOBALS['registry'] = new Registry();
+
+        $GLOBALS['conf']['server']['name'] = 'example.com';
+        $GLOBALS['conf']['server']['port'] = 1443;
+        $GLOBALS['conf']['use_ssl'] = 2;
+
+        $this->assertEquals(
+            'https://example.com:1443/foo',
+            strval(Horde::url('https://example.com:1443/foo', true, array('append_session' => -1)))
+        );
+    }
+
     public function testSelfUrl()
     {
         $GLOBALS['registry'] = new Registry();
@@ -363,14 +394,24 @@ class Horde_Core_UrlTest extends PHPUnit_Framework_TestCase
     }
 }
 
-class Registry {
+class Registry
+{
     public function get()
     {
         return '/hordeurl';
     }
 }
 
-class Browser {
+class RegistryFull
+{
+    public function get()
+    {
+        return 'http://www.example.com/hordeurl';
+    }
+}
+
+class Browser
+{
     public function hasQuirk()
     {
         return false;

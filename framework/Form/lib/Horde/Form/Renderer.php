@@ -6,7 +6,7 @@
  * Copyright 2001-2007 Robert E. Coyle <robertecoyle@hotmail.com>
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Robert E. Coyle <robertecoyle@hotmail.com>
  * @package Form
@@ -131,12 +131,13 @@ class Horde_Form_Renderer {
         $open_section = $form->getOpenSection();
 
         /* Add the javascript for the toggling the sections. */
-        Horde::addScriptFile('form_sections.js', 'horde');
-        echo '<script type="text/javascript">' . "\n";
-        printf('var sections_%1$s = new Horde_Form_Sections(\'%1$s\', \'%2$s\');',
-               $form->getName(),
-               $open_section);
-        echo "\n" . '</script>';
+        $page = $GLOBALS['injector']->getInstance('Horde_PageOutput');
+        $page->deferScripts = false;
+        $page->addScriptFile('form_sections.js', 'horde');
+        $page->addInlineScript(
+            sprintf('var sections_%1$s = new Horde_Form_Sections(\'%1$s\', \'%2$s\');',
+                    $form->getName(),
+                    $open_section));
 
         /* Loop through the sections and print out a tab for each. */
         echo "<div class=\"tabset\"><ul>\n";
@@ -157,7 +158,7 @@ class Horde_Form_Renderer {
     {
         // Stripe alternate rows if that option is turned on.
         if ($this->_stripedRows && class_exists('Horde')) {
-            Horde::addScriptFile('stripe.js', 'horde');
+            $GLOBALS['injector']->getInstance('Horde_PageOutput')->addScriptFile('stripe.js', 'horde');
             $class = ' class="striped"';
         } else {
             $class = '';

@@ -7,22 +7,22 @@
  * @category Horde
  * @package  Core
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Core
  */
 
 /**
  * A Horde_Injector:: based Horde_Kolab_Session:: factory.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Core
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Core
  */
 class Horde_Core_Factory_KolabSession extends Horde_Core_Factory_Base
@@ -72,10 +72,20 @@ class Horde_Core_Factory_KolabSession extends Horde_Core_Factory_Base
      */
     public function createSession()
     {
-        $session = new Horde_Kolab_Session_Base(
-            $this->_injector->getInstance('Horde_Kolab_Server_Composite'),
-            $GLOBALS['conf']['kolab']
-        );
+        if (!empty($GLOBALS['conf']['kolab']['enabled']) &&
+	    !isset($GLOBALS['conf']['kolab']['users'])) {
+            $session = new Horde_Kolab_Session_Base(
+                $this->_injector->getInstance('Horde_Kolab_Server_Composite'),
+                $GLOBALS['conf']['kolab']
+            );
+        } else {
+            $session = new Horde_Kolab_Session_Imap(
+                new Horde_Kolab_Session_Factory_Imap(),
+                empty($GLOBALS['conf']['kolab']['enabled'])
+                    ? $GLOBALS['conf']['imap']
+                    : $GLOBALS['conf']['kolab']
+            );
+        }
 
         if (isset($GLOBALS['conf']['kolab']['session']['debug'])) {
             $session = new Horde_Kolab_Session_Decorator_Logged(
@@ -105,9 +115,8 @@ class Horde_Core_Factory_KolabSession extends Horde_Core_Factory_Base
             $this->_injector->getInstance('Horde_Registry')->getAuth()
         )->validate();
 
-        if (isset($GLOBALS['conf']['kolab']['session']['anonymous']['user'])
-            && isset($GLOBALS['conf']['kolab']['session']['anonymous']['pass'])
-        ) {
+        if (isset($GLOBALS['conf']['kolab']['session']['anonymous']['user']) &&
+            isset($GLOBALS['conf']['kolab']['session']['anonymous']['pass'])) {
             $session = new Horde_Kolab_Session_Decorator_Anonymous(
                 $session,
                 $GLOBALS['conf']['kolab']['session']['anonymous']['user'],

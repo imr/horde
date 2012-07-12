@@ -2,14 +2,14 @@
 /**
  * Create turba base tables
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author   Michael J. Rubinsky <mrubinsk@horde.org>
  * @category Horde
- * @license  http://www.horde.org/licenses/asl.php ASL
+ * @license  http://www.horde.org/licenses/apache ASL
  * @package  Turba
  */
 class TurbaBaseTables extends Horde_Db_Migration_Base
@@ -22,7 +22,7 @@ class TurbaBaseTables extends Horde_Db_Migration_Base
         $tableList = $this->tables();
 
         if (!in_array('turba_objects', $tableList)) {
-            $t = $this->createTable('turba_objects', array('primaryKey' => false));
+            $t = $this->createTable('turba_objects', array('autoincrementKey' => false));
             $t->column('object_id', 'string', array('limit' => 32, 'null' => false));
             $t->column('owner_id', 'string', array('limit' => 255, 'null' => false));
             $t->column('object_type', 'string', array('limit' => 255, 'default' => 'Object', 'null' => false));
@@ -79,7 +79,7 @@ class TurbaBaseTables extends Horde_Db_Migration_Base
         }
 
         if (!in_array('turba_shares', $tableList)) {
-            $t = $this->createTable('turba_shares', array('primaryKey' => false));
+            $t = $this->createTable('turba_shares', array('autoincrementKey' => false));
             $t->column('share_id', 'integer', array('null' => false));
             $t->column('share_name', 'string', array('limit' => 255, 'null' => false));
             $t->column('share_owner', 'string', array('limit' => 255, 'null' => false));

@@ -2,14 +2,14 @@
 /**
  * Create kronolith base tables as of Kronolith 2.3.5
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael J. Rubinsky <mrubinsk@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  Kronolith
  */
 class KronolithBaseTables extends Horde_Db_Migration_Base
@@ -22,7 +22,7 @@ class KronolithBaseTables extends Horde_Db_Migration_Base
         $tableList = $this->tables();
 
         if (!in_array('kronolith_events', $tableList)) {
-            $t = $this->createTable('kronolith_events', array('primaryKey' => false));
+            $t = $this->createTable('kronolith_events', array('autoincrementKey' => false));
             $t->column('event_id', 'string', array('limit' => 32, 'null' => false));
             $t->column('event_uid', 'string', array('limit' => 255, 'null' => false));
             $t->column('calendar_id', 'string', array('limit' => 255, 'null' => false));
@@ -64,7 +64,7 @@ class KronolithBaseTables extends Horde_Db_Migration_Base
         }
 
         if (!in_array('kronolith_shares', $tableList)) {
-            $t = $this->createTable('kronolith_shares', array('primaryKey' => false));
+            $t = $this->createTable('kronolith_shares', array('autoincrementKey' => false));
             $t->column('share_id', 'integer', array('null' => false));
             $t->column('share_name', 'string', array('limit' => 255, 'null' => false));
             $t->column('share_owner', 'string', array('limit' => 255, 'null' => false));

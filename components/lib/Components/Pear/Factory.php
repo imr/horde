@@ -7,22 +7,22 @@
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 
 /**
  * Components_Pear_Factory:: generates PEAR specific handlers.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 class Components_Pear_Factory
@@ -47,32 +47,33 @@ class Components_Pear_Factory
     /**
      * Create a representation for a PEAR environment.
      *
+     * @param string $environment The path to the PEAR environment.
      * @param string $config_file The path to the configuration file.
      *
-     * @return Components_Pear_InstallLocation The PEAR environment
+     * @return Components_Pear_Environment The PEAR environment
      */
-    public function createInstallLocation($config_file)
+    public function createEnvironment($environment, $config_file)
     {
-        $install_location = $this->_dependencies->createInstance('Components_Pear_InstallLocation');
-        $install_location->setFactory($this);
-        $install_location->setLocation(
-            dirname($config_file),
-            basename($config_file)
+        $instance = $this->_dependencies->createInstance('Components_Pear_Environment');
+        $instance->setFactory($this);
+        $instance->setLocation(
+            $environment,
+            $config_file
         );
-        return $install_location;
+        return $instance;
     }
 
     /**
      * Create a package representation for a specific PEAR environment.
      *
      * @param string                          $package_file The path of the package XML file.
-     * @param Components_Pear_InstallLocation $environment  The PEAR environment.
+     * @param Components_Pear_Environment $environment  The PEAR environment.
      *
      * @return Components_Pear_Package The PEAR package.
      */
     public function createPackageForEnvironment(
         $package_file,
-        Components_Pear_InstallLocation $environment
+        Components_Pear_Environment $environment
     ) {
         $package = $this->_createPackage($environment);
         $package->setPackageXml($package_file);
@@ -87,10 +88,10 @@ class Components_Pear_Factory
      *
      * @return Components_Pear_Package The PEAR package.
      */
-    public function createPackageForInstallLocation($package_file, $config_file)
+    public function createPackageForPearConfig($package_file, $config_file)
     {
         return $this->createPackageForEnvironment(
-            $package_file, $this->createInstallLocation($config_file)
+            $package_file, $this->createEnvironment($config_file)
         );
     }
 
@@ -104,7 +105,7 @@ class Components_Pear_Factory
     public function createPackageForDefaultLocation($package_file)
     {
         return $this->createPackageForEnvironment(
-            $package_file, $this->_dependencies->getInstance('Components_Pear_InstallLocation')
+            $package_file, $this->_dependencies->getInstance('Components_Pear_Environment')
         );
     }
 
@@ -112,13 +113,13 @@ class Components_Pear_Factory
      * Create a package representation for a specific PEAR environment based on a *.tgz archive.
      *
      * @param string                          $package_file The path of the package *.tgz file.
-     * @param Components_Pear_InstallLocation $environment  The environment for the package file.
+     * @param Components_Pear_Environment $environment  The environment for the package file.
      *
      * @return Components_Pear_Package The PEAR package.
      */
-    public function createTgzPackageForInstallLocation(
+    public function createTgzPackageForEnvironment(
         $package_file,
-        Components_Pear_InstallLocation $environment
+        Components_Pear_Environment $environment
     ) {
         $package = $this->_createPackage($environment);
         $package->setPackageTgz($package_file);
@@ -128,11 +129,11 @@ class Components_Pear_Factory
     /**
      * Create a generic package representation for a specific PEAR environment.
      *
-     * @param Components_Pear_InstallLocation $environment  The PEAR environment.
+     * @param Components_Pear_Environment $environment  The PEAR environment.
      *
      * @return Components_Pear_Package The generic PEAR package.
      */
-    private function _createPackage(Components_Pear_InstallLocation $environment)
+    private function _createPackage(Components_Pear_Environment $environment)
     {
         $package = $this->_dependencies->createInstance('Components_Pear_Package');
         $package->setFactory($this);
@@ -141,57 +142,16 @@ class Components_Pear_Factory
     }
 
     /**
-     * Create a tree helper for a specific PEAR environment..
-     *
-     * @param string $config_file The path to the configuration file.
-     * @param string $root_path   The basic root path for Horde packages.
-     * @param array  $options The application options
-     *
-     * @return Components_Helper_Tree The tree helper.
-     */
-    public function createTreeHelper($config_file, $root_path, array $options)
-    {
-        $environment = $this->_dependencies->createInstance('Components_Pear_InstallLocation');
-        $environment->setFactory($this);
-        $environment->setLocation(
-            dirname($config_file),
-            basename($config_file)
-        );
-        $environment->setResourceDirectories($options);
-        return new Components_Helper_Tree(
-            $this, $environment, new Components_Helper_Root($root_path)
-        );
-    }
-
-    /**
-     * Create a tree helper for a specific PEAR environment..
-     *
-     * @param string $config_file The path to the configuration file.
-     * @param string $root_path   The basic root path for Horde packages.
-     * @param array  $options The application options
-     *
-     * @return Components_Helper_Tree The tree helper.
-     */
-    public function createSimpleTreeHelper($root_path)
-    {
-        return new Components_Helper_Tree(
-            $this,
-            $this->_dependencies->createInstance('Components_Pear_InstallLocation'),
-            new Components_Helper_Root($root_path)
-        );
-    }
-
-    /**
      * Return the PEAR Package representation.
      *
      * @param string                          $package_xml_path Path to the package.xml file.
-     * @param Components_Pear_InstallLocation $environment      The PEAR environment.
+     * @param Components_Pear_Environment $environment      The PEAR environment.
      *
      * @return PEAR_PackageFile
      */
     public function getPackageFile(
         $package_xml_path,
-        Components_Pear_InstallLocation $environment
+        Components_Pear_Environment $environment
     ) {
         $pkg = new PEAR_PackageFile($environment->getPearConfig());
         return Components_Exception_Pear::catchError(
@@ -200,148 +160,20 @@ class Components_Pear_Factory
     }
 
     /**
-     * Return the package.xml handler.
-     *
-     * @param string                          $package_xml_path Path to the package.xml file.
-     *
-     * @return Horde_Pear_Package_Xml
-     */
-    public function getPackageXml($package_xml_path)
-    {
-        return new Horde_Pear_Package_Xml(fopen($package_xml_path, 'r'));
-    }
-
-    /**
      * Return the PEAR Package representation based on a local *.tgz archive.
      *
      * @param string                          $package_tgz_path Path to the *.tgz file.
-     * @param Components_Pear_InstallLocation $environment      The PEAR environment.
+     * @param Components_Pear_Environment $environment      The PEAR environment.
      *
      * @return PEAR_PackageFile
      */
     public function getPackageFileFromTgz(
         $package_tgz_path,
-        Components_Pear_InstallLocation $environment
+        Components_Pear_Environment $environment
     ) {
         $pkg = new PEAR_PackageFile($environment->getPearConfig());
         return Components_Exception_Pear::catchError(
             $pkg->fromTgzFile($package_tgz_path, PEAR_VALIDATE_NORMAL)
         );
-    }
-
-    /**
-     * Create a new PEAR Package representation.
-     *
-     * @param string                          $package_xml_dir Path to the parent directory of the package.xml file.
-     * @param Components_Pear_InstallLocation $environment      The PEAR environment.
-     *
-     * @return PEAR_PackageFile
-     */
-    public function createPackageFile(
-        $package_xml_dir
-    ) {
-        $environment = $this->_dependencies->getInstance('Components_Pear_InstallLocation');
-        $pkg = new PEAR_PackageFile_v2_rw();
-        $pkg->setPackage(basename($package_xml_dir));
-        $pkg->setDescription('TODO');
-        $pkg->setSummary('TODO');
-        $pkg->setReleaseVersion('1.0.0alpha1');
-        $pkg->setApiVersion('1.0.0alpha1');
-        $pkg->setReleaseStability('alpha');
-        $pkg->setApiStability('alpha');
-        $pkg->setChannel('pear.horde.org');
-        $pkg->addMaintainer(
-            'lead',
-            'chuck',
-            'Chuck Hagenbuch',
-            'chuck@horde.org'
-        );
-        $pkg->addMaintainer(
-            'lead',
-            'jan',
-            'Jan Schneider',
-            'jan@horde.org'
-        );
-        $pkg->setLicense('TODO', 'TODO');
-        $pkg->setNotes('* Initial release.');
-        $pkg->clearContents(true);
-        $pkg->clearDeps();
-        $pkg->setPhpDep('5.2.0');
-        $pkg->setPearinstallerDep('1.7.0');
-        $pkg->setPackageType('php');
-        $pkg->addFile('', 'something', array('role' => 'php'));
-        new PEAR_Validate();
-        return Components_Exception_Pear::catchError(
-            $pkg->getDefaultGenerator()->toPackageFile($package_xml_dir, 0)
-        );
-    }
-
-    /**
-     * Return a writeable PEAR Package representation.
-     *
-     * @param string                          $package_xml_path Path to the package.xml file.
-     * @param Components_Pear_InstallLocation $environment      The PEAR environment.
-     *
-     * @return PEAR_PackageFileManager2
-     */
-    public function getPackageRwFile(
-        $package_xml_path,
-        Components_Pear_InstallLocation $environment
-    ) {
-        /**
-         * Ensure we setup the PEAR_Config according to the PEAR environment
-         * the user set.
-         */
-        $environment->getPearConfig();
-
-        if (!class_exists('PEAR_PackageFileManager2')) {
-            throw new Components_Exception(
-                'The Package "PEAR_PackageFileManager2" is missing in the PEAR environment. Please install it so that you can run this action.'
-            );
-        }
-
-        $old_dir = getcwd();
-        chdir(dirname($package_xml_path));
-        $result = Components_Exception_Pear::catchError(
-            PEAR_PackageFileManager2::importOptions(
-                basename($package_xml_path),
-                array(
-                    'packagedirectory' => '.',
-                    'clearcontents' => false,
-                    'clearchangelog' => false,
-                    'simpleoutput' => true,
-                )
-            )
-        );
-        chdir($old_dir);
-        return $result;
-    }
-
-    /**
-     * Create a package dependency helper.
-     *
-     * @param Components_Pear_Package $package The package.
-     *
-     * @return Components_Pear_Dependencies The dependency helper.
-     */
-    public function createDependencies(Components_Pear_Package $package)
-    {
-        $dependencies = $this->_dependencies->createInstance('Components_Pear_Dependencies');
-        $dependencies->setPackage($package);
-        return $dependencies;
-    }
-
-    /**
-     * Create a package content helper.
-     *
-     * @param PEAR_PackageFileManager2 $package The package.
-     *
-     * @return Components_Pear_Package_Contents The contents helper.
-     */
-    public function createContents(PEAR_PackageFileManager2 $package)
-    {
-        $contents = $this->_dependencies->createInstance('Components_Pear_Package_Contents');
-        $contents->setPackage($package);
-        return $contents;
     }
 }

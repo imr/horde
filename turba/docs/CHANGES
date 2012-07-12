@@ -1,8 +1,202 @@
+-----------
+v4.0.0beta1
+-----------
+
+[jan] Fix searching multiple names via the API.
+[jan] Fix searching and listing clients via the API.
+
+
+------------
+v4.0.0alpha1
+------------
+
+First alpha release for Horde 5.
+[mms] Import API call now throws an ObjectExists exception when a duplicate is
+      found.
+[jan] Add parameters to specify field size of phone and email fields.
+
+
+-----------
+v3.0.15-git
+-----------
+
+[jan] Update Turkish translation (İstanbul Technical University).
+[jan] Fix strict searching in favourites driver (Bug #11207).
+
+
+-------
+v3.0.14
+-------
+
+[jan] Update Swedish translation (Per Olof Ljungmark <peo@bsdlabs.com>).
+[jan] Update Italian translation (Emilien <emilien@wifi.e4a.it>).
+[jan] Fix number of contacts in a list that cannot be displayed.
+[jan] Update Slovak translation (Marika Schvarczova
+      <schvarczova.marika@domeny.sk>).
+[jan] Update Czech translation (Michal Foist <michal@foist.cz>).
+
+
+-------
+v3.0.13
+-------
+
+[jan] Fix decode_attribute hook when exporting to vCard (kd@tu-cottbus.de, Bug
+      #11123).
+[jan] Update Hungarian translation (Zoltán Németh <nemeth.zoltan@etit.hu>).
+[jan] Only connect to LDAP driver for read/write requests (Dominique Lalot
+      <dom.lalot@gmail.com>, Request #11082).
+[mjr] Fix bug that caused time shifting of contact birthday and anniversary
+      values from ActiveSync devices for users in certain timezones.
+
+
+-------
+v3.0.12
+-------
+
+[mjr] Ensure contact lists are always populated with their members (Bug
+      #10961).
+[jan] Fix SyncML compatibility with work/home phone numbers and newer Funambol
+      clients (Bug #10912).
+[mjr] Implement more flexible ActiveSync synchronization of names and
+      addresses.
+[jan] Fix address book sorting in preferences (Bug #10897).
+[mms] Improve navigation when editing group entries.
+
+
+-------
+v3.0.11
+-------
+
+[jan] Set VOICE parameter when exporting phone numbers to vCard (Request
+      #10349).
+[jan] Fix importing vCards with empty X-ANNIVERSARY attributes (Bug #10557).
+[jan] Update Japanese translation (Hiromi Kimura <hiromi@tac.tsukuba.ac.jp>).
+
+
+-------
+v3.0.10
+-------
+
+[mjr] Add the ability to specify the fields to return from contacts/search.
+[jan] Fix importing contacts with composite fields.
+[jan] Fix LDAP connection test (Bug #10554).
+[gwr] Avoid including the owner name into the default share (Kolab backend).
+
+
+------
+v3.0.9
+------
+
+[rla] Turba LDAP Driver now only rewrites changed attributes (Bug #9343).
+[mjr] Run attribute values through decode_attribute hook when exporting.
+[mjr] Ensure encode_attribute hook is called on imported objects.
+[mjr] Improve handling of removeUserData.
+[mjr] Honor auto_create configuration setting (qoole.horde@lillimoth.com, Bug
+      #10452)
+[jan] Don't allow to search binary fields.
+
+
+------
+v3.0.8
+------
+
+[jan] Fix attribute name for assistant phone (Bug #10449).
+
+
+------
+v3.0.7
+------
+
+[jan] Add missing migration script (Bug #10436).
+
+
+------
+v3.0.6
+------
+
+[mjr] Fix issue with synchronizing deleted contacts (Bug #10422).
+[jan] Fix searching for duplicates on some databases (Bug #10383).
+[mjr] Add and support more attributes by default.
+
+
+------
+v3.0.5
+------
+
+[mjr] Fix obtaining default share via Turba's API (vilius@lnk.lt, Bug #10393).
+[mjr] Force ActiveSync device reset after sync_books pref is changed
+      (Request #10342).
+
+------
+v3.0.4
+------
+
+[jan] Pass contact object to decode_attribute hook (kd@tu-cottbus.de, Bug
+      #10287).
+[jan] Complete fix for importing LDIF files (Bug #10139).
+
+
+------
+v3.0.3
+------
+
+[rla] Support multiple address books in search portal block (Request #8786).
+[mjr] Fix importing LDIF files (Bug #10139).
+[mjr] Fix issue introduced in 3.0.1 that caused contact images to not display
+      (Bug #10050).
+[jan] Fix editing of multiple contacts at once (Bug #10085).
+[jan] Enable homeAdress and workAdress composite fields by default.
+
+
+------
+v3.0.2
+------
+
+[jan] Fix exporting department attribute over ActiveSync.
+[mjr] Fix adding contacts with a category selected.
+
+
+------
+v3.0.1
+------
+
+[jan] Fix LDAP schema checking (Bug #9826).
+[jan] Fix creating temporary files with open_basedir restrictions.
+[mjr] Fix importing objects with categories (Bug #9841).
+[mjr] Fix merging duplicate contacts (Bug #9828).
+[mjr] Allow unsetting the GAL and Client Address Book settings (Bug #9843).
+
+
+----
+v3.0
+----
+
+[mjr] Fix deletion of virtual address books (Bug #9779).
+[jan] Fix saving searches to virtual address books (Bug #9776).
+[mjr] Datatree share to SQL upgrade script refactored for Horde 4.
+[jan] Move all executable scripts to bin/ and prefix with turba-.
+[jan] Add fields to all addresses if multiple passed to addField() API method
+      (Request #3482).
+
+
+--------
+v3.0-RC2
+--------
+
+[mjr] Fix issue that caused the inability to preview contact images while
+      uploading (Bug #9702).
+
+
 --------
 v3.0-RC1
 --------
 
-
+[jan] Update installation and upgrade instructions.
+[gwr] Adapted the Kolab driver to Horde 4.
+[mjr] Fix issue that caused erroneous file listings for objects in sources
+      without a __uid value.
+[cjh] Fix storing of binary fields.
+[mjr] Fix/refactor IMSP driver.
 
 
 ----------
@@ -26,6 +220,27 @@ v3.0-ALPHA1
 [mjr] The listTimeObjects API now returns categories for each source
       individually instead of returning only the categories available
       (Request #8504).
+
+
+------
+v2.3.6
+------
+
+[mjr] Fix issue that caused erroneous file listings for objects in sources
+      without a __uid value.
+[jan] Allow to export photo/logo fields to vCard without MIME type.
+[jan] Support X-EPOCSECONDNAME fields of Nokia phones.
+[jan] Add upgrade scripts for next-generation SQL share driver.
+[jan] Fix splitting up names when exporting to N properties of vCards.
+[jan] Only set the encoding parameter for binary data in vCards, if data is not
+      empty (Bug #9413).
+[jan] Fix searching for fields matching an email address if using 'emails'
+      attribute instead of 'email' (Bug #9472).
+[jan] Use personal address books first if determining the default one (Valentin
+      Vidic, Request #9367).
+[jan] Use name format preference not only for paging, but for sorting too
+      (Request #8806).
+[jan] Fix photo corruption when exporting to vCard 3.0 (Bug #9100).
 
 
 ------

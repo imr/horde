@@ -1,16 +1,16 @@
 <?php
 /**
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
- * @license  http://opensource.org/licenses/bsd-license.php BSD
+ * @license  http://www.horde.org/licenses/bsd BSD
  * @category Horde
  * @package  Http
  */
 
 /**
  * @author   Chuck Hagenbuch <chuck@horde.org>
- * @license  http://opensource.org/licenses/bsd-license.php BSD
+ * @license  http://www.horde.org/licenses/bsd BSD
  * @category Horde
  * @package  Http
  */
@@ -134,5 +134,4 @@ abstract class Horde_Http_Response_Base
     {
         return isset($this->headers[$header]) ? $this->headers[$header] : null;
     }
-
 }

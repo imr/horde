@@ -1,14 +1,14 @@
 <?php
 /**
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author Jan Schneider <jan@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('horde', array('nologintasks' => true));
 
 $alarm = $injector->getInstance('Horde_Alarm');

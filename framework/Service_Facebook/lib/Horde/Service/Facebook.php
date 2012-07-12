@@ -8,7 +8,7 @@
  * of the original code or design is left. I left the original copyright notice
  * intact below.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * @author Michael J. Rubinsky <mrubinsk@horde.org>
  * @category Horde
@@ -28,7 +28,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -56,25 +56,11 @@ class Horde_Service_Facebook
     public $useSslResources = false;
 
     /**
-     * The application's API Key
-     *
-     * @var string
-     */
-    protected $_apiKey;
-
-    /**
      * The API Secret Key
      *
      * @var string
      */
     protected $_secret;
-
-    /**
-     * Holds the batch object when building a batch request.
-     *
-     * @var Horde_Service_Facebook_Batch
-     */
-    protected $_batchRequest;
 
     /**
      * Holds an optional logger object
@@ -89,31 +75,6 @@ class Horde_Service_Facebook
      */
     protected $_http;
 
-    /**
-     *
-     * @var Horde_Controller_Request_Http
-     */
-    protected $_request;
-
-    /**
-     *
-     * @var array
-     */
-    protected $_context;
-
-    /**
-     * Return format
-     *
-     * @var Horde_Service_Facebook::DATA_FORMAT_* constant
-     */
-    public $dataFormat = self::DATA_FORMAT_ARRAY;
-
-    /**
-     * Data format used internally if DATA_FORMAT_OBJECT is specified.
-     * ('json' or 'xml'). Needed to overcome some current bugs in Facebook's
-     * JSON implementation.
-     */
-    protected $_internalFormat = self::DATA_FORMAT_JSON;
 
     /**
      * Cache for the various objects we lazy load in __get()
@@ -124,31 +85,22 @@ class Horde_Service_Facebook
 
 
     const API_VALIDATION_ERROR = 1;
-    const REST_SERVER_ADDR = 'http://api.facebook.com/restserver.php';
-
-    /**
-     * Data format returned to client code.
-     */
-    const DATA_FORMAT_JSON = 'json';
-    const DATA_FORMAT_XML = 'xml';
-    const DATA_FORMAT_ARRAY = 'array';
+    const REST_SERVER_ADDR = 'https://api.facebook.com/method/';
+    const GRAPH_SERVER_ADDR = 'https://graph.facebook.com';
 
     /**
      * Const'r
      *
-     * @param string $api_key  Developer API key.
+     * @param string $appId    Application ID.
      * @param string $secret   Developer API secret.
      * @param array $context   Array of context information containing:
      *  <pre>
      *      http_client - required
-     *      http_response - required
      *      logger
-     *      no_resolve - set to true to prevent attempting to obtain a session
-     *                   from an auth_token. Useful if client code wants to
-     *                   handle this.
+     *      use_ssl
      * </pre>
      */
-    public function __construct($api_key, $secret, $context)
+    public function __construct($appId, $secret, $context)
     {
         // We require a http client object.
         if (empty($context['http_client'])) {
@@ -157,32 +109,21 @@ class Horde_Service_Facebook
             $this->_http = $context['http_client'];
         }
 
-        // Required Horde_Controller_Request object, but we can also get it
-        // if we have a Horde_Controller object.
-        if (empty($context['http_request']) && empty($context['controller'])) {
-            throw new InvalidArgumentException('A http request object is required');
-        } elseif (!empty($context['http_request'])) {
-            $this->_request = $context['http_request'];
-        } else {
-            $this->_request = $context['controller']->request;
-        }
-
         // Optional Horde_Log_Logger
         if (!empty($context['logger'])) {
             $this->_logger = $context['logger'];
+        } else {
+            $this->_logger = new Horde_Support_Stub();
         }
 
-        $this->_logDebug('Initializing Horde_Service_Facebook');
+        $this->_logger->debug('Initializing Horde_Service_Facebook');
 
-        $this->_apiKey = $api_key;
+        $this->_appId = $appId;
         $this->secret = $secret;
 
         if (!empty($context['use_ssl'])) {
             $this->useSslResources = true;
         }
-
-        // Save the rest
-        $this->_context = $context;
     }
 
     /**
@@ -190,37 +131,40 @@ class Horde_Service_Facebook
      *
      * @param string $value  The lowercase representation of the subclass.
      *
+     * @return mixed
      * @throws Horde_Service_Facebook_Exception
-     * @return Horde_Service_Facebook_* object.
      */
     public function __get($value)
     {
         // First, see if it's an allowed protected value.
         switch ($value) {
-        case 'internalFormat':
-            return $this->_internalFormat;
-        case 'apiKey':
-            return $this->_apiKey;
+        case 'appId':
+            return $this->_appId;
         case 'secret':
             return $this->_secret;
+        case 'http':
+            return $this->_http;
+        case 'logger':
+            return $this->_logger;
         }
 
         // If not, assume it's a method/action class...
         $class = 'Horde_Service_Facebook_' . ucfirst($value);
-        if (!empty($this->_objCache[$class])) {
-            return $this->_objCache[$class];
-        }
-
         if (!class_exists($class)) {
             throw new Horde_Service_Facebook_Exception(sprintf("%s class not found", $class));
         }
 
-        $this->_objCache[$class] = new $class($this, $this->_request);
+        if (empty($this->_objCache[$class])) {
+            $this->_objCache[$class] = new $class($this);
+        }
+
         return $this->_objCache[$class];
     }
 
     /**
      * Helper function to get the appropriate facebook url
+     *
+     * @param string $subdomain  The subdomain to use (www).
      *
      * @return string
      */
@@ -230,117 +174,40 @@ class Horde_Service_Facebook
     }
 
     /**
-     * Start a batch operation.
-     */
-    public function batchBegin()
-    {
-        if ($this->_batchRequest !== null) {
-            $code = Horde_Service_Facebook_ErrorCodes::API_EC_BATCH_ALREADY_STARTED;
-            $description = Horde_Service_Facebook_ErrorCodes::$api_error_descriptions[$code];
-            throw new Horde_Service_Facebook_Exception($description, $code);
-        }
-
-        $this->_batchRequest = new Horde_Service_Facebook_BatchRequest($this, $this->_http);
-    }
-
-    /**
-     * End current batch operation
-     */
-    public function batchEnd()
-    {
-        if ($this->_batchRequest === null) {
-            $code = Horde_Service_Facebook_ErrorCodes::API_EC_BATCH_NOT_STARTED;
-            $description = Horde_Service_Facebook_ErrorCodes::$api_error_descriptions[$code];
-            throw new Horde_Service_Facebook_Exception($description, $code);
-        }
-
-        $this->_batchRequest->run();
-        $this->_batchRequest = null;
-    }
-
-    /**
-     * Setter for the internal data format. Returns the previously used
-     * format to make it easier for methods that need a certain format to
-     * reset the old format when done.
-     *
-     * @param Horde_Service_Facebook::DATA_FORMAT_* constant $format
-     *
-     * @return Horde_Service_Facebook::DATA_FORMAT_* constant
-     */
-    public function setInternalFormat($format)
-    {
-        $old = $this->_internalFormat;
-        $this->_internalFormat = $format;
-
-        return $old;
-    }
-
-    /**
-     * Calls the specified normal POST method with the specified parameters.
+     * Calls the specified normal REST API method.
      *
      * @param string $method  Name of the Facebook method to invoke
      * @param array $params   A map of param names => param values
      *
-     * @return mixed  Result of method call; this returns a reference to support
-     *                'delayed returns' when in a batch context.
-     *     See: http://wiki.developers.facebook.com/index.php/Using_batching_API
+     * @return mixed  Result of method call
      */
-    public function &callMethod($method, $params = array())
+    public function callMethod($method, array $params = array())
     {
-        if ($this->_batchRequest === null) {
-            $request = new Horde_Service_Facebook_Request($this, $method, $this->_http, $params);
-            $results = &$request->run();
-        } else {
-            $results = &$this->_batchRequest->add($method, $params);
-        }
-
-        return $results;
+        $this->_logger->debug(sprintf('Calling method %s with parameters %s', $method, print_r($params, true)));
+        $request = new Horde_Service_Facebook_Request_Rest($this, $method, $params);
+        return $request->run();
     }
 
     /**
-     * Calls the specified file-upload POST method with the specified parameters
+     * Call the Facebook Graph API.
      *
-     * @param string $method Name of the Facebook method to invoke
-     * @param array  $params A map of param names => param values
-     * @param string $file   A path to the file to upload (required)
+     * @param string $method  The endpoint (method) to call.
+     * @param array $params   An array of parameters to pass along with the call.
+     * @param array $options  Additional request options:
+     *   - request: (string) 'POST', 'GET', 'DELETE' etc..
      *
-     * @return array A dictionary representing the response.
+     * @return mixed  The results of the API call.
      */
-    public function callUploadMethod($method, $params, $file)
+    public function callGraphApi(
+        $method = '', array $params = array(), array $options = array())
     {
-        if ($this->_batchRequest === null) {
-            if (!file_exists($file)) {
-                $code = Horde_Service_Facebook_ErrorCodes::API_EC_PARAM;
-                $description = Horde_Service_Facebook_ErrorCodes::$api_error_descriptions[$code];
-                throw new Horde_Service_Facebook_Exception($description, $code);
-            }
-        } else {
-            $code = Horde_Service_Facebook_ErrorCodes::API_EC_BATCH_METHOD_NOT_ALLOWED_IN_BATCH_MODE;
-            $description = Horde_Service_Facebook_ErrorCodes::$api_error_descriptions[$code];
-            throw new Horde_Service_Facebook_Exception($description, $code);
-        }
-        $request = new Horde_Service_Facebook_UploadRequest($this, $method, $this->_http, $file, $params);
-        $result = $request->run();
-        $result = json_decode($result, true);
-        if (is_array($result) && isset($result['error_code'])) {
-            throw new Horde_Service_Facebook_Exception($result['error_msg'], $result['error_code']);
-        }
+        $request = new Horde_Service_Facebook_Request_Graph(
+            $this,
+            $method,
+            $params,
+            $options);
 
-        return $result;
-    }
-
-    protected function _logDebug($message)
-    {
-        if (!empty($this->_logger)) {
-            $this->_logger->debug($message);
-        }
-    }
-
-    protected function _logErr($message)
-    {
-        if (!empty($this->_logger)) {
-            $this->_logger->err($message);
-        }
+        return $request->run();
     }
 
 }

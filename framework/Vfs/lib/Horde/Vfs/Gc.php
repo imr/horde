@@ -2,10 +2,10 @@
 /**
  * Class for providing garbage collection for any VFS instance.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Michael Slusarz <slusarz@horde.org>
  * @package Vfs
@@ -29,7 +29,7 @@ class Horde_Vfs_Gc
 
         /* Use a backend-specific method if one exists. */
         if (is_callable(array($vfs, 'gc'))) {
-            return $vfs->gc($path, $secs);
+            $vfs->gc($path, $secs);
         }
 
         /* Make sure cleaning is done recursively. */
@@ -40,7 +40,7 @@ class Horde_Vfs_Gc
                     $vfs->deleteFile($path, $val['name']);
                 }
             }
-        } catch (Horde_Vfs_Exception $e) {}
+        } catch (Horde_Vfs_Exception $e) {
+        }
     }
-
 }

@@ -7,22 +7,22 @@
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 
 /**
  * Components_Module_Help:: provides information for a single action.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 class Components_Module_Help
@@ -86,17 +86,50 @@ extends Components_Module_Base
     {
         $arguments = $config->getArguments();
         if (isset($arguments[0]) && $arguments[0] == 'help') {
-            $action = $arguments[1];
+            if (isset($arguments[1])) {
+                $action = $arguments[1];
+            } else {
+                $action = '';
+            }
             $modules = $this->_dependencies->getModules();
-            foreach ($modules->getModules() as $module) {
+            foreach ($modules->getModules()->listModules() as $module) {
                 $element = $modules->getProvider()->getModule($module);
                 if (in_array($action, $element->getActions())) {
-                    $this->_dependencies->getOutput()->help(
-                        $element->getHelp($action)
+                    $title = "ACTION \"" . $action . "\"";
+                    $sub = str_repeat('-', strlen($title));
+                    $help = "\n" . $title . "\n" . $sub . "\n\n";
+                    $help .= Horde_String::wordwrap(
+                        $element->getHelp($action), 75, "\n", true
                     );
+                    $options = $element->getContextOptionHelp();
+                    if (!empty($options)) {
+                        $formatter = new Horde_Argv_IndentedHelpFormatter();
+                        $parser = $this->_dependencies->getParser();
+                        $title = "OPTIONS for \"" . $action . "\"";
+                        $sub = str_repeat('-', strlen($title));
+                        $help .= "\n\n\n" . $title . "\n" . $sub . "";
+                        foreach ($options as $option => $help_text) {
+                            $argv_option = $parser->getOption($option);
+                            $help .= "\n\n    " . $formatter->formatOptionStrings($argv_option) . "\n\n      ";
+                            if (empty($help_text)) {
+                                $help .= Horde_String::wordwrap(
+                                    $argv_option->help, 75, "\n      ", true
+                                );
+                            } else {
+                                $help .= Horde_String::wordwrap(
+                                    $help_text, 75, "\n      ", true
+                                );
+                            }
+                        }
+                    }
+                    $help .= "\n";
+                    $this->_dependencies->getOutput()->help(
+                        $help
+                    );
+                    return true;
                 }
             }
-            return true;
+            return false;
         }
     }
 }

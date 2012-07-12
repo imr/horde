@@ -1,15 +1,16 @@
 <div id="hermesViewTime" style="display:none">
   <div id="hermesLoadingTime" class="hermesLoading"></div>
-  <div id="hermesViewTimeContainer">
+  <div class="hermesViewTimeContainer">
    <div id="hermesTimeEntry">
+    <div id="hermesTimeFormCollapse" class="hermesTimeFormShown">&nbsp;</div>
     <h1><?php echo _("Time Entry")?></h1>
     <form id="hermesTimeForm" action="">
         <input type="hidden" name="id" id="hermesTimeFormId" value="0" />
         <div id="hermesTimeFormInputs">
           <div class="hermesTimeFormGeneral">
             <label for="hermesTimeFormClient">
-              <?php echo _("Client")?>*
-              <?php echo Hermes::getClientSelect();?>
+              <?php echo _("Client")?>
+              <?php echo Hermes::getClientSelect('hermesTimeFormClient');?>
             </label><span class="hermesSeparator">|</span>
             <label for="hermesTimeFormCostobject">
               <?php echo _("Cost Object")?>
@@ -25,12 +26,12 @@
             </label><span class="hermesSeparator">|</span>
             <label for="hermesTimeFormBillable">
                 <?php echo _("Billable")?>
-                <input type="checkbox" name="billable" id="hermesTimeFormBillable" />
+                <input type="checkbox" name="billable" id="hermesTimeFormBillable" checked="checked" />
                  <span class="hermesSeparator">|</span>
             </label>
             <label for="hermesTimeFormType">
-              <?php echo _("Job Type")?>
-              <?php echo Hermes::getJobTypeSelect();?>
+              <?php echo _("Job Type")?>*
+              <?php echo Hermes::getJobTypeSelect('hermesTimeFormJobtype');?>
             </label>
           </div>
           <div class="hermesTimeFormDetails">
@@ -45,7 +46,7 @@
          <div class="hermesFormActions">
           <input id="hermesTimeSave" type="button" value="<?php echo _("Save") ?>" class="button ok" />
           <input id="hermesTimeSaveAsNew" type="button" value="<?php echo _("Save As New") ?>" class="button ok" style="display: none;" />
-          <span class="hermesSeparator"><?php echo _("or") ?></span> <a class="hermesFormCancel"><?php echo _("Cancel") ?></a>
+          <span class="hermesSeparator"><?php echo _("or") ?></span> <a class="hermesTimeFormCancel"><?php echo _("Cancel") ?></a>
         </div>
     </form>
    </div>

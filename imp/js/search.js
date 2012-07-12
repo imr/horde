@@ -2,14 +2,15 @@
  * Provides the javascript for the search.php script (advanced view).
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
 var ImpSearch = {
+
     // The following variables are defined in search.php:
-    //   data, i_criteria, i_folders, i_recent, text
+    //   data, i_criteria, i_mboxes, i_recent, text
     criteria: {},
-    folders: $H(),
+    mboxes: $H(),
     saved_searches: {},
 
     updateRecentSearches: function(searches)
@@ -47,16 +48,21 @@ var ImpSearch = {
             var crit = c.criteria;
 
             switch (c.element) {
+            case 'IMP_Search_Element_Attachment':
+                this.insertFilter('attach', crit);
+                break;
+
             case 'IMP_Search_Element_Bulk':
                 this.insertFilter('bulk', crit);
                 break;
 
-            case 'IMP_Search_Element_Date':
-                this.insertDate(this.data.constants.index(crit.t), new Date(crit.d));
+            case 'IMP_Search_Element_Daterange':
+                // JS Date() requires timestamp in ms; PHP value is in secs
+                this.insertDate(crit.b ? new Date(crit.b * 1000) : 0, crit.e ? new Date(crit.e * 1000) : 0, crit.n);
                 break;
 
             case 'IMP_Search_Element_Flag':
-                this.insertFlag(crit.f, !crit.s);
+                this.insertFlag(encodeURIComponent(decodeURIComponent(crit.f)), !crit.s);
                 break;
 
             case 'IMP_Search_Element_Header':
@@ -92,7 +98,7 @@ var ImpSearch = {
                 break;
 
             case 'IMP_Search_Element_Size':
-                this.insertSize(crit.s ? 'size_larger' : 'size_smaller', crit.l);
+                this.insertSize(crit.l ? 'size_larger' : 'size_smaller', crit.s);
                 break;
 
             case 'IMP_Search_Element_Text':
@@ -100,7 +106,7 @@ var ImpSearch = {
                 break;
 
             case 'IMP_Search_Element_Within':
-                this.insertWithin(crit.o ? 'older' : 'younger', { l: this.data.constants.index(crit.t), v: crit.v });
+                this.insertWithin(crit.o ? 'older' : 'younger', { l: this.data.constants.within.index(crit.t), v: crit.v });
                 break;
             }
         }, this);
@@ -113,7 +119,7 @@ var ImpSearch = {
 
     getCriteriaLabel: function(id)
     {
-        return $('search_criteria_add').down('[value="' + RegExp.escape(id) + '"]').getText() + ': ';
+        return $('search_criteria_add').down('[value="' + RegExp.escape(id) + '"]').textContent + ': ';
     },
 
     deleteCriteria: function(div)
@@ -194,7 +200,7 @@ var ImpSearch = {
         var tmp = [
             new Element('EM').insert(this.getCriteriaLabel(id)),
             new Element('INPUT', { type: 'text', size: 25 }).setValue(text),
-            new Element('SPAN', { className: 'notMatch' }).insert(new Element('INPUT', { checked: Boolean(not), className: 'checkbox', type: 'checkbox' })).insert(this.text.not_match)
+            new Element('SPAN', { className: 'notMatch' }).insert(new Element('INPUT', { className: 'checkbox', type: 'checkbox' }).setValue(not)).insert(this.text.not_match)
         ];
         this.criteria[this.insertCriteria(tmp)] = { t: id };
         tmp[1].activate();
@@ -208,7 +214,7 @@ var ImpSearch = {
             new Element('EM').insert(this.text.customhdr),
             new Element('INPUT', { type: 'text', size: 25 }).setValue(text.h),
             new Element('SPAN').insert(new Element('EM').insert(this.text.search_term + ' ')).insert(new Element('INPUT', { type: 'text', size: 25 }).setValue(text.s)),
-            new Element('SPAN').insert(new Element('INPUT', { checked: Boolean(not), className: 'checkbox', type: 'checkbox' })).insert(this.text.not_match)
+            new Element('SPAN').insert(new Element('INPUT', { className: 'checkbox', type: 'checkbox' }).setValue(not)).insert(this.text.not_match)
         ];
         this.criteria[this.insertCriteria(tmp)] = { t: 'customhdr' };
         tmp[1].activate();
@@ -225,26 +231,57 @@ var ImpSearch = {
         tmp[1].activate();
     },
 
-    insertDate: function(id, data)
+    insertDate: function(begin, end, not)
     {
-        if (!data) {
-            data = new Date();
-        }
+        var elt1, elt2, tmp, tmp2;
 
-        var tmp = [
-                new Element('EM').insert(this.getCriteriaLabel(id)),
-                new Element('SPAN').insert(new Element('SPAN')).insert(new Element('A', { href: '#', className: 'calendarPopup', title: this.text.dateselection }).insert(new Element('SPAN', { className: 'iconImg searchuiImg searchuiCalendar' })))
-            ];
-        this.replaceDate(this.insertCriteria(tmp), id, data);
+        elt1 = new Element('SPAN').insert(
+            new Element('SPAN')
+        ).insert(
+            new Element('A', { href: '#', className: 'dateReset', title: this.text.datereset }).insert(
+                new Element('SPAN', { className: 'iconImg searchuiImg closeImg' })
+            )
+        ).insert(
+            new Element('A', { href: '#', className: 'calendarPopup', title: this.text.dateselection }).insert(
+                new Element('SPAN', { className: 'iconImg searchuiImg calendarImg' })
+            )
+        );
+        elt2 = elt1.clone(true);
+
+        tmp = [
+            new Element('EM').insert(this.getCriteriaLabel('date_range')),
+            elt1.addClassName('beginDate'),
+            new Element('SPAN').insert(this.text.to),
+            elt2.addClassName('endDate'),
+            new Element('SPAN', { className: 'notMatch' }).insert(new Element('INPUT', { className: 'checkbox', type: 'checkbox' }).setValue(not)).insert(this.text.not_match)
+        ];
+
+        tmp2 = this.insertCriteria(tmp);
+        this.updateDate(tmp2, elt1, begin);
+        this.updateDate(tmp2, elt2, end);
     },
 
-    replaceDate: function(id, type, d)
+    updateDate: function(id, elt, data)
     {
-        $(id).down('SPAN SPAN').update(this.data.months[d.getMonth()] + ' ' + d.getDate() + ', ' + (d.getYear() + 1900));
-        // Need to store date information at all times in criteria, since we
-        // have no other way to track this information (there is not form
-        // field for this type).
-        this.criteria[id] = { t: type, v: d };
+        if (data) {
+            elt.down('SPAN').update(this.data.months[data.getMonth()] + ' ' + data.getDate() + ', ' + data.getFullYear());
+            elt.down('A.dateReset').show();
+
+            // Convert Date object to a UTC object, since JSON outputs in UTC.
+            data = new Date(Date.UTC(data.getFullYear(), data.getMonth(), data.getDate()));
+        } else {
+            elt.down('SPAN').update('-----');
+            elt.down('A.dateReset').hide();
+        }
+
+        // Need to store date information at all times in criteria, since
+        // there is no other way to track this information (there is no
+        // form field for this type). Also, convert Date object to a UTC
+        // object, since JSON outputs in UTC.
+        if (!this.criteria[id]) {
+            this.criteria[id] = { t: 'date_range' };
+        }
+        this.criteria[id][elt.hasClassName('beginDate') ? 'b' : 'e'] = data;
     },
 
     insertWithin: function(id, data)
@@ -256,14 +293,14 @@ var ImpSearch = {
             new Element('SPAN').insert(new Element('INPUT', { type: 'text', size: 8 }).setValue(data.v)).insert(' ').insert($($('within_criteria').clone(true)).writeAttribute({ id: null }).show().setValue(data.l))
         ];
         this.criteria[this.insertCriteria(tmp)] = { t: id };
-        tmp[1].activate();
+        tmp[1].down().activate();
     },
 
     insertFilter: function(id, not)
     {
         var tmp = [
             new Element('EM').insert(this.getCriteriaLabel(id)),
-            new Element('SPAN').insert(new Element('INPUT', { checked: Boolean(not), className: 'checkbox', type: 'checkbox' })).insert(this.text.not_match)
+            new Element('SPAN').insert(new Element('INPUT', { className: 'checkbox', type: 'checkbox' }).setValue(not)).insert(this.text.not_match)
         ];
         this.criteria[this.insertCriteria(tmp)] = { t: id };
     },
@@ -272,36 +309,36 @@ var ImpSearch = {
     {
         var tmp = [
             new Element('EM').insert(this.text.flag),
-            this.getCriteriaLabel(id).slice(0, -2),
-            new Element('SPAN').insert(new Element('INPUT', { checked: Boolean(not), className: 'checkbox', type: 'checkbox' })).insert(this.text.not_match)
+            new Element('SPAN', { className: 'searchFlag' }).insert(this.getCriteriaLabel(id).slice(0, -2)),
+            new Element('SPAN', { className: 'notMatch' }).insert(new Element('INPUT', { className: 'checkbox', type: 'checkbox' }).setValue(not)).insert(this.text.not_match)
         ];
         this.criteria[this.insertCriteria(tmp)] = { t: id };
     },
 
-    // Folder actions
+    // Mailbox actions
 
-    // folders = (object) m: mailboxes, s: subfolders
-    updateFolders: function(folders)
+    // mboxes = (object) m: mailboxes, s: subfolders
+    updateMailboxes: function(mboxes)
     {
-        this.resetFolders();
-        folders.m.each(function(f) {
-            this.insertFolder(f, false);
+        this.resetMailboxes();
+        mboxes.m.each(function(f) {
+            this.insertMailbox(f, false);
         }, this);
-        folders.s.each(function(f) {
-            this.insertFolder(f, true);
+        mboxes.s.each(function(f) {
+            this.insertMailbox(f, true);
         }, this);
     },
 
-    deleteFolder: function(div)
+    deleteMailbox: function(div)
     {
         var first, keys,
             id = div.identify()
 
-        this.disableFolder(false, this.folders.get(id));
-        this.folders.unset(id);
+        this.disableMailbox(false, this.mboxes.get(id));
+        this.mboxes.unset(id);
         div.remove();
 
-        keys = $('search_folders').childElements().pluck('id');
+        keys = $('search_mboxes').childElements().pluck('id');
 
         if (keys.size()) {
             first = keys.first();
@@ -311,63 +348,71 @@ var ImpSearch = {
         }
 
         if (!keys.size()) {
-            $('no_search_folders', 'search_folders').invoke('toggle');
+            $('no_search_mboxes', 'search_mboxes').invoke('toggle');
+            $('search_mboxes_add').up().show();
         }
     },
 
-    resetFolders: function()
+    resetMailboxes: function()
     {
-        elts = $('search_folders').childElements();
+        elts = $('search_mboxes').childElements();
 
         if (elts.size()) {
-            this.folders.values().each(this.disableFolder.bind(this, false));
+            this.mboxes.values().each(this.disableMailbox.bind(this, false));
             elts.invoke('remove');
-            $('no_search_folders', 'search_folders').invoke('toggle');
-            this.folders = $H();
+            $('no_search_mboxes', 'search_mboxes').invoke('toggle');
+            $('search_mboxes_add').clear().up().show();
+            this.mboxes = $H();
         }
     },
 
-    insertFolder: function(folder, checked)
+    insertMailbox: function(mbox, checked)
     {
-        var id,
-            div = new Element('DIV', { className: 'searchId' }),
+        var div = new Element('DIV', { className: 'searchId' }),
             div2 = new Element('DIV', { className: 'searchElement' });
 
-        if ($('search_folders').childElements().size()) {
-            div.insert(new Element('EM', { className: 'join' }).insert(this.text.and));
+        if (mbox == this.allsearch) {
+            this.resetMailboxes();
+            [ $('no_search_mboxes'), $('search_mboxes_add').up() ].invoke('hide');
+            $('search_mboxes').show();
+            div2.insert(
+                new Element('EM').insert(ImpSearch.text.search_all.escapeHTML())
+            ).insert(
+                new Element('A', { href: '#', className: 'iconImg searchuiImg searchuiDelete' })
+            );
         } else {
-            $('no_search_folders', 'search_folders').invoke('toggle');
+            if ($('search_mboxes').childElements().size()) {
+                div.insert(new Element('EM', { className: 'join' }).insert(this.text.and));
+            } else {
+                $('no_search_mboxes', 'search_mboxes').invoke('toggle');
+            }
+
+            div2.insert(
+                new Element('EM').insert(this.getMailboxLabel(mbox).escapeHTML())
+            ).insert(
+                new Element('SPAN', { className: 'subfolders' }).insert(new Element('INPUT', { className: 'checkbox', type: 'checkbox' }).setValue(checked)).insert(this.text.subfolder_search).setStyle(mbox == this.data.inbox ? { display: 'none' } : {})
+            ).insert(
+                new Element('A', { href: '#', className: 'iconImg searchuiImg searchuiDelete' })
+            );
+
+            this.disableMailbox(true, mbox);
+            $('search_mboxes_add').clear();
         }
 
         div.insert(div2);
+        $('search_mboxes').insert(div);
 
-        div2.insert(
-            new Element('EM').insert(this.getFolderLabel(folder).escapeHTML())
-        ).insert(
-            new Element('SPAN', { className: 'subfolders' }).insert(new Element('INPUT', { checked: checked, className: 'checkbox', type: 'checkbox' })).insert(this.text.subfolder_search)
-        ).insert(
-            new Element('A', { href: '#', className: 'iconImg searchuiImg searchuiDelete' })
-        );
-
-
-        this.disableFolder(true, folder);
-        $('search_folders_add').clear();
-        $('search_folders').insert(div);
-
-        id = div.identify();
-        this.folders.set(id, folder);
-
-        return id;
+        this.mboxes.set(div.identify(), mbox);
     },
 
-    getFolderLabel: function(folder)
+    getMailboxLabel: function(mbox)
     {
-        return this.data.folder_list[folder];
+        return this.data.mbox_list[mbox];
     },
 
-    disableFolder: function(disable, folder)
+    disableMailbox: function(disable, mbox)
     {
-        $('search_folders_add').down('[value="' + escape(folder) + '"]').writeAttribute({ disabled: disable });
+        $('search_mboxes_add').down('[value="' + mbox + '"]').writeAttribute({ disabled: disable });
     },
 
     // Miscellaneous actions
@@ -377,15 +422,16 @@ var ImpSearch = {
         var criteria,
             data = [],
             f_out = { mbox: [], subfolder: [] },
-            sflist = [];
+            sflist = [],
+            type = $F('search_type');
 
-        if ($F('search_type') && !$('search_label').present()) {
+        if (type && !$('search_label').present()) {
             alert(this.text.need_label);
             return;
         }
 
-        if (!this.folders.size()) {
-            alert(this.text.need_folder);
+        if (type != 'filter' && !this.mboxes.size()) {
+            alert(this.text.need_mbox);
             return;
         }
 
@@ -426,6 +472,11 @@ var ImpSearch = {
                 break;
 
             case 'date':
+                if (!this.criteria[c].b && !this.criteria[c].e) {
+                    alert(this.text.need_date);
+                    return;
+                }
+                this.criteria[c].n = Number(Boolean($F($(c).down('INPUT[type=checkbox]'))));
                 data.push(this.criteria[c]);
                 break;
 
@@ -452,72 +503,82 @@ var ImpSearch = {
 
         $('criteria_form').setValue(Object.toJSON(data));
 
-        this.folders.each(function(f) {
-            var type = $F($(f.key).down('INPUT[type=checkbox]'))
-                ? 'subfolder'
-                : 'mbox';
-            f_out[type].push(f.value);
-        });
-        $('folders_form').setValue(Object.toJSON(f_out));
+        if ($('search_mboxes_add').up().visible()) {
+            this.mboxes.each(function(f) {
+                var type = $F($(f.key).down('INPUT[type=checkbox]'))
+                    ? 'subfolder'
+                    : 'mbox';
+                f_out[type].push(f.value);
+            });
+        } else {
+            f_out.mbox.push(this.allsearch);
+        }
+        $('mboxes_form').setValue(Object.toJSON(f_out));
 
         $('search_form').submit();
     },
 
     clickHandler: function(e)
     {
-        if (e.isRightClick()) {
+        var elt = e.element(), tmp;
+
+        switch (elt.readAttribute('id')) {
+        case 'search_submit':
+            this.submit();
+            e.memo.stop();
+            break;
+
+        case 'search_reset':
+            this.resetCriteria();
+            this.resetMailboxes();
             return;
-        }
 
-        var id, tmp,
-            elt = e.element();
+        case 'search_dimp_return':
+            e.memo.hordecore_stop = true;
+            window.parent.DimpBase.go('mbox', this.data.searchmbox);
+            break;
 
-        while (Object.isElement(elt)) {
-            id = elt.readAttribute('id');
-
-            switch (id) {
-            case 'search_submit':
-                this.submit();
-                e.stop();
-                return;
-
-            case 'search_reset':
-                this.resetCriteria();
-                this.resetFolders();
-                return;
-
-            case 'search_dimp_return':
-                e.stop();
-                window.parent.DimpBase.go('mbox', this.data.searchmbox);
-                return;
-
-            case 'search_edit_query_cancel':
-                e.stop();
-                if (this.data.dimp) {
-                    window.parent.DimpBase.go();
-                } else {
-                    document.location.href = this.prefsurl;
-                }
-                return;
-
-            default:
-                if (elt.hasClassName('searchuiDelete')) {
-                    if (elt.up('#search_criteria')) {
-                        this.deleteCriteria(elt.up('DIV.searchId'));
-                    } else {
-                        this.deleteFolder(elt.up('DIV.searchId'));
-                    }
-                    e.stop();
-                    return;
-                } else if (elt.hasClassName('searchuiCalendar')) {
-                    Horde_Calendar.open(elt.identify(), this.criteria[elt.up('DIV.searchId').identify()].v);
-                    e.stop();
-                    return;
-                }
-                break;
+        case 'search_edit_query_cancel':
+            e.memo.hordecore_stop = true;
+            if (this.data.dimp) {
+                window.parent.DimpBase.go();
+            } else {
+                document.location.href = this.prefsurl;
             }
+            break;
 
-            elt = elt.up();
+        case 'show_unsub':
+            new Ajax.Request(this.ajaxurl + 'searchMailboxList', {
+                onSuccess: this.showUnsubCallback.bind(this),
+                parameters: {
+                    unsub: 1
+                }
+            });
+            elt.remove();
+            e.memo.stop();
+            break;
+
+        default:
+            if (elt.hasClassName('searchuiDelete')) {
+                if (elt.up('#search_criteria')) {
+                    this.deleteCriteria(elt.up('DIV.searchId'));
+                } else {
+                    this.deleteMailbox(elt.up('DIV.searchId'));
+                }
+                e.memo.stop();
+            } else if (elt.hasClassName('calendarImg')) {
+                Horde_Calendar.open(elt.identify(), this.criteria[elt.up('DIV.searchId').identify()].v);
+                e.memo.stop();
+            } else if (elt.hasClassName('closeImg') &&
+                       (elt.up('SPAN.beginDate') || elt.up('SPAN.endDate'))) {
+                this.updateDate(
+                    elt.up('DIV.searchId').identify(),
+                    elt.up('SPAN'),
+                    0
+                );
+                e.memo.stop();
+            }
+            break;
         }
     },
 
@@ -531,7 +592,7 @@ var ImpSearch = {
         case 'recent_searches':
             tmp = this.saved_searches.get($F(elt));
             this.updateCriteria(tmp.c);
-            this.updateFolders(tmp.f);
+            this.updateMailboxes(tmp.f);
             elt.clear();
             break;
 
@@ -556,7 +617,7 @@ var ImpSearch = {
                 break;
 
             case 'date':
-                this.insertDate(val);
+                this.insertDate();
                 break;
 
             case 'within':
@@ -573,19 +634,39 @@ var ImpSearch = {
             }
             break;
 
-        case 'search_folders_add':
-            this.insertFolder(unescape($F('search_folders_add')));
+        case 'search_mboxes_add':
+            this.insertMailbox($F('search_mboxes_add'));
             break;
         }
 
         e.stop();
     },
 
-
     calendarSelectHandler: function(e)
     {
-        var id = e.findElement('DIV.searchId').identify();
-        this.replaceDate(id, this.criteria[id].t, e.memo);
+        this.updateDate(
+            e.findElement('DIV.searchId').identify(),
+            e.element().up('SPAN'),
+            e.memo
+        );
+    },
+
+    showUnsubCallback: function(r)
+    {
+        var resp, sfa, vals;
+
+        if (r.responseJSON.response) {
+            resp = r.responseJSON.response;
+            this.data.mbox_list = resp.mbox_list;
+            sfa = $('search_mboxes_add');
+            vals = sfa.select('[disabled]').pluck('value');
+            sfa.update(resp.tree);
+            vals.each(function(v) {
+                if (v.length) {
+                    this.disableMailbox(true, v);
+                }
+            }, this);
+        }
     },
 
     onDomLoad: function()
@@ -595,28 +676,34 @@ var ImpSearch = {
             return;
         }
 
-        this.data.constants.date = $H(this.data.constants.date);
+        HordeCore.initHandler('click');
+
+        if (Prototype.Browser.IE) {
+            $('recent_searches', 'search_criteria_add', 'search_mboxes_add').compact().invoke('observe', 'change', ImpSearch.changeHandler.bindAsEventListener(ImpSearch));
+        } else {
+            document.observe('change', ImpSearch.changeHandler.bindAsEventListener(ImpSearch));
+        }
+
         this.data.constants.within = $H(this.data.constants.within);
 
         if (this.i_recent) {
             this.updateRecentSearches(this.i_recent);
-            this.i_recent = null;
+            delete this.i_recent;
         }
 
         if (this.i_criteria) {
             this.updateCriteria(this.i_criteria);
-            this.i_criteria = null;
+            delete this.i_criteria;
         }
 
-        if (this.i_folders) {
-            this.updateFolders(this.i_folders);
-            this.i_folders = null;
+        if (this.i_mboxes) {
+            this.updateMailboxes(this.i_mboxes);
+            delete this.i_mboxes;
         }
     }
 
 };
 
-document.observe('change', ImpSearch.changeHandler.bindAsEventListener(ImpSearch));
-document.observe('click', ImpSearch.clickHandler.bindAsEventListener(ImpSearch));
 document.observe('dom:loaded', ImpSearch.onDomLoad.bindAsEventListener(ImpSearch));
+document.observe('HordeCore:click', ImpSearch.clickHandler.bindAsEventListener(ImpSearch));
 document.observe('Horde_Calendar:select', ImpSearch.calendarSelectHandler.bindAsEventListener(ImpSearch));

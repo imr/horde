@@ -2,10 +2,10 @@
 /**
  * Horde Kronolith driver for the Kolab IMAP Server.
  *
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Thomas Jarosch <thomas.jarosch@intra2net.com>
  * @author  Gunnar Wrobel <wrobel@pardus.de>
@@ -43,18 +43,21 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
     private $_synchronized;
 
     /**
-     * Shortcut to the imap connection
+     * The current calendar.
      *
-     * @var Kolab_IMAP
+     * @var Horde_Kolab_Storage_Data
      */
-    private $_store;
+    private $_data;
 
     /**
      * Attempts to open a Kolab Groupware folder.
      */
     public function initialize()
     {
-        $this->_kolab = $GLOBALS['injector']->getInstance('Horde_Kolab_Storage');
+        if (empty($this->_params['storage'])) {
+            throw new InvalidArgumentException('Missing required Horde_Kolab_Storage instance');
+        }
+        $this->_kolab = $this->_params['storage'];
         $this->reset();
     }
 
@@ -104,7 +107,7 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
         }
 
         // Connect to the Kolab backend
-        $this->_store = $this->_kolab->getData(
+        $this->_data = $this->_kolab->getData(
             $GLOBALS['all_calendars'][$this->calendar]->share()->get('folder'),
             'event'
         );
@@ -112,7 +115,7 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
 
         // build internal event cache
         $this->_events_cache = array();
-        $events = $this->_store->getObjects();
+        $events = $this->_data->getObjects();
         foreach ($events as $event) {
             $this->_events_cache[$event['uid']] = new Kronolith_Event_Kolab($this, $event);
         }
@@ -125,7 +128,7 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
      */
     public function listAlarms($date, $fullevent = false)
     {
-        $allevents = $this->listEvents($date, null, false, true);
+        $allevents = $this->listEvents($date, null, array('has_alarm' => true));
         $events = array();
 
         foreach ($allevents as $eventId => $data) {
@@ -188,7 +191,7 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
 
         $result = $this->synchronize();
 
-        if ($this->_store->objectUidExists($uid)) {
+        if ($this->_data->objectIdExists($uid)) {
             return $uid;
         }
 
@@ -199,41 +202,47 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
      * Lists all events in the time range, optionally restricting results to
      * only events with alarms.
      *
-     * @param Horde_Date $startInterval  Start of range date object.
-     * @param Horde_Date $endInterval    End of range data object.
-     * @param boolean $showRecurrence    Return every instance of a recurring
-     *                                   event? If false, will only return
-     *                                   recurring events once inside the
-     *                                   $startDate - $endDate range.
-     * @param boolean $hasAlarm          Only return events with alarms?
-     * @param boolean $json              Store the results of the events'
-     *                                   toJson() method?
-     * @param boolean $coverDates        Whether to add the events to all days
-     *                                   that they cover.
+     * @param Horde_Date $startDate  The start of range date.
+     * @param Horde_Date $endDate    The end of date range.
+     * @param array $options         Additional options:
+     *   - show_recurrence: (boolean) Return every instance of a recurring
+     *                       event?
+     *                      DEFAULT: false (Only return recurring events once
+     *                      inside $startDate - $endDate range)
+     *   - has_alarm:       (boolean) Only return events with alarms.
+     *                      DEFAULT: false (Return all events)
+     *   - json:            (boolean) Store the results of the event's toJson()
+     *                      method?
+     *                      DEFAULT: false
+     *   - cover_dates:     (boolean) Add the events to all days that they
+     *                      cover?
+     *                      DEFAULT: true
+     *   - hide_exceptions: (boolean) Hide events that represent exceptions to
+     *                      a recurring event.
+     *                      DEFAULT: false (Do not hide exception events)
+     *   - fetch_tags:      (boolean) Fetch tags for all events.
+     *                      DEFAULT: false (Do not fetch event tags)
      *
-     * @return array  Events in the given time range.
+     * @throws Kronolith_Exception
      */
-    public function listEvents($startDate = null, $endDate = null,
-                               $showRecurrence = false, $hasAlarm = false,
-                               $json = false, $coverDates = true,
-                               $fetchTags = false)
+    protected function _listEvents(Horde_Date $startDate = null,
+                                   Horde_Date $endDate = null,
+                                   array $options = array())
     {
         $result = $this->synchronize();
 
         if (empty($startDate)) {
-            $startDate = new Horde_Date(array('mday' => 1,
-                                              'month' => 1,
-                                              'year' => 0000));
+            $startDate = new Horde_Date(
+                array('mday' => 1, 'month' => 1, 'year' => 0000));
         }
         if (empty($endDate)) {
-            $endDate = new Horde_Date(array('mday' => 31,
-                                            'month' => 12,
-                                            'year' => 9999));
+            $endDate = new Horde_Date(
+                array('mday' => 31, 'month' => 12, 'year' => 9999));
         }
-        if (!is_a($startDate, 'Horde_Date')) {
+        if (!($startDate instanceOf Horde_Date)) {
             $startDate = new Horde_Date($startDate);
         }
-        if (!is_a($endDate, 'Horde_Date')) {
+        if (!($endDate instanceOf Horde_Date)) {
             $endDate = new Horde_Date($endDate);
         }
 
@@ -245,7 +254,7 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
 
         $events = array();
         foreach($this->_events_cache as $event) {
-            if ($hasAlarm && !$event->alarm) {
+            if ($options['has_alarm'] && !$event->alarm) {
                 continue;
             }
 
@@ -264,8 +273,11 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
                 continue;
             }
 
-            Kronolith::addEvents($events, $event, $startDate, $endDate,
-                                 $showRecurrence, $json, $coverDates);
+            Kronolith::addEvents(
+                $events, $event, $startDate, $endDate,
+                $options['show_recurrence'],
+                $options['json'],
+                $options['cover_dates']);
         }
 
         return $events;
@@ -374,9 +386,15 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
             : array('action' => 'add');
 
         if (!$event->uid) {
-            $event->uid = $this->_store->generateUID();
+            $event->uid = $this->_data->generateUID();
         }
-        $this->_store->save($event->toKolab(), $edit ? $event->uid : null);
+        if (!$edit) {
+            $object = $event->toKolab();
+            $this->_data->create($object);
+        } else {
+            $object = $event->toKolab();
+            $this->_data->modify($object);
+        }
 
         /* Deal with tags */
         if ($edit) {
@@ -385,8 +403,7 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
             Kronolith::getTagger()->tag($event->uid, $event->tags, $event->creator, 'event');
         }
 
-        $cal = $GLOBALS['kronolith_shares']->getShare($event->calendar);
-        $tagger->tag($event->uid, $event->tags, $cal->get('owner'), 'event');
+        $cal = $GLOBALS['injector']->getInstance('Kronolith_Shares')->getShare($event->calendar);
 
         /* Notify about the changed event. */
         Kronolith::sendNotification($event, $edit ? 'edit' : 'add');
@@ -402,7 +419,7 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
         $this->synchronize(true);
 
         if (is_callable('Kolab', 'triggerFreeBusyUpdate')) {
-            //Kolab::triggerFreeBusyUpdate($this->_store->parseFolder($event->calendar));
+            //Kolab::triggerFreeBusyUpdate($this->_data->parseFolder($event->calendar));
         }
 
         return $event->uid;
@@ -423,18 +440,17 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
         $event = $this->getEvent($eventId);
         $result = $this->synchronize();
 
-        global $kronolith_shares;
-        $target = $kronolith_shares->getShare($newCalendar);
+        $target = $GLOBALS['injector']->getInstance('Kronolith_Shares')->getShare($newCalendar);
         $folder = $target->getId();
 
-        $result = $this->_store->move($eventId, $folder);
+        $result = $this->_data->move($eventId, $folder);
         if ($result) {
             unset($this->_events_cache[$eventId]);
         }
 
         if (is_callable('Kolab', 'triggerFreeBusyUpdate')) {
-            //Kolab::triggerFreeBusyUpdate($this->_store->parseFolder($this->calendar));
-            //Kolab::triggerFreeBusyUpdate($this->_store->parseFolder($newCalendar));
+            //Kolab::triggerFreeBusyUpdate($this->_data->parseFolder($this->calendar));
+            //Kolab::triggerFreeBusyUpdate($this->_data->parseFolder($newCalendar));
         }
 
         return $event;
@@ -452,9 +468,9 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
         $this->open($calendar);
         $result = $this->synchronize();
 
-        $result = $this->_store->deleteAll($calendar);
+        $result = $this->_data->deleteAll($calendar);
         if (is_callable('Kolab', 'triggerFreeBusyUpdate')) {
-            //Kolab::triggerFreeBusyUpdate($this->_store->parseFolder($calendar));
+            //Kolab::triggerFreeBusyUpdate($this->_data->parseFolder($calendar));
         }
     }
 
@@ -471,32 +487,26 @@ class Kronolith_Driver_Kolab extends Kronolith_Driver
     {
         $result = $this->synchronize();
 
-        if (!$this->_store->objectUidExists($eventId)) {
+        if (!$this->_data->objectIdExists($eventId)) {
             throw new Kronolith_Exception(sprintf(_("Event not found: %s"), $eventId));
         }
 
         $event = $this->getEvent($eventId);
-        if ($this->_store->delete($eventId)) {
-            // Notify about the deleted event.
-            if (!$silent) {
-                Kronolith::sendNotification($event, 'delete');
-            }
+        $this->_data->delete($eventId);
 
-            /* Log the deletion of this item in the history log. */
-            try {
-                $GLOBALS['injector']->getInstance('Horde_History')->log('kronolith:' . $event->calendar . ':' . $event->uid, array('action' => 'delete'), true);
-            } catch (Exception $e) {
-                Horde::logMessage($e, 'ERR');
-            }
-
-            if (is_callable('Kolab', 'triggerFreeBusyUpdate')) {
-                //Kolab::triggerFreeBusyUpdate($this->_store->parseFolder($event->calendar));
-            }
-
-            unset($this->_events_cache[$eventId]);
-        } else {
-            throw new Kronolith_Exception(sprintf(_("Cannot delete event: %s"), $eventId));
+        // Notify about the deleted event.
+        if (!$silent) {
+            Kronolith::sendNotification($event, 'delete');
         }
+
+        /* Log the deletion of this item in the history log. */
+        try {
+            $GLOBALS['injector']->getInstance('Horde_History')->log('kronolith:' . $event->calendar . ':' . $event->uid, array('action' => 'delete'), true);
+        } catch (Exception $e) {
+            Horde::logMessage($e, 'ERR');
+        }
+
+        unset($this->_events_cache[$eventId]);
     }
 
 }

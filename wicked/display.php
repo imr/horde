@@ -1,14 +1,14 @@
 <?php
 /**
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Tyler Colbert <tyler@colberts.us>
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('wicked');
 
 $actionID = Horde_Util::getFormData('actionID');
@@ -68,10 +68,10 @@ case 'export':
     if (!$page->allows(Wicked::MODE_DISPLAY)) {
         $notification->push(_("You don't have permission to view this page."),
                             'horde.error');
-        if ($page->pageName() == 'WikiHome') {
+        if ($page->pageName() == 'Wiki/Home') {
             throw new Horde_Exception(_("You don't have permission to view this page."));
         }
-        Wicked::url('WikiHome', true)->redirect();
+        Wicked::url('Wiki/Home', true)->redirect();
     }
 
     switch (Horde_Util::getGet('format')) {
@@ -85,6 +85,12 @@ case 'export':
         $format = 'Latex';
         $ext = '.tex';
         $mime = 'text/x-tex';
+        break;
+
+    case 'rst':
+        $format = 'Rst';
+        $ext = '';
+        $mime = 'text/text';
         break;
 
     case 'plain':
@@ -112,8 +118,8 @@ default:
 }
 
 if (!$page->allows(Wicked::MODE_DISPLAY)) {
-    if ($page->pageName() == 'WikiHome') {
-        Horde::fatal(_("You don't have permission to view this page."));
+    if ($page->pageName() == 'Wiki/Home') {
+        throw new Wicked_Exception(_("You don't have permission to view this page."));
     }
     $notification->push(_("You don't have permission to view this page."),
                         'horde.error');
@@ -129,15 +135,16 @@ if ($page->isLocked()) {
 
 $history = $session->get('wicked', 'history', Horde_Session::TYPE_ARRAY);
 
-$title = $page->pageTitle();
 Horde::startBuffer();
 $page->render(Wicked::MODE_DISPLAY, $params);
 $content = Horde::endBuffer();
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $page->pageTitle()
+));
 require WICKED_TEMPLATES . '/menu.inc';
 echo $content;
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();
 
 if ($page instanceof Wicked_Page_StandardPage &&
     (!isset($history[0]) ||

@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * An PEAR-Net_Imap based Kolab storage driver.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Driver_Pear
@@ -496,7 +496,7 @@ extends Horde_Kolab_Storage_Driver_Base
                 $params[strtolower($key)] = $value;
             }
 
-            $params = Horde_Mime::decodeParam('content-type', $params, 'UTF-8');
+            $params = Horde_Mime::decodeParam('content-type', $params);
             foreach ($params['params'] as $key => $value) {
                 $ob->setContentTypeParameter($key, $value);
             }
@@ -511,7 +511,7 @@ extends Horde_Kolab_Storage_Driver_Base
                     $dparams[strtolower($key)] = $value;
                 }
 
-                $dparams = Horde_Mime::decodeParam('content-disposition', $dparams, 'UTF-8');
+                $dparams = Horde_Mime::decodeParam('content-disposition', $dparams);
                 foreach ($dparams['params'] as $key => $value) {
                     $ob->setDispositionParameter($key, $value);
                 }

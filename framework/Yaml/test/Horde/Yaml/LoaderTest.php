@@ -3,11 +3,13 @@
  * Horde_Yaml_Loader test
  *
  * @author     Mike Naberezny <mike@maintainable.com>
- * @license    http://opensource.org/licenses/bsd-license.php BSD
+ * @license    http://www.horde.org/licenses/bsd BSD
  * @category   Horde
  * @package    Yaml
  * @subpackage UnitTests
  */
+
+require_once __DIR__ . '/Autoload.php';
 
 /**
  * @category   Horde
@@ -133,7 +135,7 @@ class Horde_Yaml_LoaderTest extends PHPUnit_Framework_TestCase
     public function testLoadStreamThrowsWhenStreamIsResourceButNotStream()
     {
         $resourceButNotStream = xml_parser_create();
-        $this->assertType('resource', $resourceButNotStream);
+        $this->assertInternalType('resource', $resourceButNotStream);
 
         try {
             Horde_Yaml::loadStream($resourceButNotStream);
@@ -344,7 +346,7 @@ class Horde_Yaml_LoaderTest extends PHPUnit_Framework_TestCase
   !php/object::Horde_Yaml_Test_Serializable
   string');
 
-        $this->assertType('Horde_Yaml_Test_Serializable', $result['obj']);
+        $this->assertInstanceOf('Horde_Yaml_Test_Serializable', $result['obj']);
         $this->assertSame('string', $result['obj']->test());
 
         // Horde_Yaml_Test_NotSerializable doesn't implement Serializable: FAILURE
@@ -784,7 +786,7 @@ class Horde_Yaml_LoaderTest extends PHPUnit_Framework_TestCase
 
     public function fixture($name)
     {
-        return dirname(__FILE__) . "/fixtures/{$name}.yml";
+        return __DIR__ . "/fixtures/{$name}.yml";
     }
 
     public function testUnfolding()

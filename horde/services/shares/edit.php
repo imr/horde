@@ -1,14 +1,14 @@
 <?php
 /**
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../../lib/Application.php';
+require_once __DIR__ . '/../../lib/Application.php';
 Horde_Registry::appInit('horde');
 
 // Exit if the user shouldn't be able to change share permissions.
@@ -234,21 +234,18 @@ case 'editform':
             }
         }
 
-        $result = $share->setPermission($perm, false);
-        if ($result instanceof PEAR_Error) {
-            $notification->push($result, 'horde.error');
-        } else {
-            $result = $share->save();
-            if ($result instanceof PEAR_Error) {
-                $notification->push($result, 'horde.error');
-            } else {
-                if (Horde_Util::getFormData('save_and_finish')) {
-                    echo Horde::wrapInlineScript(array('window.close();'));
-                    exit;
-                }
-                $notification->push(sprintf(_("Updated \"%s\"."), $share->get('name')), 'horde.success');
-            }
+        try {
+            $share->setPermission($perm, false);
+            $share->save();
+        } catch (Exception $e) {
+            $notification->push($e->getMessage(), 'horde.error');
         }
+        if (Horde_Util::getFormData('save_and_finish')) {
+            echo Horde::wrapInlineScript(array('window.close();'));
+            exit;
+        }
+        $notification->push(
+            sprintf(_("Updated \"%s\"."), $share->get('name')), 'horde.success');
 
         $form = 'edit.inc';
     }
@@ -272,19 +269,20 @@ if ($auth->hasCapability('list') &&
 }
 
 try {
-    $groupList = empty($conf['share']['any_group'])
-        ? $groups->listGroups($registry->getAuth())
-        : $groups->listAll();
+    $groupList = $groups->listAll(empty($conf['share']['any_group'])
+                                  ? $registry->getAuth()
+                                  : null);
     asort($groupList);
 } catch (Horde_Group_Exception $e) {
     Horde::logMessage($e, 'NOTICE');
     $groupList = array();
 }
 
-require HORDE_TEMPLATES . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 $notification->notify(array('listeners' => 'status'));
 if (!empty($form)) {
     require HORDE_TEMPLATES . '/shares/' . $form;
 }
-
-require HORDE_TEMPLATES . '/common-footer.inc';
+$page_output->footer();

@@ -21,13 +21,13 @@
  * 'port' - The port on which to connect to the database.
  * </pre>
  *
- * The table structure can be created by the scripts/sql/pastie_foo.sql
+ * The table structure can be created by the scripts/sql/pastie.sql
  * script.
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (BSD). If you
- * did not receive this file, see http://www.fsf.org/copyleft/bsd.html.
+ * See the enclosed file LICENSE for license information (BSD). If you
+ * did not receive this file, see http://www.horde.org/licenses/bsd.
  *
  * @author  Ben Klang <ben@alkaloid.net>
  * @package Pastie
@@ -79,7 +79,7 @@ class Pastie_Driver_Sql extends Pastie_Driver
 
         $id = $this->_db->nextId('mySequence');
         if (PEAR::isError($id)) {
-            throw new Horde_Exception_Prior($id);
+            throw new Horde_Exception_Wrapped($id);
         }
 
         $uuid = new Horde_Support_Uuid();
@@ -106,7 +106,7 @@ class Pastie_Driver_Sql extends Pastie_Driver
         $result = $this->_write_db->query($query, $values);
         if ($result instanceof PEAR_Error) {
             Horde::logMessage($result, 'err');
-            throw new Horde_Exception_Prior($result);
+            throw new Horde_Exception_Wrapped($result);
         }
 
         return $uuid;
@@ -152,12 +152,12 @@ class Pastie_Driver_Sql extends Pastie_Driver
         $result = $this->_db->query($query, $values);
 
         if ($result instanceof PEAR_Error) {
-            throw new Horde_Exception_Prior($result);
+            throw new Horde_Exception_Wrapped($result);
         }
 
         $row = $result->fetchRow(DB_FETCHMODE_ASSOC);
         if ($row instanceof PEAR_Error) {
-            throw new Horde_Exception_Prior($row);
+            throw new Horde_Exception_Wrapped($row);
         }
         $result->free();
 
@@ -202,12 +202,12 @@ class Pastie_Driver_Sql extends Pastie_Driver
         }
 
         if ($result instanceof PEAR_Error) {
-            throw new Horde_Exception_Prior($result);
+            throw new Horde_Exception_Wrapped($result);
         }
 
         $row = $result->fetchRow(DB_FETCHMODE_ASSOC);
         if ($row instanceof PEAR_Error) {
-            throw new Horde_Exception_Prior($row);
+            throw new Horde_Exception_Wrapped($row);
         }
 
         $pastes = array();

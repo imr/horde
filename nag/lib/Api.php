@@ -26,7 +26,7 @@ class Nag_Api extends Horde_Registry_Api
     public function ajaxDefaults()
     {
         return array(
-            'URI_TASKLIST_EXPORT' => (string)Horde::url('data.php', true)->add(array('actionID' => 'export', 'exportTasks' => 1, 'exportID' => Horde_Data::EXPORT_ICALENDAR, 'exportList' => '')),
+            'URI_TASKLIST_EXPORT' => strval($GLOBALS['registry']->downloadUrl('', array('actionID' => 'export', 'exportTasks' => 1, 'exportID' => Horde_Data::EXPORT_ICALENDAR, 'exportList' => ''))),
             'default_tasklist' => Nag::getDefaultTasklist(Horde_Perms::EDIT),
             'default_due' => (bool)$GLOBALS['prefs']->getValue('default_due'),
             'default_due_days' => (int)$GLOBALS['prefs']->getValue('default_due_days'),
@@ -107,6 +107,29 @@ class Nag_Api extends Horde_Registry_Api
     }
 
     /**
+     * Returns a task list.
+     *
+     * @since Nag 3.0.3
+     *
+     * @param string $name   A task list name.
+     *
+     * @return Horde_Share_Object  The task list.
+     */
+    public function getTasklist($name)
+    {
+        try {
+            $tasklist = $GLOBALS['nag_shares']->getShare($id);
+        } catch (Horde_Share_Exception $e) {
+            Horde::logMessage($e->getMessage(), 'ERR');
+            throw new Nag_Exception($e);
+        }
+        if (!$tasklist->hasPermission($GLOBALS['registry']->getAuth(), Horde_Perms::READ)) {
+            throw new Horde_Exception_PermissionDenied(_("You are not allowed to retrieve this task list."));
+        }
+        return $tasklist;
+    }
+
+    /**
      * Adds a new task list.
      *
      * @param string $name        Task list name.
@@ -124,13 +147,13 @@ class Nag_Api extends Horde_Registry_Api
     /**
      * Updates an existing task list.
      *
-     * @param string $id   A task list id.
+     * @param string $name   A task list name.
      * @param array $info  Hash with task list information.
      */
-    public static function updateTasklist($id, $info)
+    public static function updateTasklist($name, $info)
     {
         try {
-            $tasklist = $GLOBALS['nag_shares']->getShare($id);
+            $tasklist = $GLOBALS['nag_shares']->getShare($name);
         } catch (Horde_Share_Exception $e) {
             Horde::logMessage($e->getMessage(), 'ERR');
             throw new Nag_Exception($e);
@@ -148,6 +171,31 @@ class Nag_Api extends Horde_Registry_Api
     {
         $tasklist = $GLOBALS['nag_shares']->getShare($id);
         return Nag::deleteTasklist($tasklist);
+    }
+
+    /**
+     * Returns the displayed task lists.
+     *
+     * @since Nag 3.0.3
+     *
+     * @return array  Displayed tasklists.
+     */
+    public function getDisplayedTasklists()
+    {
+        return $GLOBALS['display_tasklists'];
+    }
+
+    /**
+     * Sets the displayed task lists.
+     *
+     * @since Nag 3.0.3
+     *
+     * @param array $list  Displayed tasklists.
+     */
+    public function setDisplayedTasklists($list)
+    {
+        $GLOBALS['display_tasklists'] = $list;
+        $GLOBALS['prefs']->setValue('display_tasklists', serialize($list));
     }
 
     /**
@@ -197,11 +245,6 @@ class Nag_Api extends Horde_Registry_Api
             $tasklists = Nag::listTasklists(false, Horde_Perms::READ);
             $owners = array();
             foreach ($tasklists as $tasklist) {
-                if ($tasklist->get('owner') != $GLOBALS['registry']->getAuth() &&
-                    !empty($GLOBALS['conf']['share']['hidden']) &&
-                    !in_array($tasklist->getName(), $GLOBALS['display_tasklists'])) {
-                    continue;
-                }
                 $owners[$tasklist->get('owner') ? $tasklist->get('owner') : '-system-'] = true;
             }
 
@@ -238,7 +281,7 @@ class Nag_Api extends Horde_Registry_Api
             // This request is for all tasklists owned by the requested user
             //
             $tasklists = $GLOBALS['nag_shares']->listShares(
-                $parts[0],
+                $GLOBALS['registry']->getAuth(),
                 array('perm' => Horde_Perms::SHOW,
                       'attributes' => $parts[0]));
 
@@ -289,8 +332,8 @@ class Nag_Api extends Horde_Registry_Api
             // This is a request for the entire tasklist in iCalendar format.
             //
             $tasklist = substr($parts[1], 0, -4);
-            if (!array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::READ))) {
-                return PEAR::raiseError(_("Invalid tasklist file requested."), 404);
+            if (!Nag::hasPermission($tasklist, Horde_Perms::READ)) {
+                throw new Nag_Exception(_("Invalid tasklist file requested."), 404);
             }
             $ical_data = $this->exportTasklist($tasklist, 'text/calendar');
             $result = array('data'          => $ical_data,
@@ -305,8 +348,8 @@ class Nag_Api extends Horde_Registry_Api
             // This request is browsing into a specific tasklist.  Generate the list
             // of items and represent them as files within the directory.
             //
-            if (!array_key_exists($parts[1], Nag::listTasklists(false, Horde_Perms::READ))) {
-                return PEAR::raiseError(_("Invalid tasklist requested."), 404);
+            if (!Nag::hasPermission($parts[1], Horde_Perms::READ)) {
+                throw new Nag_Exception(_("Invalid tasklist requested."), 404);
             }
             $storage = Nag_Driver::singleton($parts[1]);
             try {
@@ -353,8 +396,7 @@ class Nag_Api extends Horde_Registry_Api
             // The only valid request left is for either a specific task item.
             //
             if (count($parts) == 3 &&
-                array_key_exists($parts[1], Nag::listTasklists(false, Horde_Perms::READ))) {
-
+                Nag::hasPermission($parts[1], Horde_Perms::READ)) {
                 //
                 // This request is for a specific item within a given task list.
                 //
@@ -376,7 +418,7 @@ class Nag_Api extends Horde_Registry_Api
                 return $result;
             } elseif (count($parts) == 2 &&
                 substr($parts[1], -4) == '.ics' &&
-                array_key_exists(substr($parts[1], 0, -4), Nag::listTasklists(false, Horde_Perms::READ))) {
+                Nag::hasPermission(substr($parts[1], 0, -4), Horde_Perms::READ)) {
 
                 // ??
 
@@ -428,7 +470,7 @@ class Nag_Api extends Horde_Registry_Api
                 throw new Nag_Exception(_("Invalid tasklist name supplied."), 403);
             }
 
-        if (!array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::EDIT))) {
+        if (!Nag::hasPermission($tasklist, Horde_Perms::EDIT)) {
             // FIXME: Should we attempt to create a tasklist based on the filename
             // in the case that the requested tasklist does not exist?
             throw new Nag_Exception(_("Tasklist does not exist or no permission to edit"), 403);
@@ -454,96 +496,74 @@ class Nag_Api extends Horde_Registry_Api
             }
 
             foreach ($iCal->getComponents() as $content) {
-                if ($content instanceof Horde_Icalendar_Vtodo) {
-                    $task = new Nag_Task();
-                    $task->fromiCalendar($content);
-                    $task->tasklist = $tasklist;
-                    if (isset($task->uid)) {
+                if (!($content instanceof Horde_Icalendar_Vtodo)) {
+                    continue;
+                }
+                $task = new Nag_Task();
+                $task->fromiCalendar($content);
+                $task->tasklist = $tasklist;
+                $create = true;
+                if (isset($task->uid)) {
+                    try {
                         $existing = $storage->getByUID($task->uid);
-                        // Entry exists, remove from uids_remove list so we
-                        // won't delete in the end.
-                        if (isset($uids_remove[$task->uid])) {
-                            unset($uids_remove[$task->uid]);
+                        $create = false;
+                    } catch (Horde_Exception_NotFound $e) {
+                    }
+                }
+                if (!$create) {
+                    // Entry exists, remove from uids_remove list so we
+                    // won't delete in the end.
+                    if (isset($uids_remove[$task->uid])) {
+                        unset($uids_remove[$task->uid]);
+                    }
+                    if ($existing->private &&
+                        $existing->owner != $GLOBALS['registry']->getAuth()) {
+                        continue;
+                    }
+                    // Check if our task is newer then the existing - get
+                    // the task's history.
+                    $history = $GLOBALS['injector']->getInstance('Horde_History');
+                    $created = $modified = null;
+                    try {
+                        $log = $history->getHistory('nag:' . $tasklist . ':' . $task->uid);
+                        foreach ($log as $entry) {
+                            switch ($entry['action']) {
+                            case 'add':
+                                $created = $entry['ts'];
+                                break;
+
+                            case 'modify':
+                                $modified = $entry['ts'];
+                                break;
+                            }
                         }
-                        if ($existing->private &&
-                            $existing->owner != $GLOBALS['registry']->getAuth()) {
+                    } catch (Exception $e) {}
+                    if (empty($modified) && !empty($add)) {
+                        $modified = $add;
+                    }
+                    if (!empty($modified) &&
+                        $modified >= $content->getAttribute('LAST-MODIFIED')) {
+                            // LAST-MODIFIED timestamp of existing entry
+                            // is newer: don't replace it.
                             continue;
                         }
-                        // Check if our task is newer then the existing - get
-                        // the task's history.
-                        $history = $GLOBALS['injector']->getInstance('Horde_History');
-                        $created = $modified = null;
-                        try {
-                            $log = $history->getHistory('nag:' . $tasklist . ':' . $task->uid);
-                            foreach ($log as $entry) {
-                                switch ($entry['action']) {
-                                case 'add':
-                                    $created = $entry['ts'];
-                                    break;
 
-                                case 'modify':
-                                    $modified = $entry['ts'];
-                                    break;
-                                }
-                            }
-                        } catch (Exception $e) {}
-                        if (empty($modified) && !empty($add)) {
-                            $modified = $add;
-                        }
-                        if (!empty($modified) &&
-                            $modified >= $content->getAttribute('LAST-MODIFIED')) {
-                                // LAST-MODIFIED timestamp of existing entry
-                                // is newer: don't replace it.
-                                continue;
-                            }
-
-                        // Don't change creator/owner.
-                        $owner = $existing->owner;
-                        $taskId = $existing->id;
-                        try {
-                            $storage->modify(
-                                $taskId,
-                                isset($task->name) ? $task->name : $existing->name,
-                                isset($task->desc) ? $task->desc : $existing->desc,
-                                isset($task->start) ? $task->start : $existing->start,
-                                isset($task->due) ? $task->due : $existing->due,
-                                isset($task->priority) ? $task->priority : $existing->priority,
-                                isset($task->estimate) ? $task->estimate : 0,
-                                isset($task->completed) ? (int)$task->completed : $existing->completed,
-                                isset($task->category) ? $task->category : $existing->category,
-                                isset($task->alarm) ? $task->alarm : $existing->alarm,
-                                isset($task->parent_id) ? $task->parent_id : $existing->parent_id,
-                                isset($task->private) ? $task->private : $existing->private,
-                                $owner,
-                                isset($task->assignee) ? $task->assignee : $existing->assignee
-                            );
-                        } catch (Nag_Exception $e) {
-                            throw new Nag_Exception($e->getMessage(), 500);
-                        }
-                        $ids[] = $task->uid;
-                    } else {
-                        try {
-                            $newTask = $storage->add(
-                                isset($task->name) ? $task->name : '',
-                                isset($task->desc) ? $task->desc : '',
-                                isset($task->start) ? $task->start : 0,
-                                isset($task->due) ? $task->due : 0,
-                                isset($task->priority) ? $task->priority : 3,
-                                isset($task->estimate) ? $task->estimate : 0,
-                                !empty($task->completed),
-                                isset($task->category) ? $task->category : '',
-                                isset($task->alarm) ? $task->alarm : 0,
-                                isset($task->uid) ? $task->uid : null,
-                                isset($task->parent_id) ? $task->parent_id : '',
-                                !empty($task->private),
-                                $GLOBALS['registry']->getAuth(),
-                                isset($task->assignee) ? $task->assignee : null);
-                        } catch (Nag_Exception $e) {
-                            throw new Nag_Exception($e->getMessage(), 500);
-                        }
-                        // use UID rather than ID
-                        $ids[] = $newTask[1];
+                    // Don't change creator/owner.
+                    $task->owner = $existing->owner;
+                    try {
+                        $storage->modify($existing->id, $task->toHash());
+                    } catch (Nag_Exception $e) {
+                        throw new Nag_Exception($e->getMessage(), 500);
                     }
+                    $ids[] = $task->uid;
+                } else {
+                    try {
+                        $newTask = $storage->add($task->toHash());
+                    } catch (Nag_Exception $e) {
+                        throw new Nag_Exception($e->getMessage(), 500);
+                    }
+                    // use UID rather than ID
+                    $ids[] = $newTask[1];
                 }
             }
             break;
@@ -552,7 +572,7 @@ class Nag_Api extends Horde_Registry_Api
             throw new Nag_Exception(sprintf(_("Unsupported Content-Type: %s"), $content_type), 400);
         }
 
-        if (array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::DELETE))) {
+        if (Nag::hasPermission($tasklist, Horde_Perms::DELETE)) {
             foreach (array_keys($uids_remove) as $uid) {
                 $this->delete($uid);
             }
@@ -593,7 +613,7 @@ class Nag_Api extends Horde_Registry_Api
         }
 
         if (!(count($parts) == 2 || count($parts) == 3) ||
-            !array_key_exists($tasklistID, Nag::listTasklists(false, Horde_Perms::DELETE))) {
+            !Nag::hasPermission($tasklistID, Horde_Perms::DELETE)) {
 
             throw new Nag_Exception(_("Tasklist does not exist or no permission to delete"), 403);
         }
@@ -630,7 +650,7 @@ class Nag_Api extends Horde_Registry_Api
      * Returns an array of UIDs for all tasks that the current user is authorized
      * to see.
      *
-     * @param mixed $tasklist  The tasklist or an array of taskslists to list.
+     * @param mixed $tasklists  The tasklist or an array of taskslists to list.
      *
      * @return array             An array of UIDs for all tasks
      *                           the user can access.
@@ -638,18 +658,26 @@ class Nag_Api extends Horde_Registry_Api
      * @throws Horde_Exception_PermissionDenied
      * @throws Nag_Exception
      */
-    public function listUids($tasklist = null)
+    public function listUids($tasklists = null)
     {
         if (!isset($GLOBALS['conf']['storage']['driver'])) {
             throw new Nag_Exception(_("Not configured"));
         }
-        if ($tasklist === null) {
-            $tasklist = Nag::getDefaultTasklist(Horde_Perms::READ);
+
+        if (empty($tasklists)) {
+            $tasklists = Nag::getSyncLists();
+        } else {
+            if (!is_array($tasklists)) {
+                $tasklists = array($tasklists);
+            }
+            foreach ($tasklists as $list) {
+                if (!Nag::hasPermission($list, Horde_Perms::READ)) {
+                    throw new Horde_Exception_PermissionDenied();
+                }
+            }
         }
-        if (!array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::READ))) {
-            throw new Horde_Exception_PermissionDenied(_("Permission Denied"));
-        }
-        $tasks = Nag::listTasks(null, null, null, array($tasklist), 1);
+
+        $tasks = Nag::listTasks(null, null, null, $tasklists, 1);
         $uids = array();
         $tasks->reset();
         while ($task = $tasks->each()) {
@@ -665,7 +693,7 @@ class Nag_Api extends Horde_Registry_Api
      *
      * @param string  $action     The action to check for - add, modify, or delete.
      * @param integer $timestamp  The time to start the search.
-     * @param string  $tasklist   The tasklist to be used. If 'null', the
+     * @param mixed   $tasklists  The tasklists to be used. If 'null', the
      *                            user's default tasklist will be used.
      * @param integer $end        The optional ending timestamp.
      *
@@ -676,12 +704,13 @@ class Nag_Api extends Horde_Registry_Api
      */
     public function listBy($action, $timestamp, $tasklist = null, $end = null)
     {
-        if ($tasklist === null) {
-            $tasklist = Nag::getDefaultTasklist(Horde_Perms::READ);
-        }
-
-        if (!array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::READ))) {
-           throw new Horde_Exception_PermissionDenied(_("Permission Denied"));
+        if (empty($tasklist)) {
+            $tasklist = Nag::getSyncLists();
+            $results = array();
+            foreach ($tasklist as $list) {
+                $results = array_merge($results, $this->listBy($action, $timestamp, $list, $end));
+            }
+            return $results;
         }
 
         $filter = array(array('op' => '=', 'field' => 'action', 'value' => $action));
@@ -708,9 +737,10 @@ class Nag_Api extends Horde_Registry_Api
      */
     public function getChanges($start, $end)
     {
-        return array('add' => $this->listBy('add', $start, null, $end),
-                     'modify' => $this->listBy('modify', $start, null, $end),
-                     'delete' => $this->listBy('delete', $start, null, $end));
+        return array(
+            'add' => $this->listBy('add', $start, null, $end),
+            'modify' => $this->listBy('modify', $start, null, $end),
+            'delete' => $this->listBy('delete', $start, null, $end));
     }
 
     /**
@@ -731,10 +761,8 @@ class Nag_Api extends Horde_Registry_Api
     {
         if ($tasklist === null) {
             $tasklist = Nag::getDefaultTasklist(Horde_Perms::READ);
-        }
-
-        if (!array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::READ))) {
-            throw new Horde_Exception_PermissionDenied(_("Permission Denied"));
+        } elseif (!Nag::hasPermission($tasklist, Horde_Perms::READ)) {
+            throw new Horde_Exception_PermissionDenied();
         }
 
         return $GLOBALS['injector']
@@ -762,10 +790,8 @@ class Nag_Api extends Horde_Registry_Api
     {
         if ($tasklist === null) {
             $tasklist = Nag::getDefaultTasklist(Horde_Perms::EDIT);
-        }
-
-        if (!array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::EDIT))) {
-            throw new Horde_Exception_PermissionDenied(_("Permission Denied"));
+        } elseif (!Nag::hasPermission($tasklist, Horde_Perms::EDIT)) {
+            throw new Horde_Exception_PermissionDenied();
         }
 
         /* Create a Nag_Driver instance. */
@@ -796,42 +822,13 @@ class Nag_Api extends Horde_Registry_Api
                     $task->fromiCalendar($content);
                     if (isset($task->uid)) {
                         $existing = $storage->getByUID($task->uid);
-                        $taskId = $existing->id;
-                        $result = $storage->modify(
-                            $taskId,
-                            isset($task->name) ? $task->name : $existing->name,
-                            isset($task->desc) ? $task->desc : $existing->desc,
-                            isset($task->start) ? $task->start : $existing->start,
-                            isset($task->due) ? $task->due : $existing->due,
-                            isset($task->priority) ? $task->priority : $existing->priority,
-                            isset($task->estimate) ? $task->estimate : 0,
-                            isset($task->completed) ? (int)$task->completed : $existing->completed,
-                            isset($task->category) ? $task->category : $existing->category,
-                            isset($task->alarm) ? $task->alarm : $existing->alarm,
-                            isset($task->parent_id) ? $task->parent_id : $existing->parent_id,
-                            isset($task->private) ? $task->private : $existing->private,
-                            isset($task->owner) ? $task->owner : $existing->owner,
-                            isset($task->assignee) ? $task->assignee : $existing->assignee
-                        );
+                        $task->owner = $existing->owner;
+                        $storage->modify($existing->id, $task->toHash());
                         $ids[] = $task->uid;
                     } else {
-                        $newTask = $storage->add(
-                            isset($task->name) ? $task->name : '',
-                            isset($task->desc) ? $task->desc : '',
-                            isset($task->start) ? $task->start : 0,
-                            isset($task->due) ? $task->due : 0,
-                            isset($task->priority) ? $task->priority : 3,
-                            isset($task->estimate) ? $task->estimate : 0,
-                            !empty($task->completed),
-                            isset($task->category) ? $task->category : '',
-                            isset($task->alarm) ? $task->alarm : 0,
-                            isset($task->methods) ? $task->methods : null,
-                            isset($task->uid) ? $task->uid : null,
-                            isset($task->parent_id) ? $task->parent_id : '',
-                            !empty($task->private),
-                            $GLOBALS['registry']->getAuth(),
-                            isset($task->assignee) ? $task->assignee : null
-                        );
+                        $hash = $task->toHash();
+                        unset($hash['uid']);
+                        $newTask = $storage->add($hash);
                         // use UID rather than ID
                         $ids[] = $newTask[1];
                     }
@@ -847,23 +844,9 @@ class Nag_Api extends Horde_Registry_Api
         case 'activesync':
             $task = new Nag_Task();
             $task->fromASTask($content);
-            $results = $storage->add(
-                isset($task->name) ? $task->name : '',
-                isset($task->desc) ? $task->desc : '',
-                isset($task->start) ? $task->start : 0,
-                isset($task->due) ? $task->due : 0,
-                isset($task->priority) ? $task->priority : 3,
-                isset($task->estimate) ? $task->estimate : 0,
-                !empty($task->completed),
-                isset($task->category) ? $task->category : '',
-                isset($task->alarm) ? $task->alarm : 0,
-                isset($task->methods) ? $task->methods : null,
-                isset($task->uid) ? $task->uid : null,
-                isset($task->parent_id) ? $task->parent_id : '',
-                !empty($task->private),
-                $GLOBALS['registry']->getAuth(),
-                isset($task->assignee) ? $task->assignee : null
-            );
+            $hash = $task->toHash();
+            unset($hash['uid']);
+            $results = $storage->add($hash);
 
             /* array index 0 is id, 1 is uid */
             return $results[1];
@@ -875,36 +858,19 @@ class Nag_Api extends Horde_Registry_Api
     /**
      * Adds a task.
      *
-     * @param array $task  A hash with overwriting task information.
+     * @param array $task  A hash with task information.
      *
      * @throws Horde_Exception_PermissionDenied
      */
     public function addTask(array $task)
     {
         if (!$GLOBALS['registry']->isAdmin() &&
-            !array_key_exists($task['tasklist'],
-                              Nag::listTasklists(false, Horde_Perms::EDIT))) {
-            throw new Horde_Exception_PermissionDenied(_("Permission Denied"));
+            !Nag::hasPermission($task['tasklist'], Horde_Perms::EDIT)) {
+            throw new Horde_Exception_PermissionDenied();
         }
 
         $storage = Nag_Driver::singleton($task['tasklist']);
-        return $storage->add(
-            isset($task['name']) ? $task['name'] : '',
-            isset($task['desc']) ? $task['desc'] : '',
-            isset($task['start']) ? $task['start'] : 0,
-            isset($task['due']) ? $task['due'] : 0,
-            isset($task['priority']) ? $task['priority'] : 3,
-            isset($task['estimate']) ? $task['estimate'] : 0,
-            !empty($task['completed']),
-            isset($task['category']) ? $task['category'] : '',
-            isset($task['alarm']) ? $task['alarm'] : 0,
-            isset($task['methods']) ? $task['alarm'] : null,
-            isset($task['uid']) ? $task['uid'] : null,
-            isset($task['parent_id']) ? $task['parent_id'] : '',
-            !empty($task['private']),
-            $GLOBALS['registry']->getAuth(),
-            isset($task['assignee']) ? $task['assignee'] : null
-        );
+        return $storage->add($task);
     }
 
     /**
@@ -922,9 +888,8 @@ class Nag_Api extends Horde_Registry_Api
     {
         if ($tasklist === null) {
             $tasklist = Nag::getDefaultTasklist(Horde_Perms::EDIT);
-        }
-        if (!array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::EDIT))) {
-            throw new Horde_Exception_PermissionDenied(_("Permission Denied"));
+        } elseif (!Nag::hasPermission($tasklist, Horde_Perms::EDIT)) {
+            throw new Horde_Exception_PermissionDenied();
         }
 
         return Nag::createTasksFromText($text, $tasklist);
@@ -935,13 +900,15 @@ class Nag_Api extends Horde_Registry_Api
      *
      * @param string $task_id      The task ID.
      * @param string $tasklist_id  The tasklist that contains the task.
+     *
+     * @return boolean|string  True if the task has been toggled, a due date if
+     *                         there are still incomplete recurrences.
      */
     public function toggleCompletion($task_id, $tasklist_id)
     {
-        if (!array_key_exists($tasklist_id, Nag::listTasklists(false, Horde_Perms::EDIT))) {
-            throw new Horde_Exception_PermissionDenied(_("Permission Denied"));
+        if (!Nag::hasPermission($tasklist_id, Horde_Perms::EDIT)) {
+            throw new Horde_Exception_PermissionDenied();
         }
-
         try {
             $share = $GLOBALS['nag_shares']->getShare($tasklist_id);
         } catch (Horde_Share_Exception $e) {
@@ -949,14 +916,17 @@ class Nag_Api extends Horde_Registry_Api
             throw new Nag_Exception($e);
         }
         $task = Nag::getTask($tasklist_id, $task_id);
-        $task->completed = !$task->completed;
-        if ($task->completed) {
-            $task->completed_date = time();
-        } else {
-            $task->completed_date = null;
+        $completed = $task->completed;
+        $task->toggleComplete();
+        $task->save();
+        $due = $task->getNextDue();
+        if ($task->completed == $completed) {
+            if ($due) {
+                return $due->toJson();
+            }
+            return false;
         }
-
-        return $task->save();
+        return true;
     }
 
     /**
@@ -970,15 +940,16 @@ class Nag_Api extends Horde_Registry_Api
      *                    rfc2445)
      * text/x-vcalendar - (old VCALENDAR 1.0 format. Still in wide use)
      * </pre>
+     * @param array $options      Any additional options for the exporter.
      *
      * @return string  The requested data.
      */
-    public function export($uid, $contentType)
+    public function export($uid, $contentType, array $options = array())
     {
         $storage = Nag_Driver::singleton();
         $task = $storage->getByUID($uid);
-        if (!array_key_exists($task->tasklist, Nag::listTasklists(false, Horde_Perms::READ))) {
-            throw new Horde_Exception_PermimssionDenied(_("Permission Denied"));
+        if (!Nag::hasPermission($task->tasklist, Horde_Perms::READ)) {
+            throw new Horde_Exception_PermissionDenied();
         }
 
         $version = '2.0';
@@ -999,7 +970,7 @@ class Nag_Api extends Horde_Registry_Api
 
             return $iCal->exportvCalendar();
         case 'activesync':
-            return $task->toASTask();
+            return $task->toASTask($options);
         default:
             throw new Nag_Exception(sprintf(_("Unsupported Content-Type: %s"), $contentType));
         }
@@ -1015,12 +986,11 @@ class Nag_Api extends Horde_Registry_Api
      */
     public function getTask($tasklist, $id)
     {
-        if (!array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::READ))) {
-            throw new Horde_Exception_PermimssionDenied(_("Permission Denied"));
+        if (!Nag::hasPermission($tasklist, Horde_Perms::READ)) {
+            throw new Horde_Exception_PermissionDenied();
         }
 
-        $storage = Nag_Driver::singleton($tasklist);
-        return $storage->get($id);
+        return Nag::getTask($tasklist, $id);
     }
 
     /**
@@ -1040,8 +1010,8 @@ class Nag_Api extends Horde_Registry_Api
      */
     public function exportTasklist($tasklist, $contentType)
     {
-        if (!array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::READ))) {
-            throw new Horde_Exception_PermimssionDenied(_("Permission Denied"));
+        if (!Nag::hasPermission($tasklist, Horde_Perms::READ)) {
+            throw new Horde_Exception_PermissionDenied();
         }
 
         $tasks = Nag::listTasks(null, null, null, array($tasklist), 1);
@@ -1091,9 +1061,9 @@ class Nag_Api extends Horde_Registry_Api
         $task = $storage->getByUID($uid);
 
         if (!$GLOBALS['registry']->isAdmin() &&
-            !array_key_exists($task->tasklist, Nag::listTasklists(false, Horde_Perms::DELETE))) {
+            !Nag::hasPermission($task->tasklist, Horde_Perms::DELETE)) {
 
-             throw new Horde_Exception_PermimssionDenied(_("Permission Denied"));
+             throw new Horde_Exception_PermissionDenied();
         }
 
         return $storage->delete($task->id);
@@ -1108,9 +1078,9 @@ class Nag_Api extends Horde_Registry_Api
     public function deleteTask($tasklist, $id)
     {
         if (!$GLOBALS['registry']->isAdmin() &&
-            !array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::DELETE))) {
+            !Nag::hasPermission($tasklist, Horde_Perms::DELETE)) {
 
-            throw new Horde_Exception_PermimssionDenied(_("Permission Denied"));
+            throw new Horde_Exception_PermissionDenied();
         }
 
         $storage = Nag_Driver::singleton($tasklist);
@@ -1139,8 +1109,9 @@ class Nag_Api extends Horde_Registry_Api
         $storage = Nag_Driver::singleton();
         $existing = $storage->getByUID($uid);
         $taskId = $existing->id;
-        if (!array_key_exists($existing->tasklist, Nag::listTasklists(false, Horde_Perms::EDIT))) {
-            throw new Horde_Exception_PermimssionDenied(_("Permission Denied"));
+        $owner = $existing->owner;
+        if (!Nag::hasPermission($existing->tasklist, Horde_Perms::EDIT)) {
+            throw new Horde_Exception_PermissionDenied();
         }
 
         switch ($contentType) {
@@ -1170,43 +1141,15 @@ class Nag_Api extends Horde_Registry_Api
 
             $task = new Nag_Task();
             $task->fromiCalendar($content);
-            $result = $storage->modify(
-                $taskId,
-                isset($task->name) ? $task->name : $existing->name,
-                isset($task->desc) ? $task->desc : $existing->desc,
-                isset($task->start) ? $task->start : $existing->start,
-                isset($task->due) ? $task->due : $existing->due,
-                isset($task->priority) ? $task->priority : $existing->priority,
-                isset($task->estimate) ? $task->estimate : 0,
-                isset($task->completed) ? (int)$task->completed : $existing->completed,
-                isset($task->category) ? $task->category : $existing->category,
-                isset($task->alarm) ? $task->alarm : $existing->alarm,
-                isset($task->parent_id) ? $task->parent_id : $existing->parent_id,
-                isset($task->private) ? $task->private : $existing->private,
-                isset($task->owner) ? $task->owner : $existing->owner,
-                isset($task->assignee) ? $task->assignee : $existing->assignee
-            );
+            $task->owner = $owner;
+            $storage->modify($taskId, $task->toHash());
             break;
 
         case 'activesync':
             $task = new Nag_Task();
             $task->fromASTask($content);
-            $result = $storage->modify(
-                $taskId,
-                isset($task->name) ? $task->name : $existing->name,
-                isset($task->desc) ? $task->desc : $existing->desc,
-                isset($task->start) ? $task->start : $existing->start,
-                isset($task->due) ? $task->due : $existing->due,
-                isset($task->priority) ? $task->priority : $existing->priority,
-                isset($task->estimate) ? $task->estimate : 0,
-                isset($task->completed) ? (int)$task->completed : $existing->completed,
-                isset($task->category) ? $task->category : $existing->category,
-                isset($task->alarm) ? $task->alarm : $existing->alarm,
-                isset($task->parent_id) ? $task->parent_id : $existing->parent_id,
-                isset($task->private) ? $task->private : $existing->private,
-                isset($task->owner) ? $task->owner : $existing->owner,
-                isset($task->assignee) ? $task->assignee : $existing->assignee
-            );
+            $task->owner = $owner;
+            $storage->modify($taskId, $task->toHash());
             break;
         default:
             throw new Nag_Exception(sprintf(_("Unsupported Content-Type: %s"), $contentType));
@@ -1225,33 +1168,15 @@ class Nag_Api extends Horde_Registry_Api
     public function updateTask($tasklist, $id, $task)
     {
         if (!$GLOBALS['registry']->isAdmin() &&
-            !array_key_exists($tasklist, Nag::listTasklists(false, Horde_Perms::EDIT))) {
-
-            throw new Horde_Exception_PermimssionDenied(_("Permission Denied"));
+            !Nag::hasPermission($tasklist, Horde_Perms::EDIT)) {
+            throw new Horde_Exception_PermissionDenied();
         }
 
         $storage = Nag_Driver::singleton($tasklist);
         $existing = $storage->get($id);
+        $task['owner'] = $existing->owner;
 
-        return $storage->modify(
-            $id,
-            isset($task['name']) ? $task['name'] : $existing->name,
-            isset($task['desc']) ? $task['desc'] : $existing->desc,
-            isset($task['start']) ? $task['start'] : $existing->start,
-            isset($task['due']) ? $task['due'] : $existing->due,
-            isset($task['priority']) ? $task['priority'] : $existing->priority,
-            isset($task['estimate']) ? $task['estimate'] : $existing->estimate,
-            isset($task['completed']) ? (int)$task['completed'] : $existing->completed,
-            isset($task['category']) ? $task['category'] : $existing->category,
-            isset($task['alarm']) ? $task['alarm'] : $existing->alarm,
-            isset($task['methods']) ? $task['methods'] : $existing->methods,
-            isset($task['parent_id']) ? $task['parent_id'] : $existing->parent_id,
-            isset($task['private']) ? $task['private'] : $existing->private,
-            isset($task['owner']) ? $task['owner'] : $existing->owner,
-            isset($task['assignee']) ? $task['assignee'] : $existing->assignee,
-            $task['completed'] && !$existing->completed ? date() : $existing->completed_date,
-            isset($task['tasklist']) ? $task['tasklist'] : $existing->tasklist
-        );
+        return $storage->modify($id, $task);
     }
 
     /**
@@ -1305,8 +1230,8 @@ class Nag_Api extends Horde_Registry_Api
     {
         $allowed_tasklists = Nag::listTasklists(false, Horde_Perms::READ);
         foreach ($categories as $tasklist) {
-            if (!array_key_exists($tasklist, $allowed_tasklists)) {
-                return PEAR::raiseError(_("Permission Denied"));
+            if (!Nag::hasPermission($tasklist, Horde_Perms::READ)) {
+                throw new Horde_Exception_PermissionDenied();
             }
         }
 
@@ -1325,23 +1250,38 @@ class Nag_Api extends Horde_Registry_Api
                 continue;
             }
             $due_date = date('Y-m-d\TH:i:s', $task->due);
+            $recurrence = null;
+            if ($task->recurs()) {
+                $recurrence = array(
+                    'type'        => $task->recurrence->getRecurType(),
+                    'interval'    => $task->recurrence->getRecurInterval(),
+                    'end'         => $task->recurrence->getRecurEnd(),
+                    'count'       => $task->recurrence->getRecurCount(),
+                    'days'        => $task->recurrence->getRecurOnDays(),
+                    'exceptions'  => $task->recurrence->getExceptions(),
+                    'completions' => $task->recurrence->getCompletions());
+            }
             $timeobjects[$task->id] = array(
                 'id' => $task->id,
                 'title' => $task->name,
                 'description' => $task->desc,
                 'start' => $due_date,
                 'end' => $due_date,
+                'recurrence' => $recurrence,
                 'category' => $task->category,
                 'color' => $allowed_tasklists[$task->tasklist]->get('color'),
                 'owner' => $allowed_tasklists[$task->tasklist]->get('owner'),
                 'permissions' => $GLOBALS['nag_shares']->getPermissions($task->tasklist, $GLOBALS['registry']->getAuth()),
                 'variable_length' => false,
-                'params' => array('task' => $task->id,
-                                  'tasklist' => $task->tasklist),
+                'params' => array(
+                    'task' => $task->id,
+                    'tasklist' => $task->tasklist,
+                ),
                 'link' => Horde::url('view.php', true)->add(array('tasklist' => $task->tasklist, 'task' => $task->id)),
                 'edit_link' => Horde::url('task.php', true)->add(array('tasklist' => $task->tasklist, 'task' => $task->id, 'actionID' => 'modify_task')),
                 'delete_link' => Horde::url('task.php', true)->add(array('tasklist' => $task->tasklist, 'task' => $task->id, 'actionID' => 'delete_task')),
-                'ajax_link' => 'task:' . $task->tasklist . ':' . $task->id);
+                'ajax_link' => 'task:' . $task->tasklist . ':' . $task->id,
+            );
         }
 
         return $timeobjects;
@@ -1359,89 +1299,23 @@ class Nag_Api extends Horde_Registry_Api
     {
         $storage = Nag_Driver::singleton();
         $existing = $storage->get($timeobject['id']);
-        if (!array_key_exists($existing->tasklist, Nag::listTasklists(false, Horde_Perms::EDIT))) {
-            throw new Horde_Exception_PermimssionDenied(_("Permission Denied"));
+        if (!Nag::hasPermission($existing->tasklist, Horde_Perms::EDIT)) {
+            throw new Horde_Exception_PermissionDenied();
         }
         $storage = Nag_Driver::singleton($existing->tasklist);
+        $info = array();
         if (isset($timeobject['start'])) {
-            $due = new Horde_Date($timeobject['start']);
-            $due = $due->timestamp();
-        } else {
-            $due = $existing->due;
+            $info['due'] = new Horde_Date($timeobject['start']);
+            $info['due'] = $due->timestamp();
         }
 
-        return $storage->modify(
-            $timeobject['id'],
-            isset($timeobject['title']) ? $timeobject['title'] : $existing->name,
-            isset($timeobject['description']) ? $timeobject['description'] : $existing->desc,
-            $existing->start,
-            $due,
-            $existing->priority,
-            $existing->estimate,
-            $existing->completed,
-            $existing->category,
-            $existing->alarm,
-            $existing->methods,
-            $existing->parent_id,
-            $existing->private,
-            $existing->owner,
-            $existing->assignee,
-            $existing->completed_date,
-            $existing->tasklist
-        );
-    }
-
-    /**
-     * Lists alarms for a given moment.
-     *
-     * @param integer $time  The time to retrieve alarms for.
-     * @param string $user   The user to retreive alarms for. All users if null.
-     *
-     * @return array  An array of UIDs
-     */
-    public function listAlarms($time, $user = null)
-    {
-        if ((empty($user) || $user != $GLOBALS['registry']->getAuth()) &&
-            !$GLOBALS['registry']->isAdmin()) {
-
-            throw new Horde_Exception_PermissionDenied(_("Permission Denied"));
+        if (isset($timeobject['title'])) {
+            $info['name'] = $timeobject['title'];
         }
-
-        $storage = Nag_Driver::singleton();
-        $group = $GLOBALS['injector']->getInstance('Horde_Group');
-        $alarm_list = array();
-        $tasklists = is_null($user) ?
-            array_keys($GLOBALS['nag_shares']->listAllShares()) :
-            $GLOBALS['display_tasklists'];
-
-        $alarms = Nag::listAlarms($time, $tasklists);
-        foreach ($alarms as $alarm) {
-            try {
-                $share = $GLOBALS['nag_shares']->getShare($alarm->tasklist);
-            } catch (Horde_Share_Exception $e) {
-                continue;
-            }
-            if (empty($user)) {
-                $users = $share->listUsers(Horde_Perms::READ);
-                $groups = $share->listGroups(Horde_Perms::READ);
-                foreach ($groups as $gid) {
-                    $users = array_merge($users, $group->listUsers($gid));
-                }
-                $users = array_unique($users);
-            } else {
-                $users = array($user);
-            }
-            foreach ($users as $alarm_user) {
-                $prefs = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Prefs')->create('nag', array(
-                    'cache' => false,
-                    'user' => $alarm_user
-                ));
-                $GLOBALS['registry']->setLanguageEnvironment($prefs->getValue('language'));
-                $alarm_list[] = $alarm->toAlarm($alarm_user, $prefs);
-            }
+        if (isset($timeobject['description'])) {
+            $info['desc'] = $timeobject['description'];
         }
-
-        return $alarm_list;
+        $storage->modify($timeobject['id'], $info);
     }
 
 }

@@ -1,12 +1,12 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('kronolith');
 
 if (Kronolith::showAjaxView()) {
@@ -34,6 +34,11 @@ do {
             break;
         case 'remote':
             $kronolith_calendar = $all_remote_calendars[$calendar_id];
+            break;
+        case 'resource':
+            $rid = Kronolith::getDriver('Resource')->getResourceIdByCalendar($calendar_id);
+            $kronolith_calendar = new Kronolith_Calendar_Resource(
+                array('resource' => Kronolith::getDriver('Resource')->getResource($rid)));
             break;
         default:
             break 2;
@@ -66,7 +71,6 @@ do {
             Kronolith::notifyOfResourceRejection($event);
             if (Horde_Util::getFormData('sendupdates', false)) {
                 try {
-                    $event = Kronolith::getDriver()->getEvent($result);
                     Kronolith::sendITipNotifications($event, $notification, Kronolith::ITIP_REQUEST);
                 } catch (Exception $e) {
                     $notification->push($e, 'horde.error');

@@ -39,11 +39,6 @@ class Nag_Block_Summary extends Horde_Core_Block
 
         $tasklists = array();
         foreach (Nag::listTasklists() as $id => $tasklist) {
-            if ($tasklist->get('owner') != $GLOBALS['registry']->getAuth() &&
-                !empty($GLOBALS['conf']['share']['hidden']) &&
-                !in_array($tasklist->getName(), $GLOBALS['display_tasklists'])) {
-                continue;
-            }
             $tasklists[$id] = $tasklist->get('name');
         }
 
@@ -131,15 +126,13 @@ class Nag_Block_Summary extends Horde_Core_Block
                 while (isset($messages[$key])) {
                     $key++;
                 }
-                $viewurl = Horde_Util::addParameter(
-                    'view.php',
-                    array('task' => $task->id,
-                          'tasklist' => $task->tasklist));
-                $link = Horde::link(
-                    htmlspecialchars(Horde::url($viewurl, true)))
-                    . (!empty($task->name)
-                       ? htmlspecialchars($task->name) : _("[none]"))
-                    . '</a>';
+                $viewurl = Horde::url('view.php', true)->add(array(
+                    'task' => $task->id,
+                    'tasklist' => $task->tasklist
+                ));
+                $link = $viewurl->link() .
+                    (!empty($task->name) ? htmlspecialchars($task->name) : _("[none]")) .
+                    '</a>';
                 if ($differential >= -60 && $differential < 60) {
                     $messages[$key] = sprintf(_("%s is due now."), $link);
                 } elseif ($differential >= 60) {
@@ -201,14 +194,14 @@ class Nag_Block_Summary extends Horde_Core_Block
             $html .= '<tr class="' . $style . '">';
 
             if (!empty($this->_params['show_actions'])) {
-                $taskurl = Horde_Util::addParameter(
-                    'task.php',
-                    array('task' => $task->id,
-                          'tasklist' => $task->tasklist,
-                          'url' => Horde::selfUrl(true)));
+                $taskurl = Horde::url('task.php', true)->add(array(
+                    'task' => $task->id,
+                    'tasklist' => $task->tasklist,
+                    'url' => Horde::selfUrl(true)
+                ));
                 $label = sprintf(_("Edit \"%s\""), $task->name);
                 $html .= '<td width="1%">'
-                    . Horde::link(htmlspecialchars(Horde::url(Horde_Util::addParameter($taskurl, 'actionID', 'modify_task'), true)), $label)
+                    . $taskurl->copy()->add('actionID', 'modify_task')->link()
                     . Horde::img('edit.png', $label)
                     . '</a></td>';
                 if ($task->completed) {
@@ -217,7 +210,7 @@ class Nag_Block_Summary extends Horde_Core_Block
                 } else {
                     $label = sprintf(_("Complete \"%s\""), $task->name);
                     $html .= '<td width="1%">'
-                        . Horde::link(htmlspecialchars(Horde::url(Horde_Util::addParameter($taskurl, 'actionID', 'complete_task'), true)), $label)
+                        . Horde::url('t/complete')->add(array('task' => $task->id, 'tasklist' => $task->tasklist, 'url' => Horde::selfUrl(true)))->link()
                         . Horde::img('unchecked.png', $label) . '</a></td>';
                 }
             }
@@ -238,14 +231,12 @@ class Nag_Block_Summary extends Horde_Core_Block
 
             $html .= '<td>';
 
-            $viewurl = Horde_Util::addParameter(
-                'view.php',
-                array('task' => $task->id,
-                      'tasklist' => $task->tasklist));
+            $viewurl = Horde::url('view.php', true)->add(array(
+                'task' => $task->id,
+                'tasklist' => $task->tasklist
+            ));
             $html .= $task->treeIcons()
-                . Horde::link(
-                    htmlspecialchars(Horde::url($viewurl, true)),
-                    $task->desc)
+                . $viewurl->link(array('title' => $task->desc))
                 . (!empty($task->name)
                    ? htmlspecialchars($task->name) : _("[none]"))
                 . '</a>';
@@ -261,8 +252,8 @@ class Nag_Block_Summary extends Horde_Core_Block
             $html .= '</td>';
 
             if (!empty($this->_params['show_category'])) {
-                $html .= '<td width="1%" class="category'
-                    . md5($task->category) . '">'
+                $html .= '<td class="base-category" width="1%" style="'
+                    . $task->getCssStyle() . '">'
                     . htmlspecialchars($task->category
                                        ? $task->category : _("Unfiled"))
                     . '</td>';
@@ -273,8 +264,6 @@ class Nag_Block_Summary extends Horde_Core_Block
         if (empty($html)) {
             return '<em>' . _("No tasks to display") . '</em>';
         }
-
-        $GLOBALS['injector']->getInstance('Horde_Themes_Css')->addThemeStylesheet('categoryCSS.php');
 
         return '<table cellspacing="0" width="100%" class="linedRow">'
             . $html . '</table>';

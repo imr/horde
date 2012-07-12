@@ -1,18 +1,12 @@
 <?php
 /**
- * @category   Horde
- * @package    Support
- * @copyright  2008-2009 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
- */
-
-/**
  * Class that can substitute for any object and safely do nothing.
+ *
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * @category   Horde
  * @package    Support
- * @copyright  2008-2009 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  */
 class Horde_Support_Stub
 {

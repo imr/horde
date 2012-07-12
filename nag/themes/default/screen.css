@@ -135,7 +135,7 @@ body.rightPanel ul {
 
 #pageControls {
     position: absolute;
-    top: -8px;
+    top: 0;
     right: 0;
     background: #eee;
     border: 1px solid #ccc;
@@ -209,9 +209,24 @@ table#tasklist-list th.sortdown {
     word-wrap: break-word;
 }
 
+.base-category {
+    padding: 0 4px;
+}
+
 #dueimg, #startimg {
     cursor: pointer;
     padding-left: 3px;
+}
+
+/* Icons. */
+.nag-list {
+    background-image: url('graphics/nag.png');
+}
+.nag-add {
+    background-image: url('graphics/add.png');
+}
+.nag-search {
+    background-image: url('graphics/search.png');
 }
 
 @media print {

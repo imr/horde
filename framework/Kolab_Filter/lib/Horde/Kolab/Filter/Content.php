@@ -4,10 +4,10 @@
  */
 
 /** Load the basic filter definition */
-require_once dirname(__FILE__) . '/Base.php';
+require_once __DIR__ . '/Base.php';
 
 /** Load the Transport library */
-require_once dirname(__FILE__) . '/Transport.php';
+require_once __DIR__ . '/Transport.php';
 
 define('RM_STATE_READING_HEADER', 1 );
 define('RM_STATE_READING_FROM',   2 );
@@ -21,7 +21,7 @@ define('RM_STATE_READING_BODY',   5 );
  * Copyright 2004-2008 Klarälvdalens Datakonsult AB
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Steffen Hansen <steffen@klaralvdalens-datakonsult.se>
  * @author  Gunnar Wrobel <wrobel@pardus.de>
@@ -162,7 +162,7 @@ class Horde_Kolab_Filter_Content extends Horde_Kolab_Filter_Base
 
         if (!$senderok) {
             if ($ical && $allow_outlook_ical_forward ) {
-                require_once(dirname(__FILE__) . '/Outlook.php');
+                require_once(__DIR__ . '/Outlook.php');
                 $rc = Kolab_Filter_Outlook::embedICal($this->_fqhostname,
                                                       $this->_sender,
                                                       $this->_recipients,

@@ -20,26 +20,24 @@
  * UNC path ("\\\\shareDrive\\shareDir").
  *****************************************************************************
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Frank Lupo <frank_lupo@email.it>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
-class IMP_Quota_Mercury32 extends IMP_Quota_Base
+class IMP_Quota_Mercury32 extends IMP_Quota
 {
     /**
      * Constructor.
      *
      * @param array $params  Parameters:
-     * <pre>
-     * 'mail_user_folder' - (string) [REQUIRED] The path to folder mail
-                             mercury.
-     * </pre>
+     *   - mail_user_folder: (string) [REQUIRED] The path to folder mail
+     *                       mercury.
      *
      * @throws IMP_Exception
      */

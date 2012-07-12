@@ -1,12 +1,12 @@
 <?php
 /**
  * Copyright 2007 Maintainable Software, LLC
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * @author     Mike Naberezny <mike@maintainable.com>
  * @author     Derek DeVries <derek@maintainable.com>
  * @author     Chuck Hagenbuch <chuck@horde.org>
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  * @category   Horde
  * @package    Db
  * @subpackage Adapter
@@ -18,7 +18,7 @@
  * @author     Mike Naberezny <mike@maintainable.com>
  * @author     Derek DeVries <derek@maintainable.com>
  * @author     Chuck Hagenbuch <chuck@horde.org>
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  * @category   Horde
  * @package    Db
  * @subpackage Adapter
@@ -88,22 +88,22 @@ class Horde_Db_Adapter_Pdo_Sqlite extends Horde_Db_Adapter_Pdo_Base
 
         $this->_connection->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
 
-        $this->last_query = 'PRAGMA full_column_names=0';
-        $retval = $this->_connection->exec('PRAGMA full_column_names=0');
+        $this->_lastQuery = $sql = 'PRAGMA full_column_names=0';
+        $retval = $this->_connection->exec($sql);
         if ($retval === false) {
             $error = $this->_connection->errorInfo();
             throw new Horde_Db_Exception($error[2]);
         }
 
-        $this->last_query = 'PRAGMA short_column_names=1';
-        $retval = $this->_connection->exec('PRAGMA short_column_names=1');
+        $this->_lastQuery = $sql = 'PRAGMA short_column_names=1';
+        $retval = $this->_connection->exec($sql);
         if ($retval === false) {
             $error = $this->_connection->errorInfo();
             throw new Horde_Db_Exception($error[2]);
         }
 
-        $this->last_query = 'SELECT sqlite_version(*)';
-        $this->_sqliteVersion = $this->selectValue('SELECT sqlite_version(*)');
+        $this->_lastQuery = $sql = 'SELECT sqlite_version(*)';
+        $this->_sqliteVersion = $this->selectValue($sql);
     }
 
 

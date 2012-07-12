@@ -31,11 +31,9 @@ Webserver/PHP tuning
 * Consider a PHP accelerator program.  See for example `The Zend Performance
   Suite`_, the `Alternative PHP Cache`_, eAccelerator_, or XCache_.  These
   accelerators speed up access by caching the compiled PHP code, eliminating
-  the need to recompile the code for every single page load. **This is
-  probably the easiest way to improve the performance of Horde**.
-
-* Use of the mcrypt PHP extension may increase performance on heavily loaded
-  servers.
+  the need to recompile the code for every single page load. **This is probably
+  the easiest way to improve the performance of Horde**. See Autoloading_
+  further down to get even more out of some of those accelerators.
 
 * Enable PHP output compression in the Horde configuration. Do not enable
   compression in the PHP configuration (i.e. in ``php.ini``), because certain
@@ -154,32 +152,6 @@ Sending Mail
   switching to a faster format if needed.
 
 
-IMAP tuning
-===========
-
-* Consider an IMAP proxy for more persistent connections.  Some IMAP proxies
-  are up-imapproxy_ and Perdition_.  To make sense, the proxy
-  should be installed on the server running Horde, and this server needs
-  enough CPU power to handle the additional load.  If using up-imapproxy,
-  make sure SELECT caching is turned off.
-
-  up-imapproxy is HIGHLY RECOMMENDED - especially versions 1.2.7rc1 and
-  greater which contains features used internally by Horde to speed up
-  access to the remote server.
-
-* Some IMAP servers (or IMAP mailbox store formats) perform better than
-  others.  Consider switching to a faster format if needed.
-
-* Follow the IMAP servers' performance hints:
-
-  - Cyrus: http://www.cyrusimap.org/docs/cyrus-imapd/2.4.2/install-perf.php
-  - Cyrus: http://git.cyrusimap.org/cyrus-imapd/tree/doc/install-perf.html
-  - Dovecot: http://wiki.dovecot.org/PerformanceTuning
-
-.. _up-imapproxy: http://www.imapproxy.org/
-.. _Perdition: http://www.vergenet.net/linux/perdition/
-
-
 PostgreSQL tuning
 =================
 
@@ -202,6 +174,53 @@ MySQL tuning
   size to meet your needs)::
 
     set-variable = query_cache_size=128M
+
+
+Horde tuning
+============
+
+
+Autoloading
+-----------
+
+* Horde automatically loads PHP source files on demand which relies on the PHP
+  autoloading feature introduced with PHP 5 and the Horde Autoloader library.
+  Both allow to limit the set of source code files pulled into the system to the
+  minimal amount required to answer the current request. This saves memory and
+  time but at the same time the Autoloader library has to map each class name to
+  the path of the corresponding PHP file that holds the class definition. This
+  procedure is expensive and can slow the system down. Fortunately the mapping is
+  fixed unless files are added or removed which usually only happens during an
+  upgrade.
+
+  Thus Autoloading is amenable to caching and an easy way to improve the
+  performance of the Horde Autoloader library, is to install the Autoloader
+  Cache extension::
+
+    pear install horde/horde_autoloader_cache
+
+  This library is not installed by default because it will unconditionally use
+  any of the following cache backends and does not allow for any further
+  configuration: `Alternative PHP Cache`_, XCache_, eAccelerator_, or the local
+  temporary filesystem.
+
+  It also doesn't detect the rare case when the file paths of any PHP class in
+  Horde changes. In this case you either need to use the provided script to
+  empty the cache::
+
+     horde-autoloader-cache-prune
+
+  or empty the cache manually, e.g. by restarting the web server or deleting
+  the cache file from the temporary directory.
+
+
+VFS
+---
+
+* Try to avoid using a SQL backend for VFS. Many databases require binary data
+  to be heavily escaped, resulting in storage sizes that are many times
+  greater than the actual size of the data. File system VFS will normally
+  provide much improved performance.
 
 
 Application tuning

@@ -8,28 +8,28 @@
  * @package    Kolab_Storage
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/../../../Autoload.php';
+require_once __DIR__ . '/../../../Autoload.php';
 
 /**
  * Test the structure based parser.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category   Kolab
  * @package    Kolab_Storage
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Unit_Data_Parser_StructureTest
@@ -37,7 +37,7 @@ extends Horde_Kolab_Storage_TestCase
 {
     public function testFetchArray()
     {
-        $this->assertType(
+        $this->assertInternalType(
             'array',
             $this->_getParser()->fetch(
                 'test', array(1), array('type' => 'event')
@@ -63,7 +63,7 @@ extends Horde_Kolab_Storage_TestCase
             'test', array(1,2,4), array('type' => 'event')
         );
         foreach ($objects as $object) {
-            $this->assertType('array', $object);
+            $this->assertInternalType('array', $object);
         }
     }
 
@@ -130,7 +130,7 @@ extends Horde_Kolab_Storage_TestCase
 
     private function _getParser()
     {
-        $fixture = dirname(__FILE__) . '/../../../fixtures/event.struct';
+        $fixture = __DIR__ . '/../../../fixtures/event.struct';
         $structure = unserialize(base64_decode(file_get_contents($fixture)));
         $structures = array(
             1 => array('structure' => $structure),

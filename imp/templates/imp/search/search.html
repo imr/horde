@@ -1,6 +1,6 @@
 <form id="search_form" action="<tag:action />" method="post">
  <input class="hidden" name="criteria_form" id="criteria_form" value="" />
- <input class="hidden" name="folders_form" id="folders_form" value="" />
+ <input class="hidden" name="mboxes_form" id="mboxes_form" value="" />
 
  <h1 class="header">
   <strong>
@@ -58,24 +58,26 @@
 
 <if:edit_query_filter><else:edit_query_filter>
  <div class="smallheader leftAlign">
-  <gettext>Search Folders</gettext>
+  <gettext>Search Mailboxes</gettext>
  </div>
 
  <div class="item">
-  <div id="no_search_folders"><gettext>No Search Folders</gettext></div>
-  <div id="search_folders" style="display:none"></div>
+  <div id="no_search_mboxes"><gettext>No Search Mailboxes</gettext></div>
+  <div id="search_mboxes" style="display:none"></div>
 
   <div class="searchAdd">
-   <select id="search_folders_add">
+   <select id="search_mboxes_add">
     <tag:tree />
    </select>
+<if:subscribe>
+   <a href="#" id="show_unsub"><gettext>Show Unsubscribed Mailboxes</gettext></a>
+</if:subscribe>
   </div>
  </div>
 </else:edit_query_filter></if:edit_query_filter>
 
-<if:virtualfolder>
  <div class="smallheader leftAlign">
-  <gettext>Saved Searches</gettext>
+  <gettext>Save Search</gettext>
  </div>
 
  <div>
@@ -101,7 +103,6 @@
    <label for="search_label"><gettext>Label:</gettext></label> <input type="text" name="search_label" id="search_label"<if:search_label> value="<tag:search_label />"</if:search_label> />
   </div>
  </div>
-</if:virtualfolder>
 
  <div class="searchuiButtons">
 <if:edit_query>

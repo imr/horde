@@ -1,10 +1,11 @@
 <?php
 /**
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
+ *
  * @package    Ldap
  * @subpackage UnitTests
  * @author     Jan Schneider <jan@horde.org>
- * @copyright  2010 The Horde Project
- * @license    http://www.gnu.org/copyleft/lesser.html LGPL
+ * @license    http://www.gnu.org/licenses/lgpl-3.0.html LGPL-3.0
  */
 class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
 {
@@ -89,7 +90,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
         $this->_testentries = array();
         foreach ($this->_testdata as $dn => $attrs) {
             $entry = Horde_Ldap_Entry::createFresh($dn, $attrs);
-            $this->assertType('Horde_Ldap_Entry', $entry);
+            $this->assertInstanceOf('Horde_Ldap_Entry', $entry);
             array_push($this->_testentries, $entry);
         }
 
@@ -182,26 +183,26 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
     public function testReadEntry()
     {
         /* UNIX line endings. */
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/fixtures/unsorted_w50.ldif', 'r', $this->_defaultConfig);
+        $ldif = new Horde_Ldap_Ldif(__DIR__.'/fixtures/unsorted_w50.ldif', 'r', $this->_defaultConfig);
         $this->assertTrue(is_resource($ldif->handle()));
 
         $entries = array();
         do {
             $entry = $ldif->readEntry();
-            $this->assertType('Horde_Ldap_Entry', $entry);
+            $this->assertInstanceOf('Horde_Ldap_Entry', $entry);
             array_push($entries, $entry);
         } while (!$ldif->eof());
 
         $this->_compareEntries($this->_testentries, $entries);
 
         /* Windows line endings. */
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/fixtures/unsorted_w50_WIN.ldif', 'r', $this->_defaultConfig);
+        $ldif = new Horde_Ldap_Ldif(__DIR__.'/fixtures/unsorted_w50_WIN.ldif', 'r', $this->_defaultConfig);
         $this->assertTrue(is_resource($ldif->handle()));
 
         $entries = array();
         do {
             $entry = $ldif->readEntry();
-            $this->assertType('Horde_Ldap_Entry', $entry);
+            $this->assertInstanceOf('Horde_Ldap_Entry', $entry);
             array_push($entries, $entry);
         } while (!$ldif->eof());
 
@@ -220,7 +221,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
         /* Test wrapped operation. */
         $testconf['wrap'] = 50;
         $testconf['sort'] = 0;
-        $expected = array_map(array($this, '_lineend'), file(dirname(__FILE__).'/fixtures/unsorted_w50.ldif'));
+        $expected = array_map(array($this, '_lineend'), file(__DIR__.'/fixtures/unsorted_w50.ldif'));
 
         // Strip 4 starting lines because of comments in the file header.
         array_splice($expected, 0, 4);
@@ -236,7 +237,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
 
         $testconf['wrap'] = 30;
         $testconf['sort'] = 0;
-        $expected = array_map(array($this, '_lineend'), file(dirname(__FILE__).'/fixtures/unsorted_w30.ldif'));
+        $expected = array_map(array($this, '_lineend'), file(__DIR__.'/fixtures/unsorted_w30.ldif'));
 
         // Strip 4 starting lines because of comments in the file header.
         array_splice($expected, 0, 4);
@@ -253,7 +254,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
         /* Test unwrapped operation. */
         $testconf['wrap'] = 40;
         $testconf['sort'] = 1;
-        $expected = array_map(array($this, '_lineend'), file(dirname(__FILE__).'/fixtures/sorted_w40.ldif'));
+        $expected = array_map(array($this, '_lineend'), file(__DIR__.'/fixtures/sorted_w40.ldif'));
 
         // Strip 4 starting lines because of comments in the file header.
         array_splice($expected, 0, 4);
@@ -269,7 +270,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
 
         $testconf['wrap'] = 50;
         $testconf['sort'] = 1;
-        $expected = array_map(array($this, '_lineend'), file(dirname(__FILE__).'/fixtures/sorted_w50.ldif'));
+        $expected = array_map(array($this, '_lineend'), file(__DIR__.'/fixtures/sorted_w50.ldif'));
 
         // Strip 4 starting lines because of comments in the file header.
         array_splice($expected, 0, 4);
@@ -287,7 +288,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
         $testconf['wrap'] = 50;
         $testconf['sort'] = 1;
         $testconf['raw']  = '/attr6/';
-        $expected = array_map(array($this, '_lineend'), file(dirname(__FILE__).'/fixtures/sorted_w50.ldif'));
+        $expected = array_map(array($this, '_lineend'), file(__DIR__.'/fixtures/sorted_w50.ldif'));
         // Strip 4 starting lines because of comments in the file header.
         array_splice($expected, 0, 4);
 
@@ -316,7 +317,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
     {
         $testconf = $this->_defaultConfig;
 
-        $expected = array_map(array($this, '_lineend'), file(dirname(__FILE__).'/fixtures/unsorted_w50.ldif'));
+        $expected = array_map(array($this, '_lineend'), file(__DIR__.'/fixtures/unsorted_w50.ldif'));
 
         // Strip 4 starting lines because of comments in the file header.
         array_splice($expected, 0, 4);
@@ -342,14 +343,14 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
      */
     public function testReadWriteRead()
     {
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/fixtures/unsorted_w50.ldif', 'r', $this->_defaultConfig);
+        $ldif = new Horde_Ldap_Ldif(__DIR__.'/fixtures/unsorted_w50.ldif', 'r', $this->_defaultConfig);
         $this->assertTrue(is_resource($ldif->handle()));
 
         // Read LDIF.
         $entries = array();
         do {
             $entry = $ldif->readEntry();
-            $this->assertType('Horde_Ldap_Entry', $entry);
+            $this->assertInstanceOf('Horde_Ldap_Entry', $entry);
             array_push($entries, $entry);
         } while (!$ldif->eof());
         $ldif->done();
@@ -361,7 +362,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
          $ldif->done();
 
          // Compare files.
-         $expected = array_map(array($this, '_lineend'), file(dirname(__FILE__).'/fixtures/unsorted_w50.ldif'));
+         $expected = array_map(array($this, '_lineend'), file(__DIR__.'/fixtures/unsorted_w50.ldif'));
 
          // Strip 4 starting lines because of comments in the file header.
          array_splice($expected, 0, 4);
@@ -414,7 +415,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
         $ldif->done();
 
         // Compare results.
-        $expected = array_map(array($this, '_lineend'), file(dirname(__FILE__).'/fixtures/changes.ldif'));
+        $expected = array_map(array($this, '_lineend'), file(__DIR__.'/fixtures/changes.ldif'));
 
         // Strip 4 starting lines because of comments in the file header.
         array_splice($expected, 0, 4);
@@ -423,94 +424,24 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * Tests if syntax errors are detected.
-     *
-     * The used LDIF files have several damaged entries but always one
-     * correct too, to test if Horde_Ldap_Ldif is continue reading as it should
-     * each entry must have 2 correct attributes.
-     */
-    public function testSyntaxerrors()
-    {
-        $this->markTestSkipped('We don\'t continue on syntax errors.');
-        // Test malformed encoding
-        // I think we can ignore this test, because if the LDIF is not encoded properly, we
-        // might be able to successfully fetch the entries data. However, it is possible
-        // that it will be corrupted, but thats not our fault then.
-        // If we should catch that error, we must adjust Horde_Ldap_Ldif::next_lines().
-        /*
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/fixtures/malformed_encoding.ldif', 'r', $this->_defaultConfig);
-        $this->assertFalse((boolean)$ldif->error());
-        $entries = array();
-        do {
-            $entry = $ldif->readEntry();
-            if ($entry) {
-                // the correct attributes need to be parsed
-                $this->assertThat(count(array_keys($entry->getValues())), $this->equalTo(2));
-                $entries[] = $entry;
-            }
-        } while (!$ldif->eof());
-        $this->assertTrue((boolean)$ldif->error());
-        $this->assertThat($ldif->error_lines(), $this->greaterThan(1));
-        $this->assertThat(count($entries), $this->equalTo(1));
-        */
-
-        // Test malformed syntax
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/fixtures/malformed_syntax.ldif', 'r', $this->_defaultConfig);
-        $this->assertFalse((boolean)$ldif->error());
-        $entries = array();
-        do {
-            $entry = $ldif->readEntry();
-            if ($entry) {
-                // the correct attributes need to be parsed
-                $this->assertThat(count(array_keys($entry->getValues())), $this->equalTo(2));
-                $entries[] = $entry;
-            }
-        } while (!$ldif->eof());
-        $this->assertTrue((boolean)$ldif->error());
-        $this->assertThat($ldif->error_lines(), $this->greaterThan(1));
-        $this->assertThat(count($entries), $this->equalTo(2));
-
-        // test bad wrapping
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/fixtures/malformed_wrapping.ldif', 'r', $this->_defaultConfig);
-        $this->assertFalse((boolean)$ldif->error());
-        $entries = array();
-        do {
-           $entry = $ldif->readEntry();
-            if ($entry) {
-                // the correct attributes need to be parsed
-                $this->assertThat(count(array_keys($entry->getValues())), $this->equalTo(2));
-                $entries[] = $entry;
-            }
-        } while (!$ldif->eof());
-        $this->assertTrue((boolean)$ldif->error());
-        $this->assertThat($ldif->error_lines(), $this->greaterThan(1));
-        $this->assertThat(count($entries), $this->equalTo(2));
-    }
-
-    /**
      * Test error dropping functionality.
      */
     public function testError()
     {
-        $this->markTestSkipped('We use exceptions, not the original error handling.');
-
         // No error.
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/fixtures/unsorted_w50.ldif', 'r', $this->_defaultConfig);
-
-        // Error giving error msg and line number:
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/some_not_existing/path/for/net_ldap_ldif', 'r', $this->_defaultConfig);
-        $this->assertTrue((boolean)$ldif->error());
-        $this->assertType('Net_LDAP2_Error', $ldif->error());
-        $this->assertType('string', $ldif->error(true));
-        $this->assertType('int', $ldif->error_lines());
-        $this->assertThat(strlen($ldif->error(true)), $this->greaterThan(0));
+        $ldif = new Horde_Ldap_Ldif(__DIR__ . '/fixtures/unsorted_w50.ldif', 'r', $this->_defaultConfig);
 
         // Test for line number reporting
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/fixtures/malformed_syntax.ldif', 'r', $this->_defaultConfig);
-        $this->assertFalse((boolean)$ldif->error());
-        do { $entry = $ldif->readEntry(); } while (!$ldif->eof());
-        $this->assertTrue((boolean)$ldif->error());
-        $this->assertThat($ldif->error_lines(), $this->greaterThan(1));
+        $ldif = new Horde_Ldap_Ldif(__DIR__ . '/fixtures/malformed_syntax.ldif', 'r', $this->_defaultConfig);
+        $this->setExpectedException('Horde_Ldap_Exception',
+                                    'Invalid syntax at input line 7');
+        do {
+            $entry = $ldif->readEntry();
+        } while (!$ldif->eof());
+
+        // Error giving error msg and line number:
+        $this->setExpectedException('Horde_Ldap_Exception');
+        $ldif = new Horde_Ldap_Ldif(__DIR__ . '/some_not_existing/path/for/net_ldap_ldif', 'r', $this->_defaultConfig);
     }
 
     /**
@@ -520,7 +451,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
      */
     public function testLineMethods()
     {
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/fixtures/unsorted_w50.ldif', 'r', $this->_defaultConfig);
+        $ldif = new Horde_Ldap_Ldif(__DIR__.'/fixtures/unsorted_w50.ldif', 'r', $this->_defaultConfig);
         $this->assertEquals(array(), $ldif->currentLines(), 'Horde_Ldap_Ldif initialization error!');
 
         // Read first lines.
@@ -547,7 +478,7 @@ class Horde_Ldap_LdifTest extends PHPUnit_Framework_TestCase
      */
     public function testcurrentEntry()
     {
-        $ldif = new Horde_Ldap_Ldif(dirname(__FILE__).'/fixtures/unsorted_w50.ldif', 'r', $this->_defaultConfig);
+        $ldif = new Horde_Ldap_Ldif(__DIR__.'/fixtures/unsorted_w50.ldif', 'r', $this->_defaultConfig);
 
         // Read first entry.
         $entry = $ldif->readEntry();

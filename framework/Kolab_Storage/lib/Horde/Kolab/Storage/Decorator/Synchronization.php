@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * A synchronization decorator for the Kolab storage handler.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Decorator_Synchronization
@@ -48,10 +48,9 @@ implements Horde_Kolab_Storage
      * @param Horde_Kolab_Storage                 $storage The storage handler.
      * @param Horde_Kolab_Storage_Synchronization $synchronization The synchronization strategy.
      */
-    public function __construct(
-        Horde_Kolab_Storage $storage,
-        Horde_Kolab_Storage_Synchronization $synchronization
-    ) {
+    public function __construct(Horde_Kolab_Storage $storage,
+                                Horde_Kolab_Storage_Synchronization $synchronization)
+    {
         $this->_storage = $storage;
         $this->_synchronization = $synchronization;
     }
@@ -105,7 +104,7 @@ implements Horde_Kolab_Storage
      *                             access in the folder.
      * @param int    $data_version Format version of the object data.
      *
-     * @return Horde_Kolab_Data The data object.
+     * @return Horde_Kolab_Storage_Data The data object.
      */
     public function getData($folder, $object_type = null, $data_version = 1)
     {

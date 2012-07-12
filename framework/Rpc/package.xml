@@ -3,42 +3,53 @@
  <name>Horde_Rpc</name>
  <channel>pear.horde.org</channel>
  <summary>Horde RPC API</summary>
- <description>The Horde_Rpc library provides a common abstracted interface to various remote methods of accessing Horde functionality.</description>
- <lead>
-  <name>Chuck Hagenbuch</name>
-  <user>chuck</user>
-  <email>chuck@horde.org</email>
-  <active>yes</active>
- </lead>
+ <description>A common abstracted interface to various remote methods of accessing Horde functionality.</description>
  <lead>
   <name>Jan Schneider</name>
   <user>jan</user>
   <email>jan@horde.org</email>
   <active>yes</active>
  </lead>
- <date>2011-03-16</date>
- <time>18:17:01</time>
+ <lead>
+  <name>Chuck Hagenbuch</name>
+  <user>chuck</user>
+  <email>chuck@horde.org</email>
+  <active>yes</active>
+ </lead>
+ <developer>
+  <name>Michael J Rubinsky</name>
+  <user>mrubinsk</user>
+  <email>mrubinsk@horde.org</email>
+  <active>yes</active>
+ </developer>
+ <date>2012-07-05</date>
+ <time>23:58:02</time>
  <version>
-  <release>1.0.0RC1</release>
+  <release>2.0.0beta1</release>
   <api>1.0.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+ <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
  <notes>
-* First release candidate for Horde 4.
+*
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
    <dir name="doc">
-    <dir name="examples">
-     <file name="soap.php" role="doc" />
-     <file name="soap.pl" role="doc" />
-     <file name="xmlrpc.php" role="doc" />
-     <file name="xmlrpc.pl" role="doc" />
-    </dir> <!-- /doc/examples -->
+    <dir name="Horde">
+     <dir name="Rpc">
+      <dir name="examples">
+       <file name="soap.php" role="doc" />
+       <file name="soap.pl" role="doc" />
+       <file name="xmlrpc.php" role="doc" />
+       <file name="xmlrpc.pl" role="doc" />
+      </dir> <!-- /doc/Horde/Rpc/examples -->
+      <file name="COPYING" role="doc" />
+     </dir> <!-- /doc/Horde/Rpc -->
+    </dir> <!-- /doc/Horde -->
    </dir> <!-- /doc -->
    <dir name="lib">
     <dir name="Horde">
@@ -331,100 +342,96 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
    </pearinstaller>
    <package>
-    <name>Horde_ActiveSync</name>
-    <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
-   </package>
-   <package>
     <name>Horde_Core</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
-   </package>
-   <package>
-    <name>Horde_Lock</name>
-    <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Perms</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Serialize</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Support</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
-   </package>
-   <package>
-    <name>Horde_SyncMl</name>
-    <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Translation</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Util</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Xml_Element</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
   <optional>
    <package>
-    <name>Horde_Http</name>
+    <name>Horde_ActiveSync</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
-    <name>PEAR</name>
-    <channel>pear.php.net</channel>
+    <name>Horde_Http</name>
+    <channel>pear.horde.org</channel>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
+   </package>
+   <package>
+    <name>Horde_Lock</name>
+    <channel>pear.horde.org</channel>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
+   </package>
+   <package>
+    <name>Horde_SyncMl</name>
+    <channel>pear.horde.org</channel>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <extension>
     <name>soap</name>
@@ -436,10 +443,11 @@
  </dependencies>
  <phprelease>
   <filelist>
-   <install as="examples/soap.php" name="doc/examples/soap.php" />
-   <install as="examples/soap.pl" name="doc/examples/soap.pl" />
-   <install as="examples/xmlrpc.php" name="doc/examples/xmlrpc.php" />
-   <install as="examples/xmlrpc.pl" name="doc/examples/xmlrpc.pl" />
+   <install as="COPYING" name="doc/Horde/Rpc/COPYING" />
+   <install as="examples/soap.php" name="doc/Horde/Rpc/examples/soap.php" />
+   <install as="examples/soap.pl" name="doc/Horde/Rpc/examples/soap.pl" />
+   <install as="examples/xmlrpc.php" name="doc/Horde/Rpc/examples/xmlrpc.php" />
+   <install as="examples/xmlrpc.pl" name="doc/Horde/Rpc/examples/xmlrpc.pl" />
    <install as="Horde/Rpc.php" name="lib/Horde/Rpc.php" />
    <install as="Horde/Rpc/ActiveSync.php" name="lib/Horde/Rpc/ActiveSync.php" />
    <install as="Horde/Rpc/Exception.php" name="lib/Horde/Rpc/Exception.php" />
@@ -553,7 +561,7 @@
     <api>beta</api>
    </stability>
    <date>2010-10-22</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 Converted to package.xml 2.0 for pear.horde.org
    </notes>
@@ -568,9 +576,135 @@ Converted to package.xml 2.0 for pear.horde.org
     <api>beta</api>
    </stability>
    <date>2011-03-16</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First beta release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-22</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* Second release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First stable release for Horde 4.
+* [mjr] Fix for broken Nokia MfE clients (Bug #9757).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Update Lithuanian translation.
+* [jan] Update Brazilian Portuguese translation.
+* [jan] Update Spanish translation.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.2</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-07-27</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Update Latvian translation.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.3</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2012-01-31</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Fix WebDAV access to application resources.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.4</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2012-05-29</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Support authentication via CGI.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First alpha release for Horde 5.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+*
    </notes>
   </release>
  </changelog>

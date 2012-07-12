@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Session
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Session
  */
 
 /**
  * A logger for Horde_Kolab_Session handlers.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Session
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Session
  */
 class Horde_Kolab_Session_Decorator_Logged
@@ -38,18 +38,16 @@ extends Horde_Kolab_Session_Decorator_Base
     /**
      * Constructor.
      *
-     * The provided logger class needs to implement the methods info() and
+     * The provided logger class needs to implement the methods debug() and
      * err().
      *
      * @param Horde_Kolab_Session $session The session handler.
      * @param mixed               $logger  The logger instance.
      */
-    public function __construct(
-        Horde_Kolab_Session $session,
-        $logger
-    ) {
+    public function __construct(Horde_Kolab_Session $session, $logger)
+    {
         parent::__construct($session);
-        $this->_logger  = $logger;
+        $this->_logger = $logger;
     }
 
     /**
@@ -67,7 +65,7 @@ extends Horde_Kolab_Session_Decorator_Base
     {
         try {
             $this->_session->connect($user_id, $credentials);
-            $this->_logger->info(
+            $this->_logger->debug(
                 sprintf(
                     "Connected Kolab session for \"%s\".",
                     $this->_session->getId()
@@ -92,7 +90,7 @@ extends Horde_Kolab_Session_Decorator_Base
     public function export()
     {
         $session_data = $this->_session->export();
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 "Exported session data for \"%s\" (%s).",
                 $this->_session->getMail(), serialize($session_data)
@@ -111,7 +109,7 @@ extends Horde_Kolab_Session_Decorator_Base
     public function import(array $session_data)
     {
         $this->_session->import($session_data);
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 "Imported session data for \"%s\" (%s).",
                 $this->_session->getMail(), serialize($session_data)

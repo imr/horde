@@ -5,13 +5,14 @@
  * This class servers some functionality to the other classes of Horde_Ldap but
  * most of the methods can be used separately as well.
  *
+ * Copyright 2009 Benedikt Hallinger
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
+ *
  * @category  Horde
  * @package   Ldap
  * @author    Benedikt Hallinger <beni@php.net>
  * @author    Jan Schneider <jan@horde.org>
- * @copyright 2010-2011 The Horde Project
- * @copyright 2009 Benedikt Hallinger
- * @license   http://www.gnu.org/copyleft/lesser.html LGPL
+ * @license   http://www.gnu.org/licenses/lgpl-3.0.html LGPL-3.0
  */
 class Horde_Ldap_Util
 {
@@ -89,7 +90,7 @@ class Horde_Ldap_Util
         $dn = self::canonicalDN($dn, array('casefold' => $options['casefold']));
 
         // Splitting the DN.
-        $dn_array = preg_split('/(?<=[^\\\\]),/', $dn);
+        $dn_array = preg_split('/(?<!\\\\),/', $dn);
 
         // Clear wrong splitting (possibly we have split too much).
         // Not clear, if this is neccessary here:
@@ -288,7 +289,7 @@ class Horde_Ldap_Util
             // It is not clear to me if the perl implementation splits by the
             // user defined separator or if it just uses this separator to
             // construct the new DN.
-            $dn = preg_split('/(?<=[^\\\\])' . $options['separator'] . '/', $dn);
+            $dn = preg_split('/(?<!\\\\)' . $options['separator'] . '/', $dn);
 
             // Clear wrong splitting (possibly we have split too much).
             $dn = self::_correctDNSplitting($dn, $options['separator']);
@@ -313,7 +314,7 @@ class Horde_Ldap_Util
                         // Copy array as-is, so we can resolve it later.
                         $newdn[] = $dn_part;
                     } else {
-                        $newdn[] = $dn_key.'='.$dn_part;
+                        $newdn[] = $dn_key . '=' . $dn_part;
                     }
                 }
                 $dn =& $newdn;
@@ -361,7 +362,7 @@ class Horde_Ldap_Util
                     $dn[$pos] = substr($rdn_string, 0, -1);
                 } else {
                     // No multivalued RDN. Split at first unescaped "=".
-                    $dn_comp = preg_split('/(?<=[^\\\\])=/', $rdns[0], 2);
+                    $dn_comp = self::splitAttributeString($rdns[0]);
                     if (count($dn_comp) != 2) {
                         throw new Horde_Ldap_Exception('Invalid RDN: ' . $rdns[0]);
                     }
@@ -385,6 +386,8 @@ class Horde_Ldap_Util
                     }
 
                     // Escaping of DN value.
+                    // TODO: if the value is already correctly escaped, we get
+                    //       double escaping.
                     $val = self::escapeDNValue(array($val));
                     $val = str_replace('/', '\/', $val[0]);
 

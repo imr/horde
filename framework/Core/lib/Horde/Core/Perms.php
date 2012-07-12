@@ -3,10 +3,10 @@
  * The Horde_Core_Perms class provides information about internal Horde
  * elements that can be managed through the Horde_Perms system.
  *
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @author   Jan Schneider <jan@horde.org>
@@ -238,6 +238,9 @@ class Horde_Core_Perms
                     if (isset($val['type'])) {
                         $perms['type'][$app . ':' . $key] = $val['type'];
                     }
+                    if (isset($val['params'])) {
+                        $perms['params'][$app . ':' . $key] = $val['params'];
+                    }
                 }
             }
 
@@ -260,7 +263,7 @@ class Horde_Core_Perms
      *          DEFAULT: None
      * </pre>
      *
-     * @return boolean  Whether the user has the specified permissions.
+     * @return mixed  The specified permissions.
      */
     public function hasAppPermission($permission, $opts = array())
     {
@@ -281,7 +284,7 @@ class Horde_Core_Perms
             );
 
             try {
-                return (bool)$this->_registry->callAppMethod($app, 'hasPermission', array('args' => $args));
+                return $this->_registry->callAppMethod($app, 'hasPermission', array('args' => $args));
             } catch (Horde_Exception $e) {}
         }
 

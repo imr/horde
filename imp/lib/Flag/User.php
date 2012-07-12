@@ -2,14 +2,14 @@
 /**
  * This class provides the data structure for a user-defined message flag.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Flag_User extends IMP_Flag_Imap
@@ -55,7 +55,7 @@ class IMP_Flag_User extends IMP_Flag_Imap
         case 'imapflag':
             /* IMAP keywords must conform to RFC 3501 [9] (flag-keyword).
              * Convert whitespace to underscore. */
-            $this->_imapflag = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->getUtils()->stripNonAtomChars(Horde_String::convertCharset(strtr($value, ' ', '_'), 'UTF-8', 'UTF7-IMAP'));
+            $this->_imapflag = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->getUtils()->stripNonAtomChars(strtr($value, ' ', '_'));
             break;
 
         case 'label':

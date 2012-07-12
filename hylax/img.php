@@ -3,10 +3,10 @@
  * The Hylax script to show a fax view.
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 $hylax = Horde_Registry::appInit('hylax', array('authentication' => 'none'));
 
 $fax_id = Horde_Util::getFormData('fax_id');

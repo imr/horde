@@ -4,7 +4,7 @@
  <channel>pear.horde.org</channel>
  <extends>View</extends>
  <summary>Horde View API</summary>
- <description>The Horde_View library provides a simple View pattern implementation.</description>
+ <description>A simple View pattern implementation.</description>
  <lead>
   <name>Chuck Hagenbuch</name>
   <user>chuck</user>
@@ -17,37 +17,34 @@
   <email>mike@maintainable.com</email>
   <active>yes</active>
  </lead>
- <date>2011-03-16</date>
- <time>18:20:49</time>
+ <date>2012-07-06</date>
+ <time>00:07:05</time>
  <version>
-  <release>1.0.0RC1</release>
-  <api>1.0.0</api>
+  <release>2.0.0beta1</release>
+  <api>1.1.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+ <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
  <notes>
-* First release candidate for Horde 4.
+*
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
    <dir name="doc">
     <dir name="Horde">
      <dir name="View">
+      <dir name="examples">
+       <file name="template.php" role="doc" />
+       <file name="view.php" role="doc" />
+      </dir> <!-- /doc/Horde/View/examples -->
+      <file name="COPYING" role="doc" />
       <file name="TODO.txt" role="doc" />
      </dir> <!-- /doc/Horde/View -->
     </dir> <!-- /doc/Horde -->
    </dir> <!-- /doc -->
-   <dir name="examples">
-    <dir name="Horde">
-     <dir name="View">
-      <file name="template.php" role="php" />
-      <file name="view.php" role="php" />
-     </dir> <!-- /examples/Horde/View -->
-    </dir> <!-- /examples/Horde -->
-   </dir> <!-- /examples -->
    <dir name="lib">
     <dir name="Horde">
      <dir name="View">
@@ -133,7 +130,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -141,39 +138,39 @@
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Support</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Util</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
   <optional>
    <package>
     <name>Horde_Controller</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Routes</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <extension>
     <name>json</name>
@@ -182,9 +179,10 @@
  </dependencies>
  <phprelease>
   <filelist>
-   <install as="Horde/View/TODO.txt" name="doc/Horde/View/TODO.txt" />
-   <install as="examples/Horde/View/template.php" name="examples/Horde/View/template.php" />
-   <install as="examples/Horde/View/view.php" name="examples/Horde/View/view.php" />
+   <install as="COPYING" name="doc/Horde/View/COPYING" />
+   <install as="TODO.txt" name="doc/Horde/View/TODO.txt" />
+   <install as="examples/template.php" name="doc/Horde/View/examples/template.php" />
+   <install as="examples/view.php" name="doc/Horde/View/examples/view.php" />
    <install as="Horde/View.php" name="lib/Horde/View.php" />
    <install as="Horde/View/Base.php" name="lib/Horde/View/Base.php" />
    <install as="Horde/View/Exception.php" name="lib/Horde/View/Exception.php" />
@@ -248,7 +246,7 @@
     <api>beta</api>
    </stability>
    <date>2011-03-06</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * Better Helper architecture, improved View/Helper registration
    </notes>
@@ -263,7 +261,7 @@
     <api>alpha</api>
    </stability>
    <date>2011-03-08</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First alpha release for Horde 4.
    </notes>
@@ -278,9 +276,94 @@
     <api>beta</api>
    </stability>
    <date>2011-03-16</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First beta release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-22</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* Second release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First stable release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-22</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Make unit tests Windows compatible.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First alpha release for Horde 5.
+* [mms] Added Horde_View_Helper_FormTag#optionTag().
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.1.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+*
    </notes>
   </release>
  </changelog>

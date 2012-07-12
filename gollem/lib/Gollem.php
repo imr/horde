@@ -2,16 +2,16 @@
 /**
  * Gollem base library.
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Max Kalika <max@horde.org>
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  Gollem
  */
 class Gollem
@@ -26,6 +26,13 @@ class Gollem
     const SORT_DESCEND = 1;
 
     /**
+     * Configuration hash for the current backend.
+     *
+     * @var array
+     */
+    static public $backend;
+
+    /**
      * Changes the current directory of the Gollem session to the supplied
      * value.
      *
@@ -37,10 +44,11 @@ class Gollem
     {
         $dir = Horde_Util::realPath($dir);
 
-        if (!self::verifyDir($dir)) {
+        if (!self::verifyDir($dir) ||
+            !self::checkPermissions('directory', Horde_Perms::READ, $dir)) {
             throw new Gollem_Exception(sprintf(_("Access denied to folder \"%s\"."), $dir));
         }
-        $GLOBALS['gollem_be']['dir'] = $dir;
+        self::$backend['dir'] = $dir;
 
         self::_setLabel();
     }
@@ -58,40 +66,10 @@ class Gollem
             self::_setLabel();
         } else {
             if (strpos($dir, '/') !== 0) {
-                $dir = $GLOBALS['gollem_be']['dir'] . '/' . $dir;
+                $dir = self::$backend['dir'] . '/' . $dir;
             }
             self::setDir($dir);
         }
-    }
-
-    /**
-     * Get the root directory of the Gollem session.
-     *
-     * @return string  The root directory.
-     */
-    static public function getRoot()
-    {
-        return $GLOBALS['gollem_be']['root'];
-    }
-
-    /**
-     * Get the home directory of the Gollem session.
-     *
-     * @return string  The home directory.
-     */
-    static public function getHome()
-    {
-        return $GLOBALS['gollem_be']['home'];
-    }
-
-    /**
-     * Get the current directory of the Gollem session.
-     *
-     * @return mixed  Current dir on success or null on failure.
-     */
-    static public function getDir()
-    {
-        return $GLOBALS['gollem_be']['dir'];
     }
 
     /**
@@ -99,9 +77,9 @@ class Gollem
      */
     static protected function _setLabel()
     {
-        $GLOBALS['gollem_be']['label'] = self::getDisplayPath($GLOBALS['gollem_be']['dir']);
-        if (empty($GLOBALS['gollem_be']['label'])) {
-            $GLOBALS['gollem_be']['label'] = '/';
+        self::$backend['label'] = self::getDisplayPath(self::$backend['dir']);
+        if (empty(self::$backend['label'])) {
+            self::$backend['label'] = '/';
         }
     }
 
@@ -206,7 +184,7 @@ class Gollem
      * @param string $dir  The directory name.
      *
      * @return array  The sorted list of files.
-     * @throws Horde_Vfs_Exception
+     * @throws Gollem_Exception
      */
     static public function listFolder($dir)
     {
@@ -227,7 +205,15 @@ class Gollem
             }
         }
 
-        $files = $GLOBALS['gollem_vfs']->listFolder($dir, isset($GLOBALS['gollem_be']['filter']) ? $GLOBALS['gollem_be']['filter'] : null, $GLOBALS['prefs']->getValue('show_dotfiles'));
+        try {
+            $files = $GLOBALS['injector']
+                ->getInstance('Gollem_Vfs')
+                ->listFolder($dir,
+                             isset(self::$backend['filter']) ? self::$backend['filter'] : null,
+                             $GLOBALS['prefs']->getValue('show_dotfiles'));
+        } catch (Horde_Vfs_Exception $e) {
+            throw new Gollem_Exception($e);
+        }
         $sortcols = array(
             self::SORT_TYPE => 'sortType',
             self::SORT_NAME => 'sortName',
@@ -250,9 +236,13 @@ class Gollem
      */
     static protected function _getCacheID($dir)
     {
-        global $prefs, $session;
-
-        return implode('|', array($GLOBALS['registry']->getAuth(), $session->get('gollem', 'backend_key'), $prefs->getValue('show_dotfiles'), $prefs->getValue('sortdirsfirst'), $prefs->getValue('sortby'), $prefs->getValue('sortdir'), $dir));
+        return implode('|', array($GLOBALS['registry']->getAuth(),
+                                  $GLOBALS['session']->get('gollem', 'backend_key'),
+                                  $GLOBALS['prefs']->getValue('show_dotfiles'),
+                                  $GLOBALS['prefs']->getValue('sortdirsfirst'),
+                                  $GLOBALS['prefs']->getValue('sortby'),
+                                  $GLOBALS['prefs']->getValue('sortdir'),
+                                  $dir));
     }
 
     /**
@@ -294,42 +284,19 @@ class Gollem
     }
 
     /**
-     * Generate an URL to the logout screen that includes any known
-     * information, such as username, server, etc., that can be filled
-     * in on the login form.
-     *
-     * @return Horde_Url  The logout URL with parameters added.
-     */
-    static public function logoutUrl()
-    {
-        $url = Horde::url('login.php', true);
-
-        if (!empty($GLOBALS['gollem_be']['params']['username'])) {
-            $url->add('username', $GLOBALS['gollem_be']['params']['username']);
-        } elseif (Horde_Util::getFormData('username')) {
-            $url->add('username', Horde_Util::getFormData('username'));
-        }
-
-        if (!empty($GLOBALS['gollem_be']['params']['port'])) {
-            $url->add('port', $GLOBALS['gollem_be']['params']['port']);
-        }
-
-        return $url;
-    }
-
-    /**
      * Create a folder using the current Gollem session settings.
      *
-     * @param string $dir   The directory path.
-     * @param string $name  The folder to create.
+     * @param string $dir                 The directory path.
+     * @param string $name                The folder to create.
+     * @param Horde_Vfs_Base $gollem_vfs  A VFS instance to use.
      *
      * @throws Gollem_Exception
      * @throws Horde_Vfs_Exception
      */
-    static public function createFolder($dir, $name)
+    static public function createFolder($dir, $name, $gollem_vfs = null)
     {
         $totalpath = Horde_Util::realPath($dir . '/' . $name);
-        if (!Gollem::verifyDir($totalpath)) {
+        if (!self::verifyDir($totalpath)) {
             throw new Gollem_Exception(sprintf(_("Access denied to folder \"%s\"."), $totalpath));
         }
 
@@ -339,11 +306,14 @@ class Gollem
         $dir = substr($totalpath, 0, $pos);
         $name = substr($totalpath, $pos + 1);
 
-        $GLOBALS['gollem_vfs']->autocreatePath($dir);
-        $GLOBALS['gollem_vfs']->createFolder($dir, $name);
+        if (!$gollem_vfs) {
+            $gollem_vfs = $GLOBALS['injector']->getInstance('Gollem_Vfs');
+        }
+        $gollem_vfs->autocreatePath($dir);
+        $gollem_vfs->createFolder($dir, $name);
 
-        if (!empty($GLOBALS['gollem_be']['params']['permissions'])) {
-            $GLOBALS['gollem_vfs']->changePermissions($dir, $name, $GLOBALS['gollem_be']['params']['permissions']);
+        if (!empty(self::$backend['params']['permissions'])) {
+            $gollem_vfs->changePermissions($dir, $name, self::$backend['params']['permissions']);
         }
     }
 
@@ -359,7 +329,20 @@ class Gollem
      */
     static public function renameItem($oldDir, $old, $newDir, $new)
     {
-        $GLOBALS['gollem_vfs']->rename($oldDir, $old, $newDir, $new);
+        $GLOBALS['injector']
+            ->getInstance('Gollem_Vfs')
+            ->rename($oldDir, $old, $newDir, $new);
+
+        $shares = $GLOBALS['injector']->getInstance('Gollem_Shares');
+        $backend = $GLOBALS['session']->get('gollem', 'backend_key');
+        try {
+            $share = $shares->getShare($backend . '|' . $oldDir . '/' . $old);
+            $shares->renameShare($share, $backend . '|' . $newDir . '/' . $new);
+            $share->set('name', $new, true);
+        } catch (Horde_Exception_NotFound $e) {
+        } catch (Horde_Share_Exception $e) {
+            throw new Gollem_Exception($e);
+        }
     }
 
     /**
@@ -373,13 +356,26 @@ class Gollem
      */
     static public function deleteFolder($dir, $name)
     {
-        if (!Gollem::verifyDir($dir)) {
+        if (!self::verifyDir($dir)) {
             throw new Gollem_Exception(sprintf(_("Access denied to folder \"%s\"."), $dir));
         }
 
-        ($GLOBALS['prefs']->getValue('recursive_deletes') != 'disabled')
-            ? $GLOBALS['gollem_vfs']->deleteFolder($dir, $name, true)
-            : $GLOBALS['gollem_vfs']->deleteFolder($dir, $name, false);
+        $GLOBALS['injector']
+            ->getInstance('Gollem_Vfs')
+            ->deleteFolder($dir,
+                           $name,
+                           $GLOBALS['prefs']->getValue('recursive_deletes') != 'disabled');
+
+        $shares = $GLOBALS['injector']->getInstance('Gollem_Shares');
+        try {
+            $share = $shares->getShare(
+                $GLOBALS['session']->get('gollem', 'backend_key') . '|'
+                . $dir . '/' . $name);
+            $shares->removeShare($share);
+        } catch (Horde_Exception_NotFound $e) {
+        } catch (Horde_Share_Exception $e) {
+            throw new Gollem_Exception($e);
+        }
     }
 
     /**
@@ -393,10 +389,12 @@ class Gollem
      */
     static public function deleteFile($dir, $name)
     {
-        if (!Gollem::verifyDir($dir)) {
+        if (!self::verifyDir($dir)) {
             throw new Gollem_Exception(sprintf(_("Access denied to folder \"%s\"."), $dir));
         }
-        $GLOBALS['gollem_vfs']->deleteFile($dir, $name);
+        $GLOBALS['injector']
+            ->getInstance('Gollem_Vfs')
+            ->deleteFile($dir, $name);
     }
 
     /**
@@ -411,10 +409,12 @@ class Gollem
      */
     static public function changePermissions($dir, $name, $permission)
     {
-        if (!Gollem::verifyDir($dir)) {
+        if (!self::verifyDir($dir)) {
             throw new Gollem_Exception(sprintf(_("Access denied to folder \"%s\"."), $dir));
         }
-        $GLOBALS['gollem_vfs']->changePermissions($dir, $name, $permission);
+        $GLOBALS['injector']
+            ->getInstance('Gollem_Vfs')
+            ->changePermissions($dir, $name, $permission);
     }
 
     /**
@@ -428,9 +428,10 @@ class Gollem
      */
     static public function writeFile($dir, $name, $filename)
     {
-        $GLOBALS['gollem_vfs']->write($dir, $name, $filename);
-        if (!empty($GLOBALS['gollem_be']['params']['permissions'])) {
-            $GLOBALS['gollem_vfs']->changePermissions($dir, $name, $GLOBALS['gollem_be']['params']['permissions']);
+        $gollem_vfs = $GLOBALS['injector']->getInstance('Gollem_Vfs');
+        $gollem_vfs->write($dir, $name, $filename, true);
+        if (!empty(self::$backend['params']['permissions'])) {
+            $gollem_vfs->changePermissions($dir, $name, self::$backend['params']['permissions']);
         }
     }
 
@@ -448,7 +449,7 @@ class Gollem
     static public function moveFile($backend_f, $dir, $name, $backend_t,
                                     $newdir)
     {
-        Gollem::_copyFile('move', $backend_f, $dir, $name, $backend_t, $newdir);
+        self::_copyFile('move', $backend_f, $dir, $name, $backend_t, $newdir);
     }
 
     /**
@@ -465,7 +466,7 @@ class Gollem
     static public function copyFile($backend_f, $dir, $name, $backend_t,
                                     $newdir)
     {
-        Gollem::_copyFile('copy', $backend_f, $dir, $name, $backend_t, $newdir);
+        self::_copyFile('copy', $backend_f, $dir, $name, $backend_t, $newdir);
     }
 
     /**
@@ -479,29 +480,25 @@ class Gollem
         $backend_key = $GLOBALS['session']->get('gollem', 'backend_key');
 
         /* If the from/to backends are the same, we can just use the built-in
-           VFS functions. */
+         * VFS functions. */
         if ($backend_f == $backend_t) {
-            if ($backend_f == $backend_key) {
-                $ob = &$GLOBALS['gollem_vfs'];
-            } else {
-                $ob = Gollem::getVFSOb($backend_f);
+            $ob = $GLOBALS['injector']->getInstance('Gollem_Factory_Vfs')->create($backend_f);
+            if ($backend_f != $backend_key) {
                 $ob->checkCredentials();
             }
-            return ($mode == 'copy') ? $ob->copy($dir, $name, $newdir) : $ob->move($dir, $name, $newdir);
+            return $mode == 'copy'
+                ? $ob->copy($dir, $name, $newdir)
+                : $ob->move($dir, $name, $newdir);
         }
 
         /* Else, get the two VFS objects and copy/move the files. */
-        if ($backend_f == $backend_key) {
-            $from_be = &$GLOBALS['gollem_vfs'];
-        } else {
-            $from_be = Gollem::getVFSOb($backend_f);
+        $from_be = $GLOBALS['injector']->getInstance('Gollem_Factory_Vfs')->create($backend_f);
+        if ($backend_f != $backend_key) {
             $from_be->checkCredentials();
         }
 
-        if ($backend_t == $backend_key) {
-            $to_be = &$GLOBALS['gollem_vfs'];
-        } else {
-            $from_be = Gollem::getVFSOb($backend_t);
+        $to_be = $GLOBALS['injector']->getInstance('Gollem_Factory_Vfs')->create($backend_t);
+        if ($backend_t != $backend_key) {
             $to_be->checkCredentials();
         }
 
@@ -518,43 +515,6 @@ class Gollem
     }
 
     /**
-     * Get the current preferred backend key.
-     *
-     * @return string  The preferred backend key.
-     */
-    static public function getPreferredBackend()
-    {
-        if (!($backend_key = $GLOBALS['session']->get('gollem', 'backend_key')) ){
-            /* Determine the preferred backend. */
-            foreach ($GLOBALS['gollem_backends'] as $key => $val) {
-                if (empty($backend_key) && (substr($key, 0, 1) != '_')) {
-                    $backend_key = $key;
-                }
-                if (!empty($val['preferred'])) {
-                    $preferred = false;
-                    if (!is_array($val['preferred'])) {
-                        $val['preferred'] = array($val['preferred']);
-                    }
-                    foreach ($val['preferred'] as $backend) {
-                        if (($backend == $_SERVER['SERVER_NAME']) ||
-                            ($backend == $_SERVER['HTTP_HOST'])) {
-                            $preferred = true;
-                            break;
-                        }
-                    }
-                    if ($preferred) {
-                        $backend_key = $key;
-                        break;
-                    }
-                }
-            }
-
-        }
-
-        return $backend_key;
-    }
-
-    /**
      * This function verifies whether a given directory is below the root.
      *
      * @param string $dir  The directory to check.
@@ -563,35 +523,72 @@ class Gollem
      */
     static public function verifyDir($dir)
     {
-        $rootdir = Gollem::getRoot();
-        return (Horde_String::substr(Horde_Util::realPath($dir), 0, Horde_String::length($rootdir)) == $rootdir);
+        return Horde_String::substr(Horde_Util::realPath($dir), 0, Horde_String::length(self::$backend['root'])) == self::$backend['root'];
     }
 
     /**
-     * Checks if a user has the specified permissions on the selected backend.
+     * Checks if a user has the specified permissions on a resource.
      *
-     * @param string $filter       What are we checking for.
-     * @param integer $permission  What permission to check for.
-     * @param string $backend      The backend to check.  If empty, check
-     *                             the current backend.
+     * @param string $filter       What are we checking for. Either 'backend'
+     *                             or 'directory'.
+     * @param integer $permission  The permission to check for. One of the
+     *                             Horde_Perms constants.
+     * @param string $resource     The resource to check. If empty, check the
+     *                             current backend/directory.
      *
-     * @return boolean  Returns true if the user has permission, false if
-     *                  they do not.
+     * @return boolean  Returns true if the user has permission.
      */
     static public function checkPermissions($filter,
                                             $permission = Horde_Perms::READ,
-                                            $backend = null)
+                                            $resource = null)
     {
         $userID = $GLOBALS['registry']->getAuth();
-        if (is_null($backend)) {
-            $backend = $GLOBALS['session']->get('gollem', 'backend_key');
-        }
 
         switch ($filter) {
         case 'backend':
-            $backendTag = 'gollem:backends:' . $backend;
-            return (!$GLOBALS['injector']->getInstance('Horde_Perms')->exists($backendTag) ||
-                    $GLOBALS['injector']->getInstance('Horde_Perms')->hasPermission($backendTag, $userID, $permission));
+            if (is_null($resource)) {
+                $resource = $GLOBALS['session']->get('gollem', 'backend_key');
+            }
+            $backendTag = 'gollem:backends:' . $resource;
+            $perms = $GLOBALS['injector']->getInstance('Horde_Perms');
+            return (!$perms->exists($backendTag) ||
+                    $perms->hasPermission($backendTag, $userID, $permission));
+
+        case 'directory':
+            if (empty(self::$backend['shares'])) {
+                return true;
+            }
+            if (is_null($resource)) {
+                $resource = self::$backend['dir'];
+            }
+            if (strpos($resource, self::$backend['home']) === 0) {
+                return true;
+            }
+            $shares = $GLOBALS['injector']->getInstance('Gollem_Shares');
+            $backend = $GLOBALS['session']->get('gollem', 'backend_key');
+            $directory = $resource;
+            while (strlen($directory) && $directory != './' && $directory != '/') {
+                try {
+                    return $shares->getShare($backend . '|' . $directory)
+                        ->hasPermission($userID, $permission);
+                } catch (Horde_Exception_NotFound $e) {
+                }
+                $directory = dirname($directory);
+            }
+            /* Intermediate solution until we display shared folders
+             * independent from the directory tree. Check if there are
+             * any sub-directories with show permissions and allow
+             * browsing the directory in this case. */
+            if ($permission == Horde_Perms::READ ||
+                $permission == Horde_Perms::SHOW) {
+                $dirs = $shares->listShares($userID, array('perm' => Horde_Perms::SHOW));
+                foreach ($dirs as $dir) {
+                    if (strpos($dir->getName(), $backend . '|' . $resource) === 0) {
+                        return true;
+                    }
+                }
+            }
+            break;
         }
 
         return false;
@@ -608,24 +605,22 @@ class Gollem
     static public function directoryNavLink($currdir, $url)
     {
         $label = array();
-        $root_dir = Gollem::getRoot();
-        $backend_config = $GLOBALS['session']->get('gollem', 'backends/' . $GLOBALS['session']->get('gollem', 'backend_key'));
-        $root_dir_name = $backend_config['name'];
+        $root_dir_name = self::$backend['name'];
 
-        if ($currdir == $root_dir) {
+        if ($currdir == $root_dir_name) {
             $label[] = '[' . $root_dir_name . ']';
         } else {
             $parts = explode('/', $currdir);
             $parts_count = count($parts);
 
             $url = new Horde_Url($url);
-            $label[] = Horde::link($url->add('dir', $root_dir), sprintf(_("Up to %s"), $root_dir_name)) . '[' . $root_dir_name . ']</a>';
+            $label[] = Horde::link($url->add('dir', self::$backend['root']), sprintf(_("Up to %s"), $root_dir_name)) . '[' . $root_dir_name . ']</a>';
 
             for ($i = 1; $i <= $parts_count; ++$i) {
                 $part = array_slice($parts, 0, $i);
                 $dir = implode('/', $part);
-                if ((strstr($dir, $root_dir) !== false) &&
-                    ($root_dir != $dir)) {
+                if ((strstr($dir, self::$backend['root']) !== false) &&
+                    (self::$backend['root'] != $dir)) {
                     if ($i == $parts_count) {
                         $label[] = $parts[($i - 1)];
                     } else {
@@ -647,23 +642,25 @@ class Gollem
     {
         $t = $GLOBALS['injector']->createInstance('Horde_Template');
 
+        $t->set('login_url', $GLOBALS['registry']->getServiceLink('login', 'horde'));
         $t->set('forminput', Horde_Util::formInput());
+        $t->set('hidden', array(array('key' => 'url', 'value' => (string)Horde::url('manager.php', true)),
+                                array('key' => 'app', 'value' => 'gollem')));
         $t->set('be_select', self::backendSelect(), true);
         if ($t->get('be_select')) {
-        $t->set('accesskey', $GLOBALS['prefs']->getValue('widget_accesskey') ? Horde::getAccessKey(_("_Change Server")) : '');
+            $t->set('accesskey', $GLOBALS['prefs']->getValue('widget_accesskey') ? Horde::getAccessKey(_("_Change Server")) : '');
             $menu_view = $GLOBALS['prefs']->getValue('menu_view');
             $link = Horde::link('#', _("Change Server"), '', '', 'serverSubmit(true);return false;');
             $t->set('slink', sprintf('<ul><li>%s%s<br />%s</a></li></ul>', $link, ($menu_view != 'text') ? Horde::img('gollem.png') : '', ($menu_view != 'icon') ? Horde::highlightAccessKey(_("_Change Server"), $t->get('accesskey')) : ''));
         }
         $t->set('menu_string', Horde::menu(array('menu_ob' => true))->render());
 
-        $menu = $t->fetch(GOLLEM_TEMPLATES . '/menu/menu.html');
+        $menu = $t->fetch(GOLLEM_TEMPLATES . '/menu.html');
 
-        /* Need to buffer sidebar output here, because it may add things like
-         * cookies which need to be sent before output begins. */
-        Horde::startBuffer();
-        require HORDE_BASE . '/services/sidebar.php';
-        return $menu .= Horde::endBuffer();
+        return $GLOBALS['injector']
+            ->getInstance('Horde_View_Topbar')
+            ->render()
+            . $menu;
     }
 
     /**
@@ -681,108 +678,23 @@ class Gollem
      */
     static public function backendSelect()
     {
+        $backends = Gollem_Auth::getBackend();
+        $backend = Gollem_Auth::getPreferredBackend();
         $text = '';
 
-        if (($GLOBALS['conf']['backend']['backend_list'] == 'shown') &&
-            (count($GLOBALS['gollem_backends']) > 1)) {
-            foreach ($GLOBALS['gollem_backends'] as $key => $val) {
-                $sel = ($GLOBALS['session']->get('gollem', 'backend_key') == $key) ? ' selected="selected"' : '';
-                $text .= sprintf('<option value="%s"%s>%s</option>%s', (empty($sel)) ? $key : '', $sel, $val['name'], "\n");
+        if ($GLOBALS['conf']['backend']['backend_list'] == 'shown' &&
+            count($backends) > 1) {
+            foreach ($backends as $key => $val) {
+                $sel = ($backend == $key) ? ' selected="selected"' : '';
+                $text .= sprintf('<option value="%s"%s>%s</option>%s',
+                                 empty($sel) ? $key : '',
+                                 $sel,
+                                 $val['name'],
+                                 "\n");
             }
         }
 
         return $text;
-    }
-
-    /**
-     * Load the backends list into the global $gollem_backends variable.
-     */
-    static public function loadBackendList()
-    {
-        if ($be_list = $GLOBALS['session']->get('gollem', 'be_list')) {
-            $GLOBALS['gollem_backends'] = $be_list;
-        } else {
-            require GOLLEM_BASE . '/config/backends.php';
-            $GLOBALS['gollem_backends'] = array();
-            foreach ($backends as $key => $val) {
-                if (Gollem::checkPermissions('backend', Horde_Perms::SHOW, $key)) {
-                    $GLOBALS['gollem_backends'][$key] = $val;
-                }
-            }
-        }
-    }
-
-    /**
-     * Get the authentication ID to use for autologins based on the value of
-     * the 'hordeauth' parameter.
-     *
-     * @param string $backend  The backend to login to.
-     *
-     * @return string  The ID string to use for logins.
-     */
-    static public function getAutologinID($backend)
-    {
-        return (!empty($GLOBALS['gollem_backends'][$backend]['hordeauth']) &&
-                (strcasecmp($GLOBALS['gollem_backends'][$backend]['hordeauth'], 'full') === 0))
-            ? $GLOBALS['registry']->getAuth()
-            : $GLOBALS['registry']->getAuth('bare');
-    }
-
-    /**
-     * Return a Horde_VFS object for the given backend.
-     *
-     * @param string $backend_key  The backend_key VFS object to return.
-     *
-     * @return object  The Horde_VFS object requested.
-     */
-    function getVFSOb($backend_key, $params = array())
-    {
-        if ($config = $GLOBALS['session']->get('gollem', 'backends/' . $backend_key)) {
-            $be_config = $config;
-            $sess_setup = true;
-        } else {
-            $be_config = $GLOBALS['gollem_backends'][$backend_key];
-            $sess_setup = false;
-        }
-        if (!count($params)) {
-            $params = $be_config['params'];
-            if (!empty($params['password'])) {
-                $secret = $GLOBALS['injector']->getInstance('Horde_Secret');
-                $params['password'] = $secret->read($secret->getKey('gollem'), $params['password']);
-            }
-        }
-
-        // Create VFS object
-        $ob = Horde_Vfs::factory($be_config['driver'], $params);
-
-        if (!isset($be_config['quota_val']) &&
-            !empty($be_config['quota'])) {
-            $quota_metric = array(
-                'B' => VFS_QUOTA_METRIC_BYTE,
-                'KB' => VFS_QUOTA_METRIC_KB,
-                'MB' => VFS_QUOTA_METRIC_MB,
-                'GB' => VFS_QUOTA_METRIC_GB
-            );
-            $quota_str = explode(' ', $be_config['quota'], 2);
-            if (is_numeric($quota_str[0])) {
-                $metric = trim(strtoupper($quota_str[1]));
-                if (!isset($quota_metric[$metric])) {
-                    $metric = 'B';
-                }
-                $ob->setQuota($quota_str[0], $quota_metric[$metric]);
-                $ob->setQuotaRoot(Gollem::getRoot());
-                if ($sess_setup) {
-                    $be_config['quota_val'] = $quota_str[0];
-                    $be_config['quota_metric'] = $quota_metric[$metric];
-                    $GLOBALS['session']->set('gollem', 'backends/' . $backend_key, $be_config);
-                }
-            }
-        } elseif ($be_config['quota_val'] > -1) {
-            $ob->setQuota($be_config['quota_val'], $be_config['quota_metric']);
-            $ob->setQuotaRoot($be_config['root']);
-        }
-
-        return $ob;
     }
 
     /**
@@ -796,43 +708,11 @@ class Gollem
     static public function getDisplayPath($path)
     {
         $path = Horde_Util::realPath($path);
-        $rootdir = Gollem::getRoot();
-        if (($rootdir != '/') && (strpos($path, $rootdir) === 0)) {
-            $path = substr($path, Horde_String::length($rootdir));
+        if (self::$backend['root'] != '/' &&
+            strpos($path, self::$backend['root']) === 0) {
+            $path = substr($path, Horde_String::length(self::$backend['root']));
         }
         return $path;
-    }
-
-
-    /**
-     * Get a list of the available backends for permissions setup.
-     *
-     * @param string $perms  'all' - Return all backends.
-     *                       'perms' - Return backends which have perms set.
-     *                       'noperms' - Return backends which have no perms
-     *                                   set.
-     *
-     * @return array  The requested backend list.
-     */
-    static public function getBackends($perms = 'all')
-    {
-        $backends = $GLOBALS['session']->get('gollem', 'backends');
-        $perms = strtolower($perms);
-
-        if ($perms != 'all') {
-            foreach (array_keys($backends) as $key) {
-                $exists = $GLOBALS['injector']->getInstance('Horde_Perms')->exists('gollem:backends:' . $key);
-                /* Don't list if the perms don't exist for this backend and we
-                 * want backends with perms only OR if the perms exist for
-                 * this backend and we only want backends which have none. */
-                if ((!$exists && ($perms == 'perms')) ||
-                    ($exists && ($perms == 'noperms'))) {
-                    unset($backends[$key]);
-                }
-            }
-        }
-
-        return $backends;
     }
 
     /**
@@ -880,19 +760,19 @@ class Gollem
      */
     static public function pathEncode($path)
     {
-         return str_ireplace(array('%2F', '%2f'), '/', rawurlencode($path));
-     }
+        return str_ireplace(array('%2F', '%2f'), '/', rawurlencode($path));
+    }
 
-     /**
-      * Take a fully qualified and break off the file or directory name.
-      * This pair is used for the input to many VFS library functions.
-      *
-      * @param string $fullpath   Path to be split.
-      *
-      * @return array  Array of ($path, $name)
-      */
-     static public function getVFSPath($fullpath)
-     {
+    /**
+     * Take a fully qualified and break off the file or directory name.
+     * This pair is used for the input to many VFS library functions.
+     *
+     * @param string $fullpath   Path to be split.
+     *
+     * @return array  Array of ($path, $name)
+     */
+    static public function getVFSPath($fullpath)
+    {
         // Convert the path into VFS's ($path, $name) convention
         $i = strrpos($fullpath, '/');
         if ($i !== false) {
@@ -903,6 +783,5 @@ class Gollem
             $path = '';
         }
         return array($name, $path);
-     }
-
+    }
 }

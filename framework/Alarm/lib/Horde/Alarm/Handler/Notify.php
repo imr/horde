@@ -2,10 +2,10 @@
 /**
  * @package Alarm
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  */
 
 /**
@@ -18,9 +18,9 @@
 class Horde_Alarm_Handler_Notify extends Horde_Alarm_Handler
 {
     /**
-     * A notification handler.
+     * A notification handler injector.
      *
-     * @var Horde_Notification_Handler
+     * @var object
      */
     protected $_notification;
 
@@ -36,21 +36,20 @@ class Horde_Alarm_Handler_Notify extends Horde_Alarm_Handler
      *
      * @param array $params  Any parameters that the handler might need.
      *                       Required parameter:
-     *                       - notification: A Horde_Notification_Handler
-     *                         instance.
+     *   - notification: (object) A factory that implements create() and
+     *                   returns a Notification object.
+     *
+     * @throws Horde_Alarm_Exception
      */
     public function __construct(array $params = null)
     {
-        /*
         if (!isset($params['notification'])) {
             throw new Horde_Alarm_Exception('Parameter \'notification\' missing.');
         }
-        if (!($params['notification'] instanceof Horde_Notification_Handler)) {
-            throw new Horde_Alarm_Exception('Parameter \'notification\' is not a Horde_Notification_Handler object.');
+        if (!method_exists($params['notification'], 'create')) {
+            throw new Horde_Alarm_Exception('Parameter \'notification\' does not have a method create().');
         }
         $this->_notification = $params['notification'];
-        */
-        $this->_notification = isset($params['notification']) ? $params['notification'] : $GLOBALS['injector']->getInstance('Horde_Notification');
     }
 
     /**
@@ -60,11 +59,12 @@ class Horde_Alarm_Handler_Notify extends Horde_Alarm_Handler
      */
     public function notify(array $alarm)
     {
-        $this->_notification->push($alarm['title'], 'horde.alarm', array('alarm' => $alarm));
+        $notification = $this->_notification->create();
+        $notification->push($alarm['title'], 'horde.alarm', array('alarm' => $alarm));
         if (!empty($alarm['params']['notify']['sound']) &&
             !isset($this->_soundPlayed[$alarm['params']['notify']['sound']])) {
-            $this->_notification->attach('audio');
-            $this->_notification->push($alarm['params']['notify']['sound'], 'audio');
+            $notification->attach('audio');
+            $notification->push($alarm['params']['notify']['sound'], 'audio');
             $this->_soundPlayed[$alarm['params']['notify']['sound']] = true;
         }
     }

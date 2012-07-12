@@ -5,14 +5,14 @@
  * This file defines IMP's external API interface. Other applications
  * can interact with IMP through this API.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
- * @author   Michael Slusarz <slusarz@curecanti.org>
+ * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Api extends Horde_Registry_Api
@@ -69,50 +69,61 @@ class IMP_Api extends Horde_Registry_Api
     }
 
     /**
-     * Returns the list of folders.
+     * Returns the list of mailboxes.
      *
-     * @return array  The list of IMAP folders.  Keys are the IMAP mailbox
-     *                name (UTF7-IMAP).  Values have the following keys:
-     * - label: (string) Human readable label.
-     * - level: (integer) The child level of this element.
+     * @return array  The list of IMAP mailboxes. A list of arrays with the
+     *                following keys:
+     *   - label: (string) Human readable label (UTF-8).
+     *   - level: (integer) The child level of this element.
+     *   - ob: (Horde_Imap_Client_Mailbox) A mailbox object.
      */
-    public function folderlist()
+    public function mailboxList()
     {
-        $folders = array();
+        $mboxes = array();
         $imap_tree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
 
         $imap_tree->setIteratorFilter(IMP_Imap_Tree::FLIST_NOCONTAINER);
         foreach ($imap_tree as $val) {
-            $folders[$val->value] = array(
+            $mboxes[] = array(
                 'label' => $val->label,
-                'level' => $val->level
+                'level' => $val->level,
+                'ob' => $val->imap_mbox_ob
             );
         }
 
-        return $folders;
+        return $mboxes;
     }
 
     /**
-     * Creates a new folder.
+     * Creates a new mailbox.
      *
-     * @param string $folder  The name of the folder to create (UTF7-IMAP).
+     * @param string $mbox    The name of the mailbox to create (UTF-8).
+     * @param array $options  Additional options:
+     *   - full: (boolean) If true, $mbox is a full mailbox name. If false,
+     *           $mbox will be created in the default namespace.
+     *           DEFAULT: false
      *
-     * @return string  The full folder name created or false on failure.
+     * @return Horde_Imap_Client_Mailbox  The mailbox name created or false on
+     *                                    failure.
+     *
      * @throws IMP_Exception
      */
-    public function createFolder($folder)
+    public function createMailbox($mbox, array $options = array())
     {
-        $fname = IMP_Mailbox::get($folder)->namespace_append;
+        $fname = IMP_Mailbox::get($mbox);
+        if (empty($options['full'])) {
+            $fname = $fname->namespace_append;
+        }
 
-        return $GLOBALS['injector']->getInstance('IMP_Folder')->create($fname, $GLOBALS['prefs']->getValue('subscribe'))
-            ? $fname
+        return $fname->create()
+            ? $fname->imap_mbox_ob
             : false;
     }
 
     /**
      * Deletes messages from a mailbox.
      *
-     * @param string $mailbox  The name of the mailbox (UTF7-IMAP).
+     * @param string $mailbox  The name of the mailbox (UTF-8).
      * @param array $indices   The list of UIDs to delete.
      *
      * @return integer|boolean  The number of messages deleted if successful,
@@ -120,41 +131,54 @@ class IMP_Api extends Horde_Registry_Api
      */
     public function deleteMessages($mailbox, $indices)
     {
-        return $GLOBALS['injector']->getInstance('IMP_Message')->delete(array($mailbox => $indices), array('nuke' => true));
+        return $GLOBALS['injector']->getInstance('IMP_Message')->delete(
+            new IMP_Indices($mailbox, $indices),
+            array('nuke' => true)
+        );
     }
 
     /**
      * Copies messages to a mailbox.
      *
-     * @param string $mailbox  The name of the source mailbox (UTF7-IMAP).
+     * @param string $mailbox  The name of the source mailbox (UTF-8).
      * @param array $indices   The list of UIDs to copy.
-     * @param string $target   The name of the target mailbox (UTF7-IMAP).
+     * @param string $target   The name of the target mailbox (UTF-8).
      *
      * @return boolean  True if successful, false if not.
      */
     public function copyMessages($mailbox, $indices, $target)
     {
-        return $GLOBALS['injector']->getInstance('IMP_Message')->copy($target, 'copy', new IMP_Indices($mailbox, $indices), array('create' => true));
+        return $GLOBALS['injector']->getInstance('IMP_Message')->copy(
+            $target,
+            'copy',
+            new IMP_Indices($mailbox, $indices),
+            array('create' => true)
+        );
     }
 
     /**
      * Moves messages to a mailbox.
      *
-     * @param string $mailbox  The name of the source mailbox (UTF7-IMAP).
+     * @param string $mailbox  The name of the source mailbox (UTF-8).
      * @param array $indices   The list of UIDs to move.
-     * @param string $target   The name of the target mailbox (UTF7-IMAP).
+     * @param string $target   The name of the target mailbox (UTF-8).
      *
      * @return boolean  True if successful, false if not.
      */
     public function moveMessages($mailbox, $indices, $target)
     {
-        return $GLOBALS['injector']->getInstance('IMP_Message')->copy($target, 'move', new IMP_Indices($mailbox, $indices), array('create' => true));
+        return $GLOBALS['injector']->getInstance('IMP_Message')->copy(
+            $target,
+            'move',
+            new IMP_Indices($mailbox, $indices),
+            array('create' => true)
+        );
     }
 
     /**
      * Flag messages.
      *
-     * @param string $mailbox  The name of the source mailbox (UTF7-IMAP).
+     * @param string $mailbox  The name of the source mailbox (UTF-8).
      * @param array $indices   The list of UIDs to flag.
      * @param array $flags     The flags to set.
      * @param boolean $set     True to set flags, false to clear flags.
@@ -163,21 +187,25 @@ class IMP_Api extends Horde_Registry_Api
      */
     public function flagMessages($mailbox, $indices, $flags, $set)
     {
-        return $GLOBALS['injector']->getInstance('IMP_Message')->flag($flags, array($mailbox => $indices), $set);
+        return $GLOBALS['injector']->getInstance('IMP_Message')->flag(
+            $flags,
+            new IMP_Indices($mailbox, $indices),
+            $set
+        );
     }
 
     /**
      * Perform a search query on the remote IMAP server.
      *
      * @param string $mailbox                        The name of the source
-     *                                               mailbox (UTF7-IMAP).
+     *                                               mailbox (UTF-8).
      * @param Horde_Imap_Client_Search_Query $query  The query object.
      *
      * @return array  The search results (UID list).
      */
     public function searchMailbox($mailbox, $query)
     {
-        $results = $GLOBALS['injector']->getInstance('IMP_Search')->runQuery($query, $mailbox);
+        $results = IMP_Mailbox::get($mailbox)->runSearchQuery($query);
         return isset($results[$mailbox])
             ? $results[$mailbox]
             : array();
@@ -187,12 +215,10 @@ class IMP_Api extends Horde_Registry_Api
      * Returns information on the currently logged on IMAP server.
      *
      * @return mixed  An array with the following entries:
-     * <pre>
-     * 'hostspec' - (string) The server hostname.
-     * 'port' - (integer) The server port.
-     * 'protocol' - (string) Either 'imap' or 'pop'.
-     * 'secure' - (string) Either 'none', 'ssl', or 'tls'.
-     * </pre>
+     *   - hostspec: (string) The server hostname.
+     *   - port: (integer) The server port.
+     *   - protocol: (string) Either 'imap' or 'pop'.
+     *   - secure: (string) Either 'none', 'ssl', or 'tls'.
      */
     public function server()
     {
@@ -201,7 +227,7 @@ class IMP_Api extends Horde_Registry_Api
         return array(
             'hostspec' => $imap_ob->ob->getParam('hostspec'),
             'port' => $imap_ob->ob->getParam('port'),
-            'protocol' => $GLOBALS['session']->get('imp', 'protocol'),
+            'protocol' => $imap_ob->pop3 ? 'pop' : 'imap',
             'secure' => $imap_ob->ob->getParam('secure')
         );
     }
@@ -210,8 +236,10 @@ class IMP_Api extends Horde_Registry_Api
      * Returns the list of favorite recipients.
      *
      * @param integer $limit  Return this number of recipients.
-     * @param array $filter   A list of messages types that should be returned.
-     *                        A value of null returns all message types.
+     * @param array $filter   A list of messages types that should be
+     *                        returned.  Valid types: 'forward', 'mdn', 'new',
+     *                        'reply', and 'redirect'. A value of null returns
+     *                        all message types.
      *
      * @return array  A list with the $limit most favourite recipients.
      * @throws IMP_Exception
@@ -219,6 +247,35 @@ class IMP_Api extends Horde_Registry_Api
     public function favouriteRecipients($limit,
                                         $filter = array('new', 'forward', 'reply', 'redirect'))
     {
+        if (!empty($filter)) {
+            $new_filter = array();
+            foreach ($filter as $val) {
+                switch ($val) {
+                case 'forward':
+                    $new_filter[] = IMP_Sentmail::FORWARD;
+                    break;
+
+                case 'mdn':
+                    $new_filter[] = IMP_Sentmail::MDN;
+                    break;
+
+                case 'new':
+                    $new_filter[] = IMP_Sentmail::NEWMSG;
+                    break;
+
+                case 'redirect':
+                    $new_filter[] = IMP_Sentmail::REDIRECT;
+                    break;
+
+                case 'reply':
+                    $new_filter[] = IMP_Sentmail::REPLY;
+                    break;
+                }
+            }
+
+            $filter = $new_filter;
+        }
+
         return $GLOBALS['injector']->getInstance('IMP_Sentmail')->favouriteRecipients($limit, $filter);
     }
 
@@ -236,13 +293,13 @@ class IMP_Api extends Horde_Registry_Api
      * Return the list of user-settable IMAP flags.
      *
      * @param string $mailbox  If set, returns the list of flags filtered by
-     *                         what the mailbox allows.
+     *                         what the mailbox allows (UTF-8).
      *
      * @return array  A list of IMP_Flag_Base objects.
      */
     public function flagList($mailbox = null)
     {
-        if ($GLOBALS['session']->get('imp', 'protocol') == 'pop') {
+        if (!$GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->access(IMP_Imap::ACCESS_FLAGS)) {
             return array();
         }
 
@@ -250,6 +307,16 @@ class IMP_Api extends Horde_Registry_Api
             'imap' => true,
             'mailbox' => $mailbox
         ));
+    }
+
+    /**
+     * Return the list of special mailboxes.
+     *
+     * @return @see IMP_Mailbox::getSpecialMailboxes()
+     */
+    public function getSpecialMailboxes()
+    {
+        return IMP_Mailbox::getSpecialMailboxes();
     }
 
 }

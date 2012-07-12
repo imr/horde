@@ -7,7 +7,7 @@
  * @category Kolab
  * @package  Koward
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Koward
  */
 
@@ -23,15 +23,15 @@ require_once 'TestInit.php';
 /**
  * Combine the tests for this package.
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Koward
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Koward
  */
 class Koward_AllTests
@@ -59,7 +59,7 @@ class Koward_AllTests
         // Build the suite
         $suite = new PHPUnit_Framework_TestSuite('Koward');
 
-        $basedir = dirname(__FILE__);
+        $basedir = __DIR__;
         $baseregexp = preg_quote($basedir . DIRECTORY_SEPARATOR, '/');
 
         foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($basedir)) as $file) {

@@ -1,16 +1,15 @@
 <?php
 /**
- * The Horde_String:: class provides static methods for charset and locale
- * safe string manipulation.
+ * Provides static methods for charset and locale safe string manipulation.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Jan Schneider <jan@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Util
  */
 class Horde_String
@@ -172,8 +171,7 @@ class Horde_String
      * @param boolean $locale  If true the string will be converted based on
      *                         a given charset, locale independent else.
      * @param string $charset  If $locale is true, the charset to use when
-     *                         converting. If not provided the current
-     *                         charset.
+     *                         converting.
      *
      * @return string  The string with lowercase characters.
      */
@@ -311,22 +309,22 @@ class Horde_String
             return '';
         }
 
-        /* Try iconv. */
-        if (Horde_Util::extensionExists('iconv')) {
-            $ret = @iconv_substr($string, $start, $length, $charset);
-
-            /* iconv_substr() returns false on failure. */
-            if ($ret !== false) {
-                return $ret;
-            }
-        }
-
         /* Try mbstring. */
         if (Horde_Util::extensionExists('mbstring')) {
             $ret = @mb_substr($string, $start, $length, self::_mbstringCharset($charset));
 
             /* mb_substr() returns empty string on failure. */
             if (strlen($ret)) {
+                return $ret;
+            }
+        }
+
+        /* Try iconv. */
+        if (Horde_Util::extensionExists('iconv')) {
+            $ret = @iconv_substr($string, $start, $length, $charset);
+
+            /* iconv_substr() returns false on failure. */
+            if ($ret !== false) {
                 return $ret;
             }
         }
@@ -497,14 +495,15 @@ class Horde_String
             $line = self::substr($string, 0, $width, 'UTF-8');
             $string = self::substr($string, self::length($line, 'UTF-8'), null, 'UTF-8');
 
-            // Make sure didn't cut a word, unless we want hard breaks anyway.
+            // Make sure we didn't cut a word, unless we want hard breaks
+            // anyway.
             if (!$cut && preg_match('/^(.+?)((\s|\r?\n).*)/us', $string, $match)) {
                 $line .= $match[1];
                 $string = $match[2];
             }
 
             // Wrap at existing line breaks.
-            if (preg_match('/^(.*?)(\r?\n)(.*)$/u', $line, $match)) {
+            if (preg_match('/^(.*?)(\r?\n)(.*)$/su', $line, $match)) {
                 $wrapped .= $match[1] . $match[2];
                 $string = $match[3] . $string;
                 continue;
@@ -719,6 +718,51 @@ class Horde_String
     }
 
     /**
+     * Check to see if a string is valid UTF-8.
+     *
+     * @param string $text  The text to check.
+     *
+     * @return boolean  True if valid UTF-8.
+     */
+    static public function validUtf8($text)
+    {
+        /* There is bug in PHP/PCRE with larger strings; stack overflow causes
+         * PHP segfaults. See:
+         * https://bugs.php.net/bug.php?id=37793
+         *
+         * Thus, break string down into smaller chunks instead.
+         */
+        $chunk_size = 4000;
+        $length = strlen($text);
+
+        while ($length > $chunk_size) {
+            /* Can't use self::substr() here since the input may not be
+             * proper UTF-8, which is sort of the whole point of this
+             * method. */
+            if (!self::validUtf8(substr($text, 0, $chunk_size))) {
+                return false;
+            }
+
+            $text = substr($text, $chunk_size);
+            $length -= $chunk_size;
+        }
+
+        /* Regex from:
+         * http://stackoverflow.com/questions/1523460/ensuring-valid-utf-8-in-php
+         */
+        return preg_match('/^(?:
+              [\x09\x0A\x0D\x20-\x7E]            # ASCII
+            | [\xC2-\xDF][\x80-\xBF]             # non-overlong 2-byte
+            | \xE0[\xA0-\xBF][\x80-\xBF]         # excluding overlongs
+            | [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
+            | \xED[\x80-\x9F][\x80-\xBF]         # excluding surrogates
+            | \xF0[\x90-\xBF][\x80-\xBF]{2}      # planes 1-3
+            | [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
+            | \xF4[\x80-\x8F][\x80-\xBF]{2}      # plane 16
+        )*$/xs', $text);
+    }
+
+    /**
      * Workaround charsets that don't work with mbstring functions.
      *
      * @param string $charset  The original charset.
@@ -732,11 +776,25 @@ class Horde_String
          * example, by various versions of Outlook to send Korean characters.
          * Use UHC (CP949) encoding instead. See, e.g.,
          * http://lists.w3.org/Archives/Public/ietf-charsets/2001AprJun/0030.html */
-        if (in_array(self::lower($charset), array('ks_c_5601-1987', 'ks_c_5601-1989'))) {
-            $charset = 'UHC';
-        }
+        return in_array(self::lower($charset), array('ks_c_5601-1987', 'ks_c_5601-1989'))
+            ? 'UHC'
+            : $charset;
+    }
 
-        return $charset;
+    /**
+     * Strip UTF-8 byte order mark (BOM) from string data.
+     *
+     * @since 1.4.0
+     *
+     * @param string $str  Input string (UTF-8).
+     *
+     * @return string  Stripped string (UTF-8).
+     */
+    static public function trimUtf8Bom($str)
+    {
+        return (substr($str, 0, 3) == pack('CCC', 239, 187, 191))
+            ? substr($str, 3)
+            : $str;
     }
 
 }

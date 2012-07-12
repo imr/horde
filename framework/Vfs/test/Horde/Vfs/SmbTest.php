@@ -1,22 +1,48 @@
 <?php
 /**
+ * Test the SMB based virtual file system.
+ *
+ * PHP version 5
+ *
  * @category   Horde
  * @package    VFS
  * @subpackage UnitTests
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
+ * @link       http://pear.horde.org/index.php?package=Vfs
  */
 
 /**
+ * Test the SMB based virtual file system.
+ *
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
+ *
+ * See the enclosed file COPYING for license information (LGPL). If you
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
+ *
  * @category   Horde
  * @package    VFS
  * @subpackage UnitTests
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
+ * @link       http://pear.horde.org/index.php?package=Vfs
  */
 class Horde_Vfs_SmbTest extends PHPUnit_Framework_TestCase
 {
+    public function setUp()
+    {
+        $this->_oldTimezone = date_default_timezone_get();
+        date_default_timezone_set('Europe/Berlin');
+    }
+
+    public function tearDown()
+    {
+        date_default_timezone_set($this->_oldTimezone);
+    }
+
     public function testParseListing()
     {
         $vfs = new Horde_Vfs_Smb();
 
-        $listing = $vfs->parseListing(file(dirname(__FILE__) . '/fixtures/samba1.txt'), null, true, false);
+        $listing = $vfs->parseListing(file(__DIR__ . '/fixtures/samba1.txt'), null, true, false);
         $this->assertInternalType('array', $listing);
         $this->assertEquals(7, count($listing));
         $this->assertEquals(
@@ -94,7 +120,7 @@ class Horde_Vfs_SmbTest extends PHPUnit_Framework_TestCase
                 ),
             $listing);
 
-        $listing = $vfs->parseListing(file(dirname(__FILE__) . '/fixtures/samba2.txt'), null, true, false);
+        $listing = $vfs->parseListing(file(__DIR__ . '/fixtures/samba2.txt'), null, true, false);
         $this->assertInternalType('array', $listing);
         $this->assertEquals(26, count($listing));
         $this->assertEquals(

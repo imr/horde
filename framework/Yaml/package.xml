@@ -4,7 +4,7 @@
  <channel>pear.horde.org</channel>
  <extends>Yaml</extends>
  <summary>Horde YAML parsing and dumping routines</summary>
- <description>This package provides classes for parsing YAML files into PHP arrays, and dumping PHP arrays into YAML encoding.</description>
+ <description>Classes for parsing YAML files into PHP arrays, and dumping PHP arrays into YAML encoding.</description>
  <lead>
   <name>Chuck Hagenbuch</name>
   <user>chuck</user>
@@ -17,31 +17,34 @@
   <email>mike@maintainable.com</email>
   <active>yes</active>
  </lead>
- <date>2011-03-06</date>
- <time>18:49:13</time>
+ <date>2012-07-06</date>
+ <time>00:07:58</time>
  <version>
-  <release>1.0.0beta1</release>
+  <release>2.0.0beta1</release>
   <api>1.0.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+ <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
  <notes>
-*
+* 
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
-   <dir name="examples">
+   <dir name="doc">
     <dir name="Horde">
      <dir name="Yaml">
-      <file name="dump.php" role="php" />
-      <file name="example.yaml" role="data" />
-      <file name="load.php" role="php" />
-     </dir> <!-- /examples/Horde/Yaml -->
-    </dir> <!-- /examples/Horde -->
-   </dir> <!-- /examples -->
+      <dir name="examples">
+       <file name="dump.php" role="doc" />
+       <file name="example.yaml" role="doc" />
+       <file name="load.php" role="doc" />
+      </dir> <!-- /doc/Horde/Yaml/examples -->
+      <file name="COPYING" role="doc" />
+     </dir> <!-- /doc/Horde/Yaml -->
+    </dir> <!-- /doc/Horde -->
+   </dir> <!-- /doc -->
    <dir name="lib">
     <dir name="Horde">
      <dir name="Yaml">
@@ -61,6 +64,7 @@
        <file name="references.yml" role="test" />
       </dir> <!-- /test/Horde/Yaml/fixtures -->
       <file name="AllTests.php" role="test" />
+      <file name="Autoload.php" role="test" />
       <file name="DumperTest.php" role="test" />
       <file name="Helpers.php" role="test" />
       <file name="LoaderTest.php" role="test" />
@@ -73,7 +77,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -81,23 +85,25 @@
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0beta1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
  </dependencies>
  <phprelease>
   <filelist>
-   <install as="examples/Horde/Yaml/dump.php" name="examples/Horde/Yaml/dump.php" />
-   <install as="examples/Horde/Yaml/example.yaml" name="examples/Horde/Yaml/example.yaml" />
-   <install as="examples/Horde/Yaml/load.php" name="examples/Horde/Yaml/load.php" />
+   <install as="COPYING" name="doc/Horde/Yaml/COPYING" />
+   <install as="examples/dump.php" name="doc/Horde/Yaml/examples/dump.php" />
+   <install as="examples/example.yaml" name="doc/Horde/Yaml/examples/example.yaml" />
+   <install as="examples/load.php" name="doc/Horde/Yaml/examples/load.php" />
    <install as="Horde/Yaml.php" name="lib/Horde/Yaml.php" />
    <install as="Horde/Yaml/Dumper.php" name="lib/Horde/Yaml/Dumper.php" />
    <install as="Horde/Yaml/Exception.php" name="lib/Horde/Yaml/Exception.php" />
    <install as="Horde/Yaml/Loader.php" name="lib/Horde/Yaml/Loader.php" />
    <install as="Horde/Yaml/Node.php" name="lib/Horde/Yaml/Node.php" />
    <install as="Horde/Yaml/AllTests.php" name="test/Horde/Yaml/AllTests.php" />
+   <install as="Horde/Yaml/Autoload.php" name="test/Horde/Yaml/Autoload.php" />
    <install as="Horde/Yaml/DumperTest.php" name="test/Horde/Yaml/DumperTest.php" />
    <install as="Horde/Yaml/Helpers.php" name="test/Horde/Yaml/Helpers.php" />
    <install as="Horde/Yaml/LoaderTest.php" name="test/Horde/Yaml/LoaderTest.php" />
@@ -109,17 +115,86 @@
  <changelog>
   <release>
    <version>
-    <release>1.0.0alpha1</release>
+    <release>1.0.0RC1</release>
     <api>1.0.0</api>
    </version>
    <stability>
-    <release>alpha</release>
-    <api>alpha</api>
+    <release>beta</release>
+    <api>beta</api>
    </stability>
-   <date>2011-03-06</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <date>2011-03-24</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
-* First alpha release for Horde 4.
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* Second release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First stable release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-22</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* [jan] Fix tests to work with PHPUnit 3.6.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First alpha release for Horde 5.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* 
    </notes>
   </release>
  </changelog>

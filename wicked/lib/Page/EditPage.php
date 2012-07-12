@@ -1,9 +1,9 @@
 <?php
 /**
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @package Wicked
 
@@ -158,16 +158,15 @@ class Wicked_Page_EditPage extends Wicked_Page {
             $changelog = Horde_Util::getFormData('changelog');
             if ($conf['wicked']['require_change_log'] && empty($changelog)) {
                 $notification->push(_("You must provide a change log."), 'horde.error');
-                Horde::addInlineScript(array(
+                $GLOBALS['page_output']->addInlineScript(array(
                     'if (document.editform && document.editform.changelog) document.editform.changelog.focus()'
-                ), 'dom');
+                ), true);
                 return;
             }
-            $minorchange = Horde_Util::getFormData('minor');
             if (trim($text) == trim($page->getText())) {
                 $notification->push(_("No changes made"), 'horde.warning');
             } else {
-                $page->updateText($text, $changelog, $minorchange);
+                $page->updateText($text, $changelog);
                 $notification->push(_("Page Saved"), 'horde.success');
             }
 

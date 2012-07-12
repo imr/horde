@@ -3,14 +3,14 @@
  * Object containing data returned by the Horde_Imap_Client_Base#fetch()
  * command.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Imap_Client
  */
 class Horde_Imap_Client_Data_Fetch
@@ -67,7 +67,7 @@ class Horde_Imap_Client_Data_Fetch
     public function getStructure()
     {
         return isset($this->_data[Horde_Imap_Client::FETCH_STRUCTURE])
-            ? $this->_data[Horde_Imap_Client::FETCH_STRUCTURE]
+            ? clone $this->_data[Horde_Imap_Client::FETCH_STRUCTURE]
             : new Horde_Mime_Part();
     }
 
@@ -267,7 +267,7 @@ class Horde_Imap_Client_Data_Fetch
     public function getEnvelope()
     {
         return isset($this->_data[Horde_Imap_Client::FETCH_ENVELOPE])
-            ? $this->_data[Horde_Imap_Client::FETCH_ENVELOPE]
+            ? clone $this->_data[Horde_Imap_Client::FETCH_ENVELOPE]
             : new Horde_Imap_Client_Data_Envelope();
     }
 
@@ -314,7 +314,7 @@ class Horde_Imap_Client_Data_Fetch
     public function getImapDate()
     {
         return isset($this->_data[Horde_Imap_Client::FETCH_IMAPDATE])
-            ? $this->_data[Horde_Imap_Client::FETCH_IMAPDATE]
+            ? clone $this->_data[Horde_Imap_Client::FETCH_IMAPDATE]
             : new Horde_Imap_Client_DateTime();
     }
 
@@ -423,7 +423,7 @@ class Horde_Imap_Client_Data_Fetch
      */
     public function merge(Horde_Imap_Client_Data_Fetch $data)
     {
-        $this->_data = Horde_Array::replaceRecursive($this->_data, $data->getRawData());
+        $this->_data = array_replace_recursive($this->_data, $data->getRawData());
     }
 
     /**
@@ -436,6 +436,16 @@ class Horde_Imap_Client_Data_Fetch
     public function exists($type)
     {
         return isset($this->_data[$type]);
+    }
+
+    /**
+     * Does this object contain only default values for all fields?
+     *
+     * @return boolean  True if object contains default data.
+     */
+    public function isDefault()
+    {
+        return empty($this->_data);
     }
 
     /**
@@ -501,7 +511,7 @@ class Horde_Imap_Client_Data_Fetch
             if (!isset($this->_data[$key][$id])) {
                 return new Horde_Mime_Headers();
             } elseif (is_object($this->_data[$key][$id])) {
-                return $this->_data[$key][$id];
+                return clone $this->_data[$key][$id];
             }
             return Horde_Mime_Headers::parseHeaders($this->_getHeaders($id, 0, $key));
         }

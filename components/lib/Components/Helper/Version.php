@@ -7,52 +7,88 @@
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 
 /**
  * Convert the PEAR package version to the Horde version scheme.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 class Components_Helper_Version
 {
     /**
-     * Convert the PEAR package version number to Horde style.
+     * Validates and normalizes a version to be a valid PEAR version.
      *
-     * @param string $version The PEAR package version.
+     * @param string $version  A version string.
      *
-     * @return string The Horde style version.
+     * @return string  The normalized version string.
+     *
+     * @throws Components_Exception on invalid version string.
      */
-    static public function pearToHorde($version)
+    static public function validatePear($version)
     {
-        preg_match('/([.\d]+)(.*)/', $version, $matches);
-        if (!empty($matches[2])) {
-            if ($matches[2] == '-git') {
-                $post = $matches[2];
-            } else {
-                $post = '-' . strtoupper($matches[2]);
-            }
-        } else {
-            $post = '';
+        if (!preg_match('/^(\d+\.\d+\.\d+)(-git|alpha\d*|beta\d*|RC\d+)?$/', $version, $match)) {
+            throw new Components_Exception('Invalid version number ' . $version);
         }
-        $vcomp = explode('.', $matches[1]);
-        if ($vcomp[2] === '0') {
-            $main = $vcomp[0] . '.' . $vcomp[1];
-        } else {
-            $main = $matches[1];
+        if (!isset($match[2]) || ($match[2] == '-git')) {
+            $match[2] = '';
         }
-        return $main . $post;
+        return $match[1] . $match[2];
+    }
+
+    /**
+     * Validates the version and release stability tuple.
+     *
+     * @param string $version   A version string.
+     * @param string $stability Release stability information.
+     *
+     * @throws Components_Exception on invalid version string.
+     */
+    static public function validateReleaseStability($version, $stability)
+    {
+        preg_match('/^(\d+\.\d+\.\d+)(alpha|beta|RC|dev)?\d*$/', $version, $match);
+        if (!isset($match[2]) && $stability != 'stable') {
+            throw new Components_Exception(
+                sprintf(
+                    'Stable version "%s" marked with invalid release stability "%s"!',
+                    $version,
+                    $stability
+                )
+            );
+        }
+    }
+
+    /**
+     * Validates the version and api stability tuple.
+     *
+     * @param string $version   A version string.
+     * @param string $stability Api stability information.
+     *
+     * @throws Components_Exception on invalid version string.
+     */
+    static public function validateApiStability($version, $stability)
+    {
+        preg_match('/^(\d+\.\d+\.\d+)(alpha|beta|RC|dev)?\d*$/', $version, $match);
+        if (!isset($match[2]) && $stability != 'stable') {
+            throw new Components_Exception(
+                sprintf(
+                    'Stable version "%s" marked with invalid api stability "%s"!',
+                    $version,
+                    $stability
+                )
+            );
+        }
     }
 
     /**
@@ -62,28 +98,30 @@ class Components_Helper_Version
      * @param string $version The PEAR package version.
      *
      * @return string The description for bugs.horde.org.
+     *
+     * @throws Components_Exception on invalid version string.
      */
     static public function pearToTicketDescription($version)
     {
         preg_match('/([.\d]+)(.*)/', $version, $matches);
         if (!empty($matches[2]) && !preg_match('/^pl\d/', $matches[2])) {
-            if (preg_match('/^rc(\d+)/', $matches[2], $postmatch)) {
+            if (preg_match('/^RC(\d+)/', $matches[2], $postmatch)) {
                 $post = ' Release Candidate ' . $postmatch[1];
             } else if (preg_match('/^alpha(\d+)/', $matches[2], $postmatch)) {
-                $post = ' Alpha';
+                $post = ' Alpha ' . $postmatch[1];
             } else if (preg_match('/^beta(\d+)/', $matches[2], $postmatch)) {
-                $post = ' Beta';
+                $post = ' Beta ' . $postmatch[1];
+            } else {
+                $post = '';
             }
         } else {
             $post = ' Final';
         }
         $vcomp = explode('.', $matches[1]);
-        if ($vcomp[2] === '0') {
-            $main = $vcomp[0] . '.' . $vcomp[1];
-        } else {
-            $main = $matches[1];
+        if (count($vcomp) != 3) {
+            throw new Components_Exception('A version number must have 3 parts.');
         }
-        return $main . $post;
+        return $matches[1] . $post;
     }
 
     /**
@@ -98,9 +136,28 @@ class Components_Helper_Version
     static public function pearToHordeWithBranch($version, $branch)
     {
         if (empty($branch)) {
-            return self::pearToHorde($version);
-        } else {
-            return $branch . ' (' . self::pearToHorde($version) . ')';
+            return $version;
         }
+        return $branch . ' (' . $version . ')';
+    }
+
+    /**
+     * Increments the last part of a version number by one.
+     *
+     * @param string $version  A version number.
+     *
+     * @return string  The incremented version number.
+     *
+     * @throws Components_Exception on invalid version string.
+     */
+    static public function nextVersion($version)
+    {
+        if (!preg_match('/^(\d+\.\d+\.)(\d+)(alpha|beta|RC|dev)?\d*$/', $version, $match)) {
+            throw new Components_Exception('Invalid version number ' . $version);
+        }
+        if (empty($match[3])) {
+            $match[2]++;
+        }
+        return $match[1] . $match[2] . '-git';
     }
 }

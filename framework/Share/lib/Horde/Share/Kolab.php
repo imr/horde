@@ -8,23 +8,23 @@
  * @package  Share
  * @author   Stuart Binge <omicron@mighty.co.za>
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Share
  */
 
 /**
  * Horde_Share_Kolab:: provides the Kolab backend for the horde share driver.
  *
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Share
  * @author   Stuart Binge <omicron@mighty.co.za>
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Share
  */
 class Horde_Share_Kolab extends Horde_Share_Base
@@ -67,6 +67,7 @@ class Horde_Share_Kolab extends Horde_Share_Base
     {
         switch ($app) {
         case 'mnemo':
+        case 'jonah':
             $this->_type = 'note';
             break;
         case 'kronolith':
@@ -144,36 +145,56 @@ class Horde_Share_Kolab extends Horde_Share_Base
     private function _idEncode($id)
     {
         $folder = $this->getList()->getFolder($id);
-        return $this->constructId($folder->getOwner(), $folder->getSubpath());
+        return $this->constructId($folder->getOwner(), $folder->getSubpath(), $folder->getPrefix());
     }
 
     /**
      * Construct the ID from the owner name and the folder subpath.
      *
-     * @param string $owner The share owner.
-     * @param string $name  The name of the folder without the namespace part.
+     * @param string $owner  The share owner.
+     * @param string $name   The name of the folder without the namespace prefix.
+     * @param string $prefix The namespace prefix.
      *
      * @return string The encoded ID.
      */
-    public function constructId($owner, $name)
+    public function constructId($owner, $name, $prefix = null)
     {
-        return Horde_Url::uriB64Encode(serialize(array($owner, $name)));
+        return Horde_Url::uriB64Encode(serialize(array($owner, $name, $prefix)));
     }
 
     /**
      * Construct the Kolab storage folder name based on the share name and owner
      * attributes.
      *
-     * @param string $name  The share name.
-     * @param string $owner The owner of the share.
+     * @param string $owner   The owner of the share.
+     * @param string $subpath The folder subpath.
+     * @param string $prefix  The namespace prefix.
      *
      * @return string The folder name for the Kolab backend.
      */
-    public function constructFolderName($owner, $name)
+    public function constructFolderName($owner, $subpath, $prefix = null)
     {
         return $this->getList()
             ->getNamespace()
-            ->constructFolderName($owner, $name);
+            ->constructFolderName($owner, $subpath, $prefix);
+    }
+
+    /**
+     * Retrieve namespace information for a folder name.
+     *
+     * @param string $folder The folder name.
+     *
+     * @since Horde_Share 1.2.0
+     *
+     * @return array A list of namespace prefix, the delimiter and the folder
+     *               subpath.
+     */
+    public function getFolderNameElements($folder)
+    {
+        $ns = $this->getList()->getNamespace()->matchNamespace($folder);
+        return array(
+            $ns->getName(), $ns->getDelimiter(), $ns->getSubpath($folder)
+        );
     }
 
     /**
@@ -186,8 +207,12 @@ class Horde_Share_Kolab extends Horde_Share_Base
     private function _idDecode($id)
     {
         if (!isset($this->_id_map[$id])) {
-            list($owner, $name) = $this->_idDeconstruct($id);
-            $this->_id_map[$id] = $this->constructFolderName($owner, $name);
+            $result = $this->_idDeconstruct($id);
+            $this->_id_map[$id] = $this->constructFolderName(
+                $result[0],
+                $result[1],
+                isset($result[2]) ? $result[2] : null
+            );
         }
         return $this->_id_map[$id];
     }
@@ -255,7 +280,9 @@ class Horde_Share_Kolab extends Horde_Share_Base
             if (isset($data['share_name']) && $data['share_name'] == $name) {
                 return $this->getShareById(
                     $this->constructId(
-                        $folder_data['owner'], $folder_data['name']
+                        $folder_data['owner'],
+                        $folder_data['subpath'],
+                        isset($folder_data['prefix']) ? $folder_data['prefix'] : null
                     )
                 );
             }
@@ -293,7 +320,11 @@ class Horde_Share_Kolab extends Horde_Share_Base
         );
         $data['desc'] = $query->getDescription($this->_idDecode($id));
         if (isset($data['parent'])) {
-            $data['parent'] = $this->_idEncode($data['parent']);
+            try {
+                $data['parent'] = $this->_idEncode($data['parent']);
+            } catch (Horde_Kolab_Storage_Exception $e) {
+                unset($data['parent']);
+            }
         }
         return $this->_createObject($id, $data);
     }
@@ -367,9 +398,7 @@ class Horde_Share_Kolab extends Horde_Share_Base
         if (!isset($this->_listcache[$key])) {
             $shares = array_map(
                 array($this, '_idEncode'),
-                $this->getList()
-                ->getQuery()
-                ->listByType($this->_type)
+                $this->getList()->getQuery()->listByType($this->_type)
             );
             $remove = array();
             if ($params['perm'] != Horde_Perms::SHOW || empty($userid)) {
@@ -497,7 +526,9 @@ class Horde_Share_Kolab extends Horde_Share_Base
         $result = array();
         foreach ($shares as $share) {
             $object = $this->_getShareById($share);
-            if ($object->get('owner') === null) {
+            //@todo: Remove "null" check as this is only required for BC
+            if ($object->get('owner') === false ||
+                $object->get('owner') === null) {
                 $result[$object->getName()] = $object;
             }
         }
@@ -577,6 +608,19 @@ class Horde_Share_Kolab extends Horde_Share_Base
     }
 
     /**
+     * Renames a share in the shares system.
+     *
+     * @param Horde_Share_Object $share  The share to rename.
+     * @param string $name               The share's new name.
+     *
+     * @throws Horde_Share_Exception
+     */
+    protected function _renameShare(Horde_Share_Object $share, $name)
+    {
+        $share->set('share_name', $name);
+    }
+
+    /**
      * Retrieve the Kolab specific access rights for a share.
      *
      * @param string $id The share ID.
@@ -642,7 +686,7 @@ class Horde_Share_Kolab extends Horde_Share_Base
             $this->getList()->createFolder(
                 $this->_idDecode($id), $this->_type
             );
-        } else if ($id != $old_id) {
+        } elseif ($id != $old_id) {
             $this->getList()->renameFolder(
                 $this->_idDecode($old_id), $this->_idDecode($id), $this->_type
             );
@@ -659,6 +703,10 @@ class Horde_Share_Kolab extends Horde_Share_Base
             $data['name'],
             $data['default'],
             $data['parent'],
+            $data['type'],
+            $data['delimiter'],
+            $data['prefix'],
+            $data['subpath'],
             $data['folder']
         );
         $query->setParameters($this->_idDecode($id), $data);

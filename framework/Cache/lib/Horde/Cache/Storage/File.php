@@ -2,16 +2,16 @@
 /**
  * This class provides cache storage in the filesystem.
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Anil Madhavapeddy <anil@recoil.org>
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Cache
  */
 class Horde_Cache_Storage_File extends Horde_Cache_Storage_Base
@@ -56,7 +56,7 @@ class Horde_Cache_Storage_File extends Horde_Cache_Storage_Base
 
         $this->_dir = (isset($params['dir']) && @is_dir($params['dir']))
             ? $params['dir']
-            : Horde_Util::getTempDir();
+            : sys_get_temp_dir();
 
         parent::__construct($params);
     }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://www.horde.org/licenses/bsdl.php.
@@ -9,7 +9,7 @@
  * @author Ben Klang <ben@alkaloid.net>
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('hermes');
 
 $vars = Horde_Variables::getDefaultVariables();
@@ -62,20 +62,11 @@ $template->set('postUrl', Horde::url('time.php', false, -1));
 $template->set('sessionId', Horde_Util::formInput());
 $template->set('table', $table->render());
 
-$title = _("My Time");
-$print_view = (Horde_Util::getFormData('print') == 'true');
-if (!$print_view) {
-    Horde::addScriptFile('popup.js', 'horde', true);
-}
-require $registry->get('templates', 'horde') . '/common-header.inc';
-
-if ($print_view) {
-    require $registry->get('templates', 'horde') . '/javascript/print.js';
-} else {
-    $print_link = Horde_Util::addParameter(Horde::url('time.php'), 'print', 'true');
-    require HERMES_TEMPLATES . '/menu.inc';
-}
-
+$page_output->header(array(
+    'title' => _("My Time")
+));
+echo Horde::menu();
+$notification->notify(array('listeners' => 'status'));
 echo $tabs;
 echo $template->fetch(HERMES_TEMPLATES . '/time/form.html');
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

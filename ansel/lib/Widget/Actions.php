@@ -2,10 +2,10 @@
 /**
  * Ansel_Widget_Actions:: class to wrap the display of gallery actions
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @TODO: Use Horde_View for html template output.
  * 
@@ -106,8 +106,8 @@ class Ansel_Widget_Actions extends Ansel_Widget_Base
 
         /* Attach the ajax action */
         Horde::startBuffer();
-        $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create(array('ansel', 'ToggleGalleryActions'), array(
-            'bindTo' => 'gallery-actions'
+        $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create('Ansel_Ajax_Imple_ToggleGalleryActions', array(
+            'id' => 'gallery-actions'
         ));
         $html .= Horde::endBuffer();
 

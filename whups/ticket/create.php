@@ -1,17 +1,14 @@
 <?php
 /**
  * Copyright 2001-2002 Robert E. Coyle <robertecoyle@hotmail.com>
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://www.horde.org/licenses/bsdl.php.
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('whups');
-
-require_once WHUPS_BASE . '/lib/Forms/CreateTicket.php';
-require_once WHUPS_BASE . '/lib/Forms/VarRenderer.php';
 
 $empty = '';
 $beendone = 0;
@@ -20,15 +17,15 @@ $wereerrors = 0;
 $vars = Horde_Variables::getDefaultVariables($empty);
 $formname = $vars->get('formname');
 
-$form1 = new CreateStep1Form($vars);
-$form2 = new CreateStep2Form($vars);
-$form3 = new CreateStep3Form($vars);
-$form4 = new CreateStep4Form($vars);
+$form1 = new Whups_Form_Ticket_CreateStepOne($vars);
+$form2 = new Whups_Form_Ticket_CreateStepTwo($vars);
+$form3 = new Whups_Form_Ticket_CreateStepThree($vars);
+$form4 = new Whups_Form_Ticket_CreateStepFour($vars);
 $r = new Horde_Form_Renderer(
-    array('varrenderer_driver' => 'whups'));
+    array('varrenderer_driver' => array('whups', 'whups')));
 
 $valid4 = $form4->validate($vars) &&
-     $formname == 'createstep4form';
+     $formname == 'whups_form_ticket_createstepfour';
 $valid3 = $form3->validate($vars, true);
 $valid2 = $form2->validate($vars, !$form1->isSubmitted());
 $valid1 = $form1->validate($vars, true);
@@ -46,12 +43,13 @@ if ($valid1 && $valid2 && $valid3 &&
         $form4->getInfo($vars, $info);
     }
 
-    $ticket = Whups_Ticket::newTicket($info, $GLOBALS['registry']->getAuth());
-    if (is_a($ticket, 'PEAR_Error')) {
-        Horde::logMessage($ticket, 'ERR');
-        $notification->push(sprintf(_("Adding your ticket failed: %s."),
-                                    $ticket->getMessage()),
-                            'horde.error');
+    try {
+        $ticket = Whups_Ticket::newTicket($info, $GLOBALS['registry']->getAuth());
+    } catch (Whups_Exception $e) {
+        Horde::logMessage($e, 'ERR');
+        $notification->push(
+            sprintf(_("Adding your ticket failed: %s."), $e->getMessage()),
+            'horde.error');
         Horde::url('ticket/create.php', true)->redirect();
     }
     $notification->push(sprintf(_("Your ticket ID is %s. An appropriate person has been notified of this request."), $ticket->getId()), 'horde.success');
@@ -60,8 +58,9 @@ if ($valid1 && $valid2 && $valid3 &&
 }
 
 // Start the page.
-$title = _("New Ticket");
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => _("New Ticket")
+));
 require WHUPS_TEMPLATES . '/menu.inc';
 
 if ($valid3 && $valid2 && $valid1) {
@@ -94,7 +93,7 @@ if ($valid3 && $valid2 && $valid1) {
     if (!empty($info['newattachment']['name'])) {
         $file_name = $info['newattachment']['name'];
 
-        $tmp_file_path = tempnam(Horde::getTempDir(), 'att');
+        $tmp_file_path = Horde::getTempFile('whups');
         if (move_uploaded_file($info['newattachment']['tmp_name'],
                                $tmp_file_path)) {
             $session->set('whups', 'deferred_attachment/' . $file_name, $tmp_file_path);
@@ -104,7 +103,7 @@ if ($valid3 && $valid2 && $valid1) {
     }
 
     // Render the 4th stage form.
-    if ($formname != 'createstep4form') {
+    if ($formname != 'whups_form_ticket_createstepfour') {
         $form4->clearValidation();
     }
     $r->_name = $form4->getName();
@@ -133,7 +132,7 @@ if ($valid3 && $valid2 && $valid1) {
     echo '<br />';
 
     // Render the third stage form.
-    if ($formname != 'createstep3form') {
+    if ($formname != 'whups_form_ticket_createstepthree') {
         $form3->clearValidation();
     }
     $r->beginActive($form3->getTitle());
@@ -156,7 +155,7 @@ if ($valid3 && $valid2 && $valid1) {
         echo '<br />';
 
         // Render the second stage form.
-        if ($formname != 'createstep2form') {
+        if ($formname != 'whups_form_ticket_createsteptwo') {
             $form2->clearValidation();
         }
         $r->beginActive($form2->getTitle());
@@ -168,7 +167,7 @@ if ($valid3 && $valid2 && $valid1) {
 
         $beendone = 1;
     } else {
-        if ($formname != 'createstep1form') {
+        if ($formname != 'whups_form_ticket_createstepone') {
             $form1->clearValidation();
         }
         $form1->open($r, $vars, 'create.php', 'post');
@@ -180,4 +179,4 @@ if ($valid3 && $valid2 && $valid1) {
     }
 }
 
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

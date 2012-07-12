@@ -8,11 +8,11 @@
  *
  * @author  Maintainable Software, LLC. (http://www.maintainable.com)
  * @author  Mike Naberezny <mike@maintainable.com>
- * @license http://opensource.org/licenses/bsd-license.php BSD
+ * @license http://www.horde.org/licenses/bsd BSD
  * @package Routes
  */
 
-require_once dirname(__FILE__) . '/TestHelper.php';
+require_once __DIR__ . '/TestHelper.php';
 
 /**
  * @package Routes
@@ -565,7 +565,7 @@ class Horde_Routes_UtilTest extends PHPUnit_Framework_TestCase
 
     public function testControllerScan()
     {
-        $hereDir = dirname(__FILE__);
+        $hereDir = __DIR__;
         $controllerDir = "$hereDir/fixtures/controllers";
 
         $controllers = Horde_Routes_Utils::controllerScan($controllerDir);
@@ -578,7 +578,7 @@ class Horde_Routes_UtilTest extends PHPUnit_Framework_TestCase
 
     public function testAutoControllerScan()
     {
-        $hereDir = dirname(__FILE__);
+        $hereDir = __DIR__;
         $controllerDir = "$hereDir/fixtures/controllers";
 
         $m = new Horde_Routes_Mapper(array('directory' => $controllerDir));

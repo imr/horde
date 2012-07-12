@@ -2,14 +2,14 @@
 /**
  * Create Hermes base tables
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael J. Rubinsky <mrubinsk@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  Hermes
  */
 class HermesBaseTables extends Horde_Db_Migration_Base
@@ -23,7 +23,7 @@ class HermesBaseTables extends Horde_Db_Migration_Base
 
         if (!in_array('hermes_timeslices', $tableList)) {
             // Create: hermes_timeslice
-            $t = $this->createTable('hermes_timeslices', array('primaryKey' => false));
+            $t = $this->createTable('hermes_timeslices', array('autoincrementKey' => false));
             $t->column('timeslice_id', 'integer', array('null' => false));
             $t->column('clientjob_id', 'string', array('limit' => 255, 'null' => false));
             $t->column('employee_id', 'string', array('limit' => 255, 'null' => false));
@@ -43,7 +43,7 @@ class HermesBaseTables extends Horde_Db_Migration_Base
 
         if (!in_array('hermes_jobtypes', $tableList)) {
             // Create: hermes_jobtypes
-            $t = $this->createTable('hermes_jobtypes', array('primaryKey' => false));
+            $t = $this->createTable('hermes_jobtypes', array('autoincrementKey' => false));
             $t->column('jobtype_id', 'integer', array('null' => false));
             $t->column('jobtype_name', 'string', array('limit' => 255));
             $t->column('jobtype_enabled', 'integer', array('default' => 1, 'null' => false));
@@ -55,7 +55,7 @@ class HermesBaseTables extends Horde_Db_Migration_Base
 
         if (!in_array('hermes_clientjobs', $tableList)) {
             // Create: hermes_clientjobs
-            $t = $this->createTable('hermes_clientjobs', array('primaryKey' => false));
+            $t = $this->createTable('hermes_clientjobs', array('autoincrementKey' => false));
             $t->column('clientjob_id', 'string', array('limit' => 255, 'null' => false));
             $t->column('clientjob_enterdescription', 'integer', array('null' => false, 'default' => 1));
             $t->column('clientjob_exportid', 'string', array('limit' => 255));
@@ -65,7 +65,7 @@ class HermesBaseTables extends Horde_Db_Migration_Base
 
         if (!in_array('hermes_deliverables', $tableList)) {
             // Create: hermes_deliverables
-            $t = $this->createTable('hermes_deliverables', array('primaryKey' => false));
+            $t = $this->createTable('hermes_deliverables', array('autoincrementKey' => false));
             $t->column('deliverable_id', 'integer', array('null' => false));
             $t->column('client_id', 'string', array('limit' => 255, 'null' => false));
             $t->column('deliverable_name', 'string', array('limit' => 255, 'null' => false));

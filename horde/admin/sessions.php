@@ -1,22 +1,24 @@
 <?php
 /**
- * Copyright 2005-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2005-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
-Horde_Registry::appInit('horde', array('admin' => true));
+require_once __DIR__ . '/../lib/Application.php';
+Horde_Registry::appInit('horde', array(
+    'permission' => array('horde:administration:sessions')
+));
 
-$title = _("Session Admin");
-Horde::addInlineScript(array(
+$page_output->addInlineScript(array(
     '$$("DIV.sesstoggle").invoke("observe", "click", function() { [ this.nextSiblings(), this.immediateDescendants() ].flatten().compact().invoke("toggle"); })'
-), 'dom');
-
-require HORDE_TEMPLATES . '/common-header.inc';
+), true);
+$page_output->header(array(
+    'title' => _("Session Administration")
+));
 require HORDE_TEMPLATES . '/admin/menu.inc';
 
 echo '<h1 class="header">' . _("Current Sessions");
@@ -66,4 +68,4 @@ try {
     echo '</h1><p class="headerbox"><em>' . sprintf(_("Listing sessions failed: %s"), $e->getMessage()) . '</em></p>';
 }
 
-require HORDE_TEMPLATES . '/common-footer.inc';
+$page_output->footer();

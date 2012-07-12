@@ -7,7 +7,7 @@
  * @category Horde
  * @package  Exception
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Exception
  */
 
@@ -19,15 +19,15 @@ require_once 'Autoload.php';
 /**
  * Test for the Horde_Exception:: class.
  *
- * Copyright 2009 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Exception
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Exception
  */
 class Horde_Exception_ExceptionTest extends  PHPUnit_Framework_TestCase
@@ -69,6 +69,7 @@ class Horde_Exception_ExceptionTest extends  PHPUnit_Framework_TestCase
 
     public function testEmptyConstructionYieldsNotFoundMessage()
     {
+        setlocale(LC_MESSAGES, 'C');
         $e = new Horde_Exception_NotFound();
         $this->assertSame('Not Found', $e->getMessage());
     }
@@ -77,6 +78,7 @@ class Horde_Exception_ExceptionTest extends  PHPUnit_Framework_TestCase
 
     public function testEmptyConstructionYieldsPermissionDeniedMessage()
     {
+        setlocale(LC_MESSAGES, 'C');
         $e = new Horde_Exception_PermissionDenied();
         $this->assertSame('Permission Denied', $e->getMessage());
     }
@@ -85,17 +87,17 @@ class Horde_Exception_ExceptionTest extends  PHPUnit_Framework_TestCase
 
     public function testConstructionWithPearErrorYieldsMessageFromPearError()
     {
-        require_once dirname(__FILE__) . '/Stub/PearError.php';
+        require_once __DIR__ . '/Stub/PearError.php';
         $p = new Horde_Exception_Stub_PearError('pear');
-        $e = new Horde_Exception_Prior($p);
+        $e = new Horde_Exception_Wrapped($p);
         $this->assertSame('pear', $e->getMessage());
     }
 
     public function testConstructionWithPearErrorYieldsCodeFromPearError()
     {
-        require_once dirname(__FILE__) . '/Stub/PearError.php';
+        require_once __DIR__ . '/Stub/PearError.php';
         $p = new Horde_Exception_Stub_PearError('pear', 666);
-        $e = new Horde_Exception_Prior($p);
+        $e = new Horde_Exception_Wrapped($p);
         $this->assertSame(666, $e->getCode());
     }
 
@@ -139,17 +141,38 @@ class Horde_Exception_ExceptionTest extends  PHPUnit_Framework_TestCase
 
     public function testCatchingAndConvertingPearErrors()
     {
-        @require_once 'PEAR.php';
-        if (!class_exists('PEAR_Error')) {
-            $this->markTestSkipped('PEAR_Error is missing!');
-        }
+        $this->_loadPear();
         try {
             Horde_Exception_Pear::catchError(new PEAR_Error('An error occurred.'));
         } catch (Horde_Exception_Pear $e) {
             $this->assertContains(
                 'Horde_Exception_ExceptionTest->testCatchingAndConvertingPearErrors unkown:unkown',
-                $e->getMessage()
+                $e->details
             );
+        }
+    }
+
+    public function testStringUserinfo()
+    {
+        $this->_loadPear();
+        try {
+            Horde_Exception_Pear::catchError(
+                new PEAR_Error('An error occurred.', null, null, null, 'userinfo')
+            );
+        } catch (Horde_Exception_Pear $e) {
+            $this->assertContains('userinfo', $e->details);
+        }
+    }
+
+    public function testArrayUserinfo()
+    {
+        $this->_loadPear();
+        try {
+            Horde_Exception_Pear::catchError(
+                new PEAR_Error('An error occurred.', null, null, null, array('userinfo'))
+            );
+        } catch (Horde_Exception_Pear $e) {
+            $this->assertContains('[0] => userinfo', $e->details);
         }
     }
 
@@ -161,5 +184,13 @@ class Horde_Exception_ExceptionTest extends  PHPUnit_Framework_TestCase
             'file'    => '/some/file.php',
             'line'    => 99
         );
+    }
+
+    private function _loadPear()
+    {
+        @require_once 'PEAR.php';
+        if (!class_exists('PEAR_Error')) {
+            $this->markTestSkipped('PEAR_Error is missing!');
+        }
     }
 }

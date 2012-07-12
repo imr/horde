@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Koward
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Koward
  */
 
 /**
  * Base for PHPUnit scenarios.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Koward
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Koward
  */
 class Koward_Test extends Horde_Kolab_Test_Storage
@@ -95,12 +95,12 @@ EOD;
         $fh = fopen(HORDE_BASE . '/config/registry.php', 'w');
         $data = <<<EOD
 \$this->applications['horde'] = array(
-    'fileroot' => dirname(__FILE__) . '/..',
+    'fileroot' => __DIR__ . '/..',
     'webroot' => '/',
     'initial_page' => 'login.php',
     'name' => _("Horde"),
     'status' => 'active',
-    'templates' => dirname(__FILE__) . '/../templates',
+    'templates' => __DIR__ . '/../templates',
     'provides' => 'horde',
 );
 

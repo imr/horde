@@ -4,16 +4,16 @@
  *
  * PHP version 5
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category   Horde
  * @package    Token
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Token
  */
 
@@ -23,4 +23,4 @@ require_once 'Horde/Test/Autoload.php';
 error_reporting(E_ALL | E_STRICT);
 
 /** Load basic test case definitions */
-require_once dirname(__FILE__) . '/BackendTestCase.php';
+require_once __DIR__ . '/BackendTestCase.php';

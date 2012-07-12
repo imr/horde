@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://www.horde.org/licenses/bsdl.php.
@@ -8,7 +8,7 @@
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('whups');
 
 /* Supported graph types. Unused at the moment. */
@@ -34,10 +34,11 @@ if (!count($queues)) {
 
 $reporter = new Whups_Reports($whups_driver);
 
-$title = _("Reports");
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => _("Reports")
+));
 require WHUPS_TEMPLATES . '/menu.inc';
 if (count($queues)) {
     require WHUPS_TEMPLATES . '/reports/stats.inc';
 }
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

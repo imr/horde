@@ -5,21 +5,19 @@
  *
  * You must configure this driver in imp/config/backends.php.  The driver
  * supports the following parameters:
- * <pre>
- * 'params' - (array) Parameters to pass to the quota function.
- * </pre>
+ *   - params: (array) Parameters to pass to the quota function.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Redinger <Michael.Redinger@uibk.ac.at>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
-class IMP_Quota_Hook extends IMP_Quota_Base
+class IMP_Quota_Hook extends IMP_Quota
 {
     /**
      * Get quota information (used/allocated), in bytes.

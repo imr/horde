@@ -1,11 +1,11 @@
 <?php
 
-require_once dirname(__FILE__) . '/TestCase.php';
+require_once __DIR__ . '/TestCase.php';
 
 /**
  * @author     Chuck Hagenbuch <chuck@horde.org>
  * @author     Mike Naberezny <mike@maintainable.com>
- * @license    http://opensource.org/licenses/bsd-license.php BSD
+ * @license    http://www.horde.org/licenses/bsd BSD
  * @category   Horde
  * @package    Argv
  * @subpackage UnitTests
@@ -61,8 +61,12 @@ Options:
 
     public function setUp()
     {
+        parent::setUp();
         $this->parser = $this->makeParser(80);
         $this->origColumns = isset($_ENV['COLUMNS']) ? $_ENV['COLUMNS'] : null;
+        if (!isset($_SERVER['argv'])) {
+            $_SERVER['argv'] = array('test');
+        }
     }
 
     public function tearDown()
@@ -72,6 +76,7 @@ Options:
         } else {
             $_ENV['COLUMNS'] = $this->origColumns;
         }
+        unset($_SERVER['argv']);
     }
 
     public function makeParser($columns)

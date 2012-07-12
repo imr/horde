@@ -7,23 +7,23 @@
  * @category Kolab
  * @package  Kolab_Cli
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Cli
  */
 
 /**
  * Command line tools for Kolab storage.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you did not
  * receive this file, see
- * http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+ * http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Cli
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Cli
  */
 class Horde_Kolab_Cli
@@ -55,6 +55,27 @@ class Horde_Kolab_Cli
             $parser->printHelp();
         } else {
             try {
+                if (!empty($options['config'])) {
+                    if (!file_exists($options['config'])) {
+                        throw new Horde_Kolab_Cli_Exception(
+                            sprintf(
+                                'The specified config file %s does not exist!',
+                                $options['config']
+                            )
+                        );
+                    }
+                    global $conf;
+                    include $options['config'];
+                    foreach ($conf as $key => $value) {
+                        $options->ensureValue($key, $value);
+                    }
+                }
+                if (empty($options['host'])) {
+                    $options['host'] = 'localhost';
+                }
+                if (empty($options['driver'])) {
+                    $options['driver'] = 'horde';
+                }
                 $world = array();
                 foreach ($modular->getModules() as $module) {
                     $modular->getProvider()
@@ -95,7 +116,7 @@ class Horde_Kolab_Cli
                     )
                 ),
                 'modules' => array(
-                    'directory' => dirname(__FILE__) . '/Cli/Module',
+                    'directory' => __DIR__ . '/Cli/Module',
                 ),
                 'provider' => array(
                     'prefix' => 'Horde_Kolab_Cli_Module_'

@@ -2,18 +2,21 @@
  * Provides the javascript for the compose.php script (standard view).
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
 var ImpCompose = {
     // Variables defined in compose.php:
-    //   cancel_url, spellcheck, cursor_pos, last_msg, max_attachments,
-    //   popup, redirect, reloaded, sc_submit, smf_check, skip_spellcheck
+    //   cancel_url, cursor_pos, editor_wait, last_msg, max_attachments,
+    //   popup, redirect, reloaded, sc_submit, sm_check, skip_spellcheck,
+    //   spellcheck, text
     display_unload_warning: true,
 
     confirmCancel: function(e)
     {
-        if (window.confirm(IMP.text.compose_cancel)) {
+        e.stop();
+
+        if (window.confirm(this.text.cancel)) {
             this.display_unload_warning = false;
             if (this.popup) {
                 if (this.cancel_url) {
@@ -24,48 +27,44 @@ var ImpCompose = {
             } else {
                 window.location = this.cancel_url;
             }
-        } else {
-            e.stop();
         }
     },
 
     changeIdentity: function(elt)
     {
         var id = $F(elt),
-            last = IMP_Compose_Base.getIdentity($F('last_identity')),
-            next = IMP_Compose_Base.getIdentity(id),
+            last = ImpComposeBase.identities[$F('last_identity')],
+            next = ImpComposeBase.identities[id],
             bcc = $('bcc'),
             save = $('ssm'),
-            smf = $('sent_mail_folder'),
+            sm = $('sent_mail'),
             re;
 
-        IMP_Compose_Base.replaceSignature(id);
-
-        if (this.smf_check) {
-            smf.setValue(next.id.smf_name);
+        if (this.sm_check) {
+            sm.setValue(next.sm_name);
         } else {
-            smf.update(next.id.smf_display);
+            sm.update(next.sm_display);
         }
 
         if (save) {
-            save.setValue(next.id.smf_save);
+            save.setValue(next.sm_save);
         }
         if (bcc) {
             bccval = $F(bcc);
 
-            if (last.id.bcc) {
-                re = new RegExp(last.id.bcc + ",? ?", 'gi');
+            if (last.bcc) {
+                re = new RegExp(last.bcc + ",? ?", 'gi');
                 bccval = bccval.replace(re, "");
                 if (bccval) {
                     bccval = bccval.replace(/, ?$/, "");
                 }
             }
 
-            if (next.id.bcc) {
+            if (next.bcc) {
                 if (bccval) {
                     bccval += ', ';
                 }
-                bccval += next.id.bcc;
+                bccval += next.bcc;
             }
 
             bcc.setValue(bccval);
@@ -74,7 +73,7 @@ var ImpCompose = {
 
     uniqSubmit: function(actionID, e)
     {
-        var cur_msg, form;
+        var cur_msg, form, sc;
 
         if (!Object.isUndefined(e)) {
             e.stop();
@@ -83,7 +82,7 @@ var ImpCompose = {
         switch (actionID) {
         case 'redirect':
             if ($F('to') == '') {
-                alert(IMP.text.compose_recipient);
+                alert(this.text.recipient);
                 $('to').focus();
                 return;
             }
@@ -92,38 +91,41 @@ var ImpCompose = {
             break;
 
         case 'send_message':
-            if (!this.skip_spellcheck &&
+            sc = ImpComposeBase.getSpellChecker();
+
+            if (sc &&
+                !this.skip_spellcheck &&
                 this.spellcheck &&
-                IMP.SpellChecker &&
-                !IMP.SpellChecker.isActive()) {
+                !sc.isActive()) {
                 this.sc_submit = { a: actionID, e: e };
-                IMP.SpellChecker.spellCheck();
+                sc.spellCheck();
                 return;
             }
 
             if (($F('subject') == '') &&
-                !window.confirm(IMP.text.compose_nosubject)) {
+                !window.confirm(this.text.nosubject)) {
                 return;
             }
 
             this.skip_spellcheck = false;
 
-            if (IMP.SpellChecker) {
-                IMP.SpellChecker.resume();
+            if (sc) {
+                sc.resume();
             }
 
             // fall through
 
         case 'add_attachment':
         case 'save_draft':
-        case 'change_stationery':
+        case 'save_template':
             form = $('compose');
             $('actionID').setValue(actionID);
             break;
 
         case 'auto_save_draft':
             // Move HTML text to textarea field for submission.
-            if (IMP_Compose_Base.editor_on) {
+            if (ImpComposeBase.editor_on &&
+                CKEDITOR.instances.composeMessage) {
                 CKEDITOR.instances.composeMessage.updateElement();
             }
 
@@ -131,7 +133,9 @@ var ImpCompose = {
             if (this.last_msg && curr_hash != this.last_msg) {
                 // Use an AJAX submit here so that the page doesn't reload.
                 $('actionID').setValue(actionID);
-                $('compose').request({ onComplete: this._autoSaveDraft.bind(this) });
+                HordeCore.submitForm('compose', {
+                    callback: this._autoSaveDraftCallback.bind(this)
+                });
             }
             this.last_msg = cur_msg;
             return;
@@ -144,6 +148,10 @@ var ImpCompose = {
             return;
         }
 
+        if (this.editor_wait && ImpComposeBase.editor_on) {
+            return this.uniqSubmit.bind(this, actionID, e).defer();
+        }
+
         // Ticket #6727; this breaks on WebKit w/FCKeditor.
         if (!Prototype.Browser.WebKit) {
             form.setStyle({ cursor: 'wait' });
@@ -153,20 +161,17 @@ var ImpCompose = {
         form.submit();
     },
 
-    _autoSaveDraft: function(r, o)
+    _autoSaveDraftCallback: function(r)
     {
-        if (r.responseJSON && r.responseJSON.response) {
-            r = r.responseJSON.response;
-            $('compose_formToken').setValue(r.formToken);
-            $('compose_requestToken').setValue(r.requestToken);
-        }
+        $('compose_formToken').setValue(r.formToken);
+        $('compose_requestToken').setValue(r.requestToken);
     },
 
     attachmentChanged: function()
     {
         var fields = [],
             usedFields = 0,
-            lastRow, newRow, td;
+            input, lastRow, newRow, td;
 
         $('upload_atc').select('input[type="file"]').each(function(i) {
             fields[fields.length] = i;
@@ -186,9 +191,13 @@ var ImpCompose = {
         if (usedFields == fields.length) {
             lastRow = $('attachment_row_' + usedFields);
             if (lastRow) {
-                td = new Element('TD', { align: 'left' }).insert(new Element('STRONG').insert(IMP.text.compose_file + ' ' + (usedFields + 1) + ':')).insert('&nbsp;')
+                td = new Element('TD', { align: 'left' }).insert(new Element('STRONG').insert(this.text.file + ' ' + (usedFields + 1) + ':')).insert('&nbsp;')
 
-                td.insert(new Element('INPUT', { type: 'file', id: 'upload_' + (usedFields + 1), name: 'upload_' + (usedFields + 1), size: 25 }));
+                input = new Element('INPUT', { type: 'file', id: 'upload_' + (usedFields + 1), name: 'upload_' + (usedFields + 1), size: 25 });
+                if (Prototype.Browser.IE) {
+                    input.observe('change', this.changeHandler.bindAsEventListener(this));
+                }
+                td.insert(input);
 
                 newRow = new Element('TR', { id: 'attachment_row_' + (usedFields + 1) }).insert(td);
 
@@ -199,30 +208,27 @@ var ImpCompose = {
 
     clickHandler: function(e)
     {
-        if (e.isRightClick()) {
-            return;
-        }
-
         var elt = e.element(), name;
 
-        while (Object.isElement(elt)) {
-            if (elt.hasClassName('button')) {
-                name = elt.readAttribute('name');
-                switch (name) {
-                case 'btn_add_attachment':
-                case 'btn_redirect':
-                case 'btn_save_draft':
-                case 'btn_send_message':
-                    this.uniqSubmit(name.substring(4), e);
-                    break;
+        if (elt.readAttribute('id') == 'redirect_abook') {
+            window.open(this.redirect_contacts, "contacts", "toolbar=no,location=no,status=no,scrollbars=yes,resizable=yes,width=550,height=300,left=100,top=100");
+        } else if (elt.hasClassName('button')) {
+            name = elt.readAttribute('name');
+            switch (name) {
+            case 'btn_add_attachment':
+            case 'btn_redirect':
+            case 'btn_replyall_revert':
+            case 'btn_replylist_revert':
+            case 'btn_save_draft':
+            case 'btn_save_template':
+            case 'btn_send_message':
+                this.uniqSubmit(name.substring(4), e.memo);
+                break;
 
-                case 'btn_cancel_compose':
-                    this.confirmCancel(e);
-                    break;
-                }
+            case 'btn_cancel_compose':
+                this.confirmCancel(e.memo);
+                break;
             }
-
-            elt = elt.up();
         }
     },
 
@@ -236,11 +242,7 @@ var ImpCompose = {
             this.changeIdentity(elt);
             break;
 
-        case 'stationery':
-            this.uniqSubmit('change_stationery', e);
-            break;
-
-        case 'sent_mail_folder':
+        case 'sent_mail':
             $('ssm').writeAttribute('checked', 'checked');
             break;
 
@@ -261,22 +263,25 @@ var ImpCompose = {
 
     onDomLoad: function()
     {
-        var handler = this.keyDownHandler.bindAsEventListener(this);
+        var handler;
 
-        /* Prevent Return from sending messages - it should bring us out of
-         * autocomplete, not submit the whole form. */
-        $('compose').select('INPUT').each(function(i) {
-            /* Attach to everything but button and submit elements. */
-            if (i.type != 'submit' && i.type != 'button') {
-                i.observe('keydown', handler);
-            }
-        });
-
-        IMP_Compose_Base.setCursorPosition('composeMessage', this.cursor_pos, IMP_Compose_Base.getIdentity($F('last_identity')).sig);
+        HordeCore.initHandler('click');
 
         if (this.redirect) {
             $('to').focus();
         } else {
+            handler = this.keyDownHandler.bindAsEventListener(this);
+            /* Prevent Return from sending messages - it should bring us out
+             * of autocomplete, not submit the whole form. */
+            $('compose').select('INPUT').each(function(i) {
+                /* Attach to everything but button and submit elements. */
+                if (i.type != 'submit' && i.type != 'button') {
+                    i.observe('keydown', handler);
+                }
+            });
+
+            ImpComposeBase.setCursorPosition('composeMessage', this.cursor_pos);
+
             if (Prototype.Browser.IE) {
                 $('subject').observe('keydown', function(e) {
                     if (e.keyCode == Event.KEY_TAB && !e.shiftKey) {
@@ -286,7 +291,7 @@ var ImpCompose = {
                 });
             }
 
-            if (IMP_Compose_Base.editor_on) {
+            if (ImpComposeBase.editor_on) {
                 document.observe('SpellChecker:after', this._onAfterSpellCheck.bind(this));
                 document.observe('SpellChecker:before', this._onBeforeSpellCheck.bind(this));
             }
@@ -294,21 +299,25 @@ var ImpCompose = {
             if ($('to') && !$F('to')) {
                 $('to').focus();
             } else if (!$F('subject')) {
-                if (IMP_Compose_Base.editor_on) {
+                if (ImpComposeBase.editor_on) {
                     $('subject').focus();
                 } else {
                     $('composeMessage').focus();
                 }
             }
-        }
 
-        document.observe('click', this.clickHandler.bindAsEventListener(this));
-        document.observe('change', this.changeHandler.bindAsEventListener(this));
-        document.observe('SpellChecker:noerror', this._onNoErrorSpellCheck.bind(this));
+            document.observe('SpellChecker:noerror', this._onNoErrorSpellCheck.bind(this));
 
-        if (this.auto_save) {
-            /* Immediately execute to get MD5 hash of empty message. */
-            new PeriodicalExecuter(this.uniqSubmit.bind(this, 'auto_save_draft'), this.auto_save * 60).execute();
+            if (Prototype.Browser.IE) {
+                $('identity', 'sent_mail', 'upload_1').compact().invoke('observe', 'change', this.changeHandler.bindAsEventListener(this));
+            } else {
+                document.observe('change', this.changeHandler.bindAsEventListener(this));
+            }
+
+            if (this.auto_save) {
+                /* Immediately execute to get MD5 hash of empty message. */
+                new PeriodicalExecuter(this.uniqSubmit.bind(this, 'auto_save_draft'), this.auto_save * 60).execute();
+            }
         }
 
         this.resize.bind(this).delay(0.25);
@@ -316,14 +325,15 @@ var ImpCompose = {
 
     _onAfterSpellCheck: function()
     {
-        CKEDITOR.instances.composeMessage.setData($F('composeMessage'));
+        this.editor_wait = true;
+        CKEDITOR.instances.composeMessage.setData($F('composeMessage'), function() { this.editor_wait = false; }.bind(this));
         $('composeMessage').next().show();
-        this.sc_submit = null;
+        delete this.sc_submit;
     },
 
     _onBeforeSpellCheck: function()
     {
-        IMP.SpellChecker.htmlAreaParent = 'composeMessageParent';
+        ImpComposeBase.getSpellChecker().htmlAreaParent = 'composeMessageParent';
         $('composeMessage').next().hide();
         CKEDITOR.instances.composeMessage.updateElement();
     },
@@ -333,10 +343,10 @@ var ImpCompose = {
         if (this.sc_submit) {
             this.skip_spellcheck = true;
             this.uniqSubmit(this.sc_submit.a, this.sc_submit.e);
-        } else if (IMP_Compose_Base.editor_on) {
+        } else if (ImpComposeBase.editor_on) {
             this._onAfterSpellCheck();
         } else {
-            this.sc_submit = null;
+            delete this.sc_submit;
         }
     },
 
@@ -359,8 +369,13 @@ var ImpCompose = {
     onBeforeUnload: function()
     {
         if (this.display_unload_warning) {
-            return IMP.text.compose_discard;
+            return this.text.discard;
         }
+    },
+
+    onContactsUpdate: function(e)
+    {
+        ImpComposeBase.updateAddressField($(e.memo.field), e.memo.value);
     }
 
 };
@@ -371,14 +386,8 @@ document.observe('dom:loaded', ImpCompose.onDomLoad.bind(ImpCompose));
 /* Warn before closing the window. */
 Event.observe(window, 'beforeunload', ImpCompose.onBeforeUnload.bind(ImpCompose));
 
+/* Attach event handlers. */
+document.observe('ImpContacts:update', ImpCompose.onContactsUpdate.bindAsEventListener(ImpCompose));
+
 /* Catch dialog actions. */
-document.observe('IMPDialog:success', function(e) {
-    switch (e.memo) {
-    case 'pgpPersonal':
-    case 'pgpSymmetric':
-    case 'smimePersonal':
-        IMPDialog.noreload = true;
-        ImpCompose.uniqSubmit('send_message');
-        break;
-    }
-});
+document.observe('ImpPassphraseDialog:success', ImpCompose.uniqSubmit.bind(ImpCompose, 'send_message'));

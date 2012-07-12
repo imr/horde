@@ -1,9 +1,9 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Chuck Hagenbuch <chuck@horde.org>
  * @package Kronolith
@@ -38,7 +38,7 @@ function _check_max()
     return true;
 }
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('kronolith');
 
 if (Kronolith::showAjaxView()) {
@@ -70,6 +70,7 @@ do {
                 $event->recurrence->deleteException($year, $month, $day);
                 _save($event);
             }
+            $notification->push(_("The exception has been removed."), 'horde.success');
         } catch (Exception $e) {
             $notification->push(sprintf(_("There was an error accessing the calendar: %s"), $e->getMessage()), 'horde.error');
         }
@@ -128,7 +129,7 @@ do {
                 $event = $kronolith_driver->getEvent();
                 $event->readForm();
                 $event->baseid = $uid;
-                $event->exceptionoriginaldate = new Horde_Date($exception->strftime('%Y-%m-%d') . 'T' . $originaltime . $exception->strftime('%P'));
+                $event->exceptionoriginaldate = new Horde_Date($exception->strftime('%Y-%m-%d') . 'T' . $originaltime);
 
                 break;
 

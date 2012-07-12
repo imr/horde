@@ -2,13 +2,13 @@
 /**
  * Nag list script.
  *
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('nag');
 
 $vars = Horde_Variables::getDefaultVariables();
@@ -91,15 +91,15 @@ default:
     break;
 }
 
-Horde::addScriptFile('tooltips.js', 'horde');
-Horde::addScriptFile('effects.js', 'horde');
-Horde::addScriptFile('quickfinder.js', 'horde');
+$page_output->addScriptFile('tooltips.js', 'horde');
+$page_output->addScriptFile('scriptaculous/effects.js', 'horde');
+$page_output->addScriptFile('quickfinder.js', 'horde');
 
-if ($prefs->getValue('show_panel')) {
-    $bodyClass = 'rightPanel';
-}
+$page_output->header(array(
+    'body_class' => $prefs->getValue('show_panel') ? 'rightPanel' : null,
+    'title' => $title
+));
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
 echo Nag::menu();
 Nag::status();
 echo '<div id="page">';
@@ -116,4 +116,4 @@ if (!$prefs->isLocked('show_completed')) {
 
 require NAG_TEMPLATES . '/list.html.php';
 require NAG_TEMPLATES . '/panel.inc';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

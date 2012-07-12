@@ -2,14 +2,14 @@
 /**
  * Adds tables for the Sqlng share driver.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Jan Schneider <jan@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  Nag
  */
 class NagUpgradeSqlng extends Horde_Db_Migration_Base
@@ -19,7 +19,7 @@ class NagUpgradeSqlng extends Horde_Db_Migration_Base
      */
     public function up()
     {
-        $t = $this->createTable('nag_sharesng', array('primaryKey' => 'share_id'));
+        $t = $this->createTable('nag_sharesng', array('autoincrementKey' => 'share_id'));
         $t->column('share_name', 'string', array('limit' => 255, 'null' => false));
         $t->column('share_owner', 'string', array('limit' => 255));
         $t->column('share_flags', 'integer', array('default' => 0, 'null' => false));
@@ -55,7 +55,7 @@ class NagUpgradeSqlng extends Horde_Db_Migration_Base
         $this->addIndex('nag_sharesng', array('perm_guest_' . Horde_Perms::EDIT));
         $this->addIndex('nag_sharesng', array('perm_guest_' . Horde_Perms::DELETE));
 
-        $t = $this->createTable('nag_sharesng_groups', array('primaryKey' => false));
+        $t = $this->createTable('nag_sharesng_groups', array('autoincrementKey' => false));
         $t->column('share_id', 'integer', array('null' => false));
         $t->column('group_uid', 'string', array('limit' => 255, 'null' => false));
         $t->column('perm_' . Horde_Perms::SHOW, 'boolean', array('default' => false, 'null' => false));
@@ -71,7 +71,7 @@ class NagUpgradeSqlng extends Horde_Db_Migration_Base
         $this->addIndex('nag_sharesng_groups', array('perm_' . Horde_Perms::EDIT));
         $this->addIndex('nag_sharesng_groups', array('perm_' . Horde_Perms::DELETE));
 
-        $t = $this->createTable('nag_sharesng_users', array('primaryKey' => false));
+        $t = $this->createTable('nag_sharesng_users', array('autoincrementKey' => false));
         $t->column('share_id', 'integer', array('null' => false));
         $t->column('user_uid', 'string', array('limit' => 255, 'null' => false));
         $t->column('perm_' . Horde_Perms::SHOW, 'boolean', array('default' => false, 'null' => false));
@@ -131,7 +131,7 @@ class NagUpgradeSqlng extends Horde_Db_Migration_Base
                     $values[] = (bool)($share['perm_' . $who] & $perm);
                 }
             }
-            $this->insert($sql, $values);
+            $this->insert($sql, $values, null, 'share_id', $share['share_id']);
         }
 
         foreach (array('user', 'group') as $what) {

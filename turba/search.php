@@ -2,10 +2,10 @@
 /**
  * Turba search.php.
  *
- * Copyright 2000-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2000-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  * @author Jan Schneider <jan@horde.org>
@@ -45,7 +45,7 @@ function updateSortOrderFromVars()
     }
 }
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('turba');
 
 /* Verify if the search mode variable is passed in form or is registered in
@@ -65,16 +65,16 @@ $editableAddressBooks = Turba::getAddressBooks(Horde_Perms::EDIT & Horde_Perms::
 if ($search_mode == 'duplicate') {
     $addressBooks = $editableAddressBooks;
 }
-$source = Horde_Util::getFormData('source', $default_source);
+$source = Horde_Util::getFormData('source', Turba::$source);
 if (!isset($addressBooks[$source])) {
     $source = key($addressBooks);
 
     /* If there are absolutely no valid sources, abort. */
     if (!isset($addressBooks[$source])) {
         $notification->push(_("No Address Books are currently available. Searching is disabled."), 'horde.error');
-        require $registry->get('templates', 'horde') . '/common-header.inc';
+        $page_output->header();
         require TURBA_TEMPLATES . '/menu.inc';
-        require $registry->get('templates', 'horde') . '/common-footer.inc';
+        $page_output->footer();
         exit;
     }
 }
@@ -137,7 +137,7 @@ if ($driver) {
             );
 
             try {
-                $share = Turba::createShare(strval(new Horde_Support_RandomId()), $params);
+                $share = Turba::createShare(strval(new Horde_Support_Randomid()), $params);
                 $vid = $share->getName();
             } catch (Horde_Share_Exception $e) {
                 $notification->push(sprintf(_("There was a problem creating the virtual address book: %s"), $e->getMessage()), 'horde.error');
@@ -158,7 +158,7 @@ if ($driver) {
                 $dupe = Horde_Util::getFormData('dupe');
                 $type = Horde_Util::getFormData('type');
                 $view = new Turba_View_Duplicates($duplicates, $driver, $type, $dupe);
-                Horde::addScriptFile('tables.js', 'horde');
+                $page_output->addScriptFile('tables.js', 'horde');
             } catch (Exception $e) {
                 $notification->push($e);
             }
@@ -181,7 +181,7 @@ if ($driver) {
                     $notification->push(_("Failed to search the address book"), 'horde.error');
                 }
             } catch (Turba_Exception $e) {
-                $notification->push($results, 'horde.error');
+                $notification->push($e, 'horde.error');
             }
         }
     }
@@ -219,10 +219,9 @@ if (count($addressBooks) == 1) {
 $searchView = new Horde_View(array('templatePath' => TURBA_TEMPLATES . '/search'));
 new Horde_View_Helper_Text($searchView);
 $searchView->addressBooks = $addressBooks;
-$searchView->shareSources = $shareSources;
 $searchView->attributes = $GLOBALS['attributes'];
-$searchView->allCriteria = $allCriteria;
 $searchView->map = $map;
+$searchView->blobs = $driver->getBlobs();
 $searchView->source = $source;
 $searchView->criteria = $criteria;
 $searchView->value = $val;
@@ -233,21 +232,25 @@ if ($search_mode != 'duplicate') {
     $vbookView->hasShare = $session->get('turba', 'has_share');
     $vbookView->shareSources = $shareSources;
     $vbookView->source = $source;
+    $page_output->addInlineScript('$(\'vbook_name\').observe(\'keyup\', function() { $(\'save-vbook\').checked = !!$F(\'vbook_name\'); });');
 }
 
 switch ($search_mode) {
 case 'basic':
     $title = _("Basic Search");
-    Horde::addInlineScript(array(
+    $page_output->addInlineScript(array(
         '$("val").focus()'
-    ), 'dom');
+    ), true);
+    $page_output->addInlineJsVars(array(
+        'TurbaSearch.criteria' => $allCriteria,
+        'TurbaSearch.shareSources' => $shareSources));
     break;
 
 case 'advanced':
     $title = _("Advanced Search");
-    Horde::addInlineScript(array(
+    $page_output->addInlineScript(array(
         '$("name").focus()'
-    ), 'dom');
+    ), true);
     break;
 
 case 'duplicate':
@@ -255,15 +258,17 @@ case 'duplicate':
     break;
 }
 
-Horde::addScriptFile('quickfinder.js', 'horde');
-Horde::addScriptFile('effects.js', 'horde');
-Horde::addScriptFile('redbox.js', 'horde');
-Horde::addScriptFile('search.js', 'turba');
+$page_output->addScriptFile('quickfinder.js', 'horde');
+$page_output->addScriptFile('scriptaculous/effects.js', 'horde');
+$page_output->addScriptFile('redbox.js', 'horde');
+$page_output->addScriptFile('search.js');
 if (isset($view) && is_object($view)) {
     Turba::addBrowseJs();
 }
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 require TURBA_TEMPLATES . '/menu.inc';
 echo $tabs->render($search_mode);
 echo $headerView->render('header');
@@ -275,4 +280,4 @@ if (isset($view) && is_object($view)) {
     require TURBA_TEMPLATES . '/browse/header.inc';
     $view->display();
 }
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

@@ -1,11 +1,11 @@
 <?php
 /**
- * Horde_Cli:: API for basic command-line functionality/checks.
+ * Horde_Cli API for basic command-line functionality/checks.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Chuck Hagenbuch <chuck@horde.org>
  * @author  Jan Schneider <jan@horde.org>
@@ -122,7 +122,8 @@ class Horde_Cli
      * Detect the current environment (web server or console) and sets
      * internal values accordingly.
      *
-     * The constructor must not be called after init().
+     * Use init() if you also want to set environment variables that may be
+     * missing in a CLI environment.
      */
     public function __construct()
     {
@@ -331,7 +332,7 @@ class Horde_Cli
     /**
      * Prompts for a user response.
      *
-     * @todo Horde 4: switch $choices and $default
+     * @todo Horde 5: switch $choices and $default
      *
      * @param string $prompt   The message to display when prompting the user.
      * @param array $choices   The choices available to the user or null for a
@@ -408,8 +409,8 @@ class Horde_Cli
         } else {
             $command = '/usr/bin/env bash -c "echo OK"';
             if (rtrim(shell_exec($command)) !== 'OK') {
-                trigger_error("Can't invoke bash");
-                return;
+                /* Cannot spawn shell, fall back to standard prompt. */
+                return $this->prompt($prompt);
             }
             $command = '/usr/bin/env bash -c "read -s -p ' . escapeshellarg($prompt) . ' mypassword && echo \$mypassword"';
             $password = rtrim(shell_exec($command));
@@ -439,26 +440,30 @@ class Horde_Cli
      * none. Also initialize a few variables in $_SERVER that aren't present
      * from the CLI.
      *
-     * You must not call init() statically before calling the constructor.
-     * Either use the singleton() method to retrieve a Horde_Cli object after
-     * calling init(), or don't call init() statically.
-     *
      * @return Horde_Cli  A Horde_Cli instance.
      */
     static public function init()
     {
         /* Run constructor now because it requires $_SERVER['SERVER_NAME'] to
          * be empty if called with a CGI SAPI. */
-        $cli = new self();
+        $cli = new static();
 
         @set_time_limit(0);
         ob_implicit_flush(true);
         ini_set('html_errors', false);
         set_exception_handler(array($cli, 'fatal'));
-        $_SERVER['HTTP_HOST'] = '127.0.0.1';
-        $_SERVER['SERVER_NAME'] = '127.0.0.1';
-        $_SERVER['SERVER_PORT'] = '';
-        $_SERVER['REMOTE_ADDR'] = '';
+        if (!isset($_SERVER['HTTP_HOST'])) {
+            $_SERVER['HTTP_HOST'] = '127.0.0.1';
+        }
+        if (!isset($_SERVER['SERVER_NAME'])) {
+            $_SERVER['SERVER_NAME'] = '127.0.0.1';
+        }
+        if (!isset($_SERVER['SERVER_PORT'])) {
+            $_SERVER['SERVER_PORT'] = '';
+        }
+        if (!isset($_SERVER['REMOTE_ADDR'])) {
+            $_SERVER['REMOTE_ADDR'] = '';
+        }
         $_SERVER['PHP_SELF'] = isset($argv) ? $argv[0] : '';
         if (!defined('STDIN')) {
             define('STDIN', fopen('php://stdin', 'r'));

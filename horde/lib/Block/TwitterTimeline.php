@@ -8,10 +8,10 @@
  *  - keep track of call limits and either dynamically alter update time or
  *    at least provide feedback to user.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Ben Klang <ben@alkaloid.net>
  * @author  Michael J. Rubinsky <mrubinsk@horde.org>
@@ -83,7 +83,7 @@ class Horde_Block_TwitterTimeline extends Horde_Core_Block
      */
     protected function _content()
     {
-        global $conf;
+        global $conf, $page_output;
 
         /* Get the twitter driver */
         try {
@@ -111,7 +111,7 @@ class Horde_Block_TwitterTimeline extends Horde_Core_Block
 
         /* Build values to pass to the javascript twitter client */
         $defaultText = _("What are you working on now?");
-        $endpoint = Horde::url('services/twitter.php', true);
+        $endpoint = Horde::url('services/twitter/', true);
         $spinner = $instance . '_loading';
         $inputNode = $instance . '_newStatus';
         $inReplyToNode = $instance . '_inReplyTo';
@@ -121,9 +121,10 @@ class Horde_Block_TwitterTimeline extends Horde_Core_Block
         $refresh = empty($this->_params['refresh_rate']) ? 300 : $this->_params['refresh_rate'];
 
         /* Add the client javascript / initialize it */
-        Horde::addScriptFile('twitterclient.js');
+        $page_output->addScriptFile('twitterclient.js', 'horde');
+        $page_output->addScriptFile('scriptaculous/effects.js', 'horde');
         $script = <<<EOT
-            var Horde = window.Horde || {};
+            Horde = window.Horde || {};
             Horde['twitter{$instance}'] = new Horde_Twitter({
                instanceid: '{$instance}',
                getmore: '{$instance}_getmore',
@@ -140,10 +141,10 @@ class Horde_Block_TwitterTimeline extends Horde_Core_Block
                strings: { inreplyto: '{$inReplyToText}', defaultText: '{$defaultText}', justnow: '{$justNowText}' }
             });
 EOT;
-        Horde::addInlineScript($script, 'dom');
+        $page_output->addInlineScript($script, true);
 
         /* Get the user's most recent tweet */
-        $latestStatus = htmlspecialchars($this->_profile->status->text);
+
 
         /* Build the UI */
         $view = new Horde_View(array('templatePath' => HORDE_TEMPLATES . '/block'));
@@ -151,8 +152,8 @@ EOT;
         $view->instance = $instance;
         $view->defaultText = $defaultText;
         $view->loadingImg = Horde::img('loading.gif', '', array('id' => $instance . '_loading', 'style' => 'display:none;'));
-        $view->latestStatus = $latestStatus;
-        $view->latestDate = Horde_Date_Utils::relativeDateTime(strtotime($this->_profile->status->created_at), $GLOBALS['prefs']->getValue('date_format'), ($GLOBALS['prefs']->getValue('twentyFour') ? "%H:%M" : "%I:%M %P"));
+        $view->latestStatus = !empty($this->_profile->status) ? htmlspecialchars($this->_profile->status->text) : '';
+        $view->latestDate = !empty($this->_profile->status) ?  Horde_Date_Utils::relativeDateTime(strtotime($this->_profile->status->created_at), $GLOBALS['prefs']->getValue('date_format'), ($GLOBALS['prefs']->getValue('twentyFour') ? "%H:%M" : "%I:%M %P")) : '';
         $view->bodyHeight = empty($this->_params['height']) ? 350 : $this->_params['height'];
 
         return $view->render('twitter-layout');
@@ -164,7 +165,7 @@ EOT;
     {
         $token = unserialize($GLOBALS['prefs']->getValue('twitter'));
         if (empty($token['key']) && empty($token['secret'])) {
-            $pref_link = Horde::getServiceLink('prefs', 'horde')->add('group', 'twitter')->link();
+            $pref_link = $GLOBALS['registry']->getServiceLink('prefs', 'horde')->add('group', 'twitter')->link();
             throw new Horde_Exception(sprintf(_("You have not properly connected your Twitter account with Horde. You should check your Twitter settings in your %s."), $pref_link . _("preferences") . '</a>'));
         }
 

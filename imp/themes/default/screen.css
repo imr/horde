@@ -3,195 +3,23 @@
     font-size: 110%;
     text-align: left;
 }
-.mboxheader .pageCount {
-    padding-right: 10px;
+
+.sortup {
+    background-image: url("graphics/arrow_down.png");
+}
+.sortdown {
+    background-image: url("graphics/arrow_up.png");
 }
 
-table.mboxactions {
-    border-collapse: collapse;
-    width: 100%;
-}
-
-#checkheader {
-    width: 8%;
-}
-#checkheader input {
-    float: left;
-}
-
-#mboxdate {
-    width: 14%;
-}
-
-#mboxto, #mboxfrom {
-    width: 20%;
-}
-
-#mboxthread, #mboxsubject {
-    width: 52%;
-}
-
-#mboxsize {
-    width: 6%;
-}
-
-/* Message list table styles. */
-.searchfolder a.smallheader {
-    display: block;
-}
-.messageList {
-    table-layout: fixed;
-    width: 100%;
-    border-collapse: collapse;
-}
-.messageList tr {
-    height: 20px;
-}
-.messageList th {
-    border-top: 1px solid #999;
-    border-left: 1px solid #ddd;
-    cursor: pointer;
-    overflow: hidden;
-    padding: 0 0 1px 2px;
-    text-align: left;
-    white-space: nowrap;
-}
-.messageList th .toggleSort {
-    font-size: 90%;
-}
-.messageList td {
-    padding-top: 0;
-    padding-bottom: 0;
-    text-indent: 1px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    -o-text-overflow: ellipsis;
-    overflow: hidden;
-    border: 1px solid #ddd;
-    vertical-align: middle;
-}
-.messageList td label input {
-    vertical-align: middle;
-}
-.messageList td span.flagUser {
-    font-size: 80%;
-    margin-right: 3px;
-}
-
-#messages h1.header {
-    font-size: 110%;
+/* Attachment tree styling. */
+div.partsTreeDiv span span:last-child {
+    padding-left: 3px;
     vertical-align: bottom;
-}
-#messages h1.header span.flagUser {
-    font-size: 80%;
-    margin-left: 3px;
-}
-
-/* Newmail alerts. */
-#newmail {
-    padding: 1em;
-    background: #ffc;
-    border: 2px solid #ccc;
-}
-#newmail ul {
-    list-style: none;
-    margin-bottom: 1em;
-}
-
-/* Navbar action styling. */
-table.navbaractions {
-    border-collapse: collapse;
-    width: 100%;
-}
-ul.msgactions, ul.msgactions ul {
-    list-style: none;
-}
-.msgactions li {
-    float: left;
-    padding: 1px 3px;
-    border-right: 1px solid #888;
-    position: relative;
-}
-.msgactions li.lastnavbar {
-    border-right: 0;
-}
-.msgactions a.hasmenu {
-    padding-right: 15px;
-    margin-right: -3px;
-    background: url("graphics/popdown.png") no-repeat center right;
-}
-.msgactions li a {
-    font-size: 90%;
-    white-space: nowrap;
-}
-.folders .msgactions li a {
-    font-size: 100%;
-}
-.msgactions li ul {
-    background: #f4f4f4;
-    border: 1px solid #d4d4d4;
-    display: none;
-    padding: 1px;
-    position: absolute;
-    z-index: 99;
-}
-.bottomborder .msgactions li ul {
-    top: 1.25em;
-}
-.topborder .msgactions li ul {
-    bottom: 1.25em;
-}
-.msgactions li ul a:hover, .msgactions li ul a:active {
-    background: gray;
-    color: #fff;
-}
-.msgactions li:hover ul, .msgactions li.hover ul {
-    display: block;
-}
-.msgactions li ul li {
-    float: none;
-    padding: 0;
-    border: none;
-    display: inline;
-}
-.msgactions li ul li a {
-    display: block;
-    padding: 2px;
-}
-.mboxcontrol {
-    color: #000;
-    background: #ccc;
-}
-.bottomborder {
-    border-bottom: 1px solid #999;
-    padding-bottom: 0;
-    padding-top: 0;
-}
-.topborder {
-    border-top: 1px solid #999;
-}
-
-table.msgActionTable, #fmanager table {
-    width: 100%;
-    border-collapse: collapse;
-}
-div.msgActions, #fmanager div.folderActions {
-    padding-left: 15px;
-}
-
-/* Message headers styling. */
-#msgheaders table {
-    border-collapse: collapse;
 }
 
 /* Message body styling. */
-.messageBody {
-    border-top: 1px solid #ccc;
-    border-bottom: 1px solid #ccc;
-    background: #fff;
-    padding: 8px;
-}
 .messageBody div.mimePartData {
+    line-height: 1.3em;
     margin-bottom: 8px;
 }
 
@@ -215,7 +43,7 @@ div.msgActions, #fmanager div.folderActions {
     padding: 3px;
 }
 
-#no_search_criteria, #no_search_folders {
+#no_search_criteria, #no_search_mboxes {
     font-weight: bold;
     padding: 3px;
 }
@@ -235,6 +63,10 @@ div.msgActions, #fmanager div.folderActions {
     padding-left: 3px;
     padding-right: 3px;
 }
+.searchElement span.searchFlag {
+    padding-left: 3px;
+    padding-right: 5px;
+}
 .searchElement span.subfolders {
     padding-left: 10px;
 }
@@ -242,72 +74,56 @@ div.msgActions, #fmanager div.folderActions {
     margin-right: 3px;
     vertical-align: text-top;
 }
-.searchElement .calendarPopup {
-    margin-left: 3px;
-}
 .searchElement .searchuiDelete {
     padding-left: 6px;
     vertical-align: text-top;
 }
 
-.searchuiCalendar {
+.searchElement span.beginDate, .searchElement span.endDate {
+    border: 1px grey dotted;
+    margin: 0 6px;
+    padding: 1px 2px;
+}
+.searchElement span.beginDate > span, .searchElement span.endDate > span {
+    padding-right: 4px;
+}
+.searchElement .calendarImg, .searchElement .closeImg {
+    margin-right: 0;
+}
+.calendarImg {
     background-image: url("graphics/calendar.png");
 }
-.searchuiFoldersActions {
-    font-size: 90%;
-    margin-left: 10px;
-}
-.searchuiFoldersActions a {
-    color: #366;
-}
+
 .searchuiButtons {
     padding-top: 5px;
 }
-.signedinvalid td .signature {
-    color: #999;
-}
 
-/* Folder view. */
-#checkAll0, #checkAll1, #fmanager input.checkbox {
-    vertical-align: middle;
-}
-
-#fmanager div.folderChoose {
-    padding-left: 5px;
-}
-
-span.folderImg {
+/* Folder images. */
+.folderImg {
     background-image: url("graphics/folders/folder.png");
 }
-span.folderopenImg {
+.folderopenImg {
     background-image: url("graphics/folders/open.png");
 }
-span.draftsImg {
+.draftsImg, .composetemplatesImg {
     background-image: url("graphics/folders/drafts.png");
 }
-span.inboxImg {
+.inboxImg {
     background-image: url("graphics/folders/inbox.png");
 }
-span.sentImg {
+.sentImg {
     background-image: url("graphics/folders/sent.png");
 }
-span.spamImg {
+.spamImg {
     background-image: url("graphics/folders/spam.png");
 }
-span.trashImg {
+.trashImg {
     background-image: url("graphics/folders/trash.png");
 }
 
-.folderunsub {
+.mboxunsub {
     background: #bbb;
     font-style: italic;
-}
-
-/* Style for div that fixes KHTML browsers. */
-.ohide {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    -o-text-overflow: ellipsis;
 }
 
 /* Style for HTML data iframe. */
@@ -317,11 +133,8 @@ span.trashImg {
 }
 
 /* Compose view */
-.composebody {
-    padding: 2px;
-}
-#text_identity, #to, #cc, #bcc, #subject {
-    width: 550px;
+#to, #cc, #bcc, #subject {
+    width: 500px;
 }
 .spellcheck {
     white-space: pre;
@@ -334,88 +147,80 @@ span.trashImg {
     word-wrap: break-word;
 }
 
-.folders {
-    font-size: 100%;
+#compose span.notices {
+    margin: 0;
 }
-.folderselect {
-    padding-top: 5px;
+#replyallnotice, #replylistnotice {
+    background-color: #fcc;
 }
-.seen {
-    background: #fff;
-}
-
-.addressTr {
-    width: 580px;
-}
-.addressTr span {
-    vertical-align: top;
-}
-
-.attachList {
-    width: 100%;
-    border-collapse: collapse;
+.replyAllNoticeUnderline {
+    text-decoration: underline;
 }
 
 /* Message flags definitions.
  * For background color, see config/prefs.php [msgflags preference]. */
-div.msgflags {
-    padding-right: 1px;
-    vertical-align: middle;
+.msgflags {
+    margin-right: 1px;
 }
-.mboxheader div.msgflags {
+
+.mboxheader .msgflags {
     vertical-align: sub;
 }
 
-div.msgflags.flagPersonal {
+.msgflags.flagPersonal {
     background-image: url("graphics/mail_personal.png");
 }
-div.msgflags.flagHighpriority {
+.msgflags.flagHighpriority {
     background-image: url("graphics/mail_priority_high.png");
 }
-tr.flagLowpriority {
-    font-weight: normal !important;
-}
-div.msgflags.flagLowpriority {
+.msgflags.flagLowpriority {
     background-image: url("graphics/mail_priority_low.png");
 }
-div.msgflags.flagSignedmsg {
+.msgflags.flagSignedmsg {
     background-image: url("graphics/signed.png");
 }
-div.msgflags.flagEncryptmsg {
+.msgflags.flagEncryptmsg {
     background-image: url("graphics/encrypted.png");
 }
-div.msgflags.flagAttachmsg {
+.msgflags.flagAttachmsg {
     background-image: url("graphics/attachment.png");
 }
-tr.flagUnseen {
-    font-weight: bold;
+.msgflags.flagList {
+    background-image: url("graphics/group.png");
+}
+.msgflags.flagJunk, span.iconImg.flagJunk {
+    background-image: url("graphics/spam.png");
+}
+.msgflags.flagNotJunk, span.iconImg.flagNotJunk {
+    background-image: url("graphics/innocent.png");
 }
 span.iconImg.flagSeen {
     background-image: url("graphics/mail_seen.png");
 }
-div.msgflags.flagUnseen, span.iconImg.flagUnseen {
+.msgflags.flagUnseen, span.iconImg.flagUnseen {
     background-image: url("graphics/mail_unseen.png");
 }
-div.msgflags.flagAnswered, span.iconImg.flagAnswered {
+.msgflags.flagAnswered, span.iconImg.flagAnswered {
     background-image: url("graphics/mail_answered.png");
 }
-div.msgflags.flagDraft, span.iconImg.flagDraft {
+.msgflags.flagDraft, span.iconImg.flagDraft {
     background-image: url("graphics/mail_draft.png");
 }
-div.msgflags.flagForwarded, span.iconImg.flagForwarded {
+.msgflags.flagForwarded, span.iconImg.flagForwarded {
     background-image: url("graphics/mail_forwarded.png");
 }
-div.msgflags.flagFlagged, span.iconImg.flagFlagged {
+.msgflags.flagFlagged, span.iconImg.flagFlagged {
     background-image: url("graphics/mail_flagged.png");
 }
-tr.flagDeleted * {
-    text-decoration: line-through;
-}
-div.msgflags.flagDeleted, span.iconImg.flagDeleted {
+.msgflags.flagDeleted, span.iconImg.flagDeleted {
     background-image: url("graphics/mail_deleted.png");
 }
 
 /* Prefs management styles. */
+table.flagmanagement thead td {
+    font-weight: bold;
+    text-decoration: underline;
+}
 table.flagmanagement div.flagUser {
     border: 1px solid gray;
     margin-right: 2px;
@@ -424,9 +229,22 @@ table.flagmanagement tbody td.flagicon {
     text-align: center;
 }
 
+table.searchesmanagement {
+    border-bottom: 1px solid gray;
+    border-collapse: collapse;
+    margin-bottom: 1em;
+}
+table.searchesmanagement td, table.searchesmanagement th {
+    border: 1px solid gray;
+    border-bottom-width: 0;
+}
+table.searchesmanagement th {
+    text-align: left;
+}
 table.searchesmanagement td.searchdescription {
     background-color: #ffa;
     width: 500px;
+    border-top-width: 0;
 }
 table.searchesmanagement .vfolderenabled {
     color: blue;
@@ -467,8 +285,22 @@ table.searchesmanagement .vfolderenabled {
     color: red;
     padding: 1px;
 }
+.prefsViews {
+    font-weight: bold;
+    font-size: 110%;
+    padding: 10px 0;
+}
 
 /* Quota styles. */
+#quota {
+    border-collapse: collapse;
+    width: 100%;
+}
+#quota td {
+    padding: 3px;
+    vertical-align: middle;
+    text-align: center;
+}
 .quotawarn {
     color: #000;
     background: yellow;
@@ -476,15 +308,6 @@ table.searchesmanagement .vfolderenabled {
 .quotaalert {
     color: #fff;
     background: #f00;
-}
-
-/* Pad the addressbook icon in header compose links. */
-td.msgheader {
-    width: 100%;
-}
-.msgheader img {
-    padding: 0 1px 0 2px;
-    vertical-align: bottom;
 }
 
 /* Contacts styles. */
@@ -501,81 +324,35 @@ td.msgheader {
     width: 60px;
 }
 
-/* Popdown styles. */
-span.spellcheckPopdownImg {
-    cursor: pointer;
-    background: url("graphics/popdown.png") no-repeat center center;
-    vertical-align: top;
-    margin-left: 3px;
-}
-span.spellcheckPopdownImg:hover {
-    border-left: 1px solid #fff;
-    border-top: 1px solid #fff;
-    border-right: 1px solid #000;
-    border-bottom: 1px solid #000;
-    margin: -1px -1px -1px 2px;
-}
-
 /* Large addresslist display. */
-.largeaddrlist {
+.largeaddrlist, .largeaddrlistlimit {
     cursor: pointer;
     background: #aaa;
     margin-right: 5px;
 }
-.largeaddrlist:hover {
+.largeaddrlist:hover, .largeaddrlistlimit:hover {
     text-decoration: underline;
 }
 
-/* Thread page */
-.threadSummary {
-    margin: 5px 3px;
+/* Key import popup. */
+.importKeyTable {
+    border-collapse: collapse;
+    width: 100%;
 }
-.threadSummary div {
-    height: 16px;
+.importKeyHowto {
+    padding: 8px;
 }
-.threadBox {
-    margin: 3px;
+.importKeyOr {
+    color: red !important;
+    font-weight: bold;
 }
-.threadBox div.item0 {
-    padding: 1px 2px;
-}
-.threadBox span.threadlink {
-    float: right;
-}
-.threadBox .messageBody {
-    border-bottom: 0;
-}
-
-/* Expand/Collapse graphic. */
-span.arrowCollapsed {
-    background-image: url("graphics/arrow_collapsed.png");
-    cursor: pointer;
-}
-span.arrowExpanded {
-    background-image: url("graphics/arrow_expanded.png");
-    cursor: pointer;
-}
-
-/* Loading graphic */
-span.loadingImg {
-    z-index: 1000;
-    border: 1px #e0e0e0 solid;
-    -moz-border-radius: 5px;
-    -webkit-border-radius: 5px;
-    border-radius: 5px;
-    background: #fff url("graphics/loading.gif") no-repeat center;
-    padding: 3px;
-    width: 16px;
-    height: 16px;
-}
-td.addressTr span.loadingImg {
-    padding: 0 0 0 16px;
+.importKeyText, .importKeyUpload {
+    font-weight: bold;
 }
 
 /* Inline display (Horde_Mime_Viewer) styles. */
 .mimeStatusMessageTable {
     margin-bottom: 3px;
-    font-size: 90%;
 }
 .mimeStatusMessageTable {
     background: #ffc;
@@ -593,23 +370,16 @@ td.addressTr span.loadingImg {
     width: 22px;
 }
 div.mimeStatusMessage, div.mimePartInfo {
-    margin-bottom: 5px;
+    margin-bottom: 10px;
 }
 .mimePartInfo div {
-    background: #efefef;
-    border: 1px solid #ccc;
-    font-size: 90%;
+    background: #eceff0;
+    border: 1px solid #d0d0d0;
     margin: 0;
     padding: 5px;
-    -moz-border-radius: 4px;
-    -webkit-border-radius: 4px;
-    border-radius: 4px;
     /* For FF2 */
     display: table-cell;
     display: inline-block;
-}
-.mimePartInfo div img {
-    vertical-align: bottom;
 }
 .mimePartInfoAtc div {
     border: 1px dashed;
@@ -617,6 +387,9 @@ div.mimeStatusMessage, div.mimePartInfo {
     background-position: 2px 50%;
     background-repeat: no-repeat;
     padding-left: 25px;
+}
+span.mimePartInfoSize {
+    color: #666;
 }
 
 .mimeStatusMessageTable td {
@@ -628,12 +401,9 @@ div.mimeStatusMessage, div.mimePartInfo {
 }
 
 .mimePartWrap, .mimePartWrapValid, .mimePartWrapInvalid {
-    border: 2px solid #666;
+    border: 1px solid #d0d0d0;
     margin: 2px 0;
-    padding: 4px;
-    -moz-border-radius: 4px;
-    -webkit-border-radius: 4px;
-    border-radius: 4px;
+    padding: 10px;
 }
 .mimePartWrapValid {
     border-color: #cfc;
@@ -664,10 +434,10 @@ div.mimeStatusMessage, div.mimePartInfo {
 .saveImgAtc {
     background-image: url("graphics/gallery.png");
 }
-.deleteImg {
+.deleteImg, .searchuiDelete {
     background-image: url("graphics/delete.png");
 }
-.closeImg, .searchuiDelete {
+.closeImg {
     background-image: url("graphics/close.png");
 }
 .reloadImg {
@@ -676,27 +446,38 @@ div.mimeStatusMessage, div.mimePartInfo {
 .editImg {
     background-image: url("graphics/edit.png");
 }
+.searchImg, .horde-buttonbar li.searchImg {
+    background-image: url("graphics/search.png"), url('graphics/button-split.png');
+}
+.readonlyImg, .horde-buttonbar li.readonlyImg {
+    background-image: url("graphics/locked.png");
+}
+.horde-buttonbar li.readonlyImg {
+    margin-right: -5px;
+}
+.addrbookaddImg {
+    background-image: url("graphics/add_contact.png");
+}
+.spellcheckImg {
+    background-image: url("graphics/spellcheck.png");
+}
+.emptytrashImg, .horde-buttonbar li.emptytrashImg {
+    background-image: url("graphics/empty_trash.png"), url('graphics/button-split.png');
+}
+
+.filtersIcon, .horde-buttonbar li.filtersIcon {
+    background-image: url("graphics/filters.png"), url('graphics/button-split.png');
+}
 
 /* iTip styles. */
-#itipconflicts {
+.itipconflicts {
     border-spacing: 0;
 }
-#itipconflicts tr.itipcollision {
+.itipconflicts tr.itipcollision {
     background-color: #f00;
     color: #fff;
 }
 
-#itipconflicts tr.itipnearcollision {
+.itipconflicts tr.itipnearcollision {
     background-color: #ee0;
-}
-
-/* Quota syles. */
-#quota {
-    border-collapse: collapse;
-    width: 100%;
-}
-#quota td {
-    padding: 3px;
-    vertical-align: middle;
-    text-align: center;
 }

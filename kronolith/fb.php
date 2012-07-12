@@ -1,15 +1,15 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Chuck Hagenbuch <chuck@horde.org>
  * @package Kronolith
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('kronolith', array('authentication' => 'none', 'session_control' => 'none'));
 
 // Determine the username to show free/busy time for.
@@ -42,10 +42,11 @@ if (!$fb) {
         // the user's default_share preference, and if that's empty,
         // to their username.
         if (!$cal) {
-            $cal = 'internal_' . $prefs->getValue('default_share');
+            $cal = $prefs->getValue('default_share');
             if (!$cal) {
-                $cal = 'internal_' . $user;
+                $cal = $user;
             }
+            $cal = 'internal_' . $cal;
         }
     }
 

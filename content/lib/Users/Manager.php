@@ -1,18 +1,10 @@
 <?php
 /**
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @author   Michael Rubinsky <mrubinsk@horde.org>
- * @license  http://opensource.org/licenses/bsd-license.php BSD
- * @category Horde
- * @package  Horde_Content
- */
-
-/**
- * @author   Chuck Hagenbuch <chuck@horde.org>
- * @author   Michael Rubinsky <mrubinsk@horde.org>
- * @license  http://opensource.org/licenses/bsd-license.php BSD
+ * @license  http://www.horde.org/licenses/bsd BSD
  * @category Horde
  * @package  Horde_Content
  */
@@ -105,5 +97,4 @@ class Content_Users_Manager
     {
         return $this->_db->quoteString(Horde_String::convertCharset($value, 'UTF-8', $this->_db->getOption('charset')));
     }
-
 }

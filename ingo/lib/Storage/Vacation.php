@@ -4,14 +4,13 @@
  * information.
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author  Michael Slusarz <slusarz@horde.org>
  * @package Ingo
  */
 class Ingo_Storage_Vacation extends Ingo_Storage_Rule
 {
-
     /**
      */
     protected $_addr = array();
@@ -50,9 +49,9 @@ class Ingo_Storage_Vacation extends Ingo_Storage_Rule
 
     /**
      */
-    public function setVacationAddresses($data, $sort = true)
+    public function setVacationAddresses($data)
     {
-        $this->_addr = $this->_addressList($data, $sort);
+        $this->_addr = $this->_addressList($data);
     }
 
     /**
@@ -64,9 +63,9 @@ class Ingo_Storage_Vacation extends Ingo_Storage_Rule
 
     /**
      */
-    public function setVacationExcludes($data, $sort = true)
+    public function setVacationExcludes($data)
     {
-        $this->_excludes = $this->_addressList($data, $sort);
+        $this->_excludes = $this->_addressList($data);
     }
 
     /**
@@ -204,6 +203,25 @@ class Ingo_Storage_Vacation extends Ingo_Storage_Rule
     public function getVacationEndDay()
     {
         return date('j', $this->_end);
+    }
+
+    /**
+     * Return the properties of this object as a hash.
+     *
+     * @return array  The property hash
+     */
+    public function toHash()
+    {
+        return array(
+            'start' => $this->getVacationStart(),
+            'end' => $this->getVacationEnd(),
+            'subject' => $this->getVacationSubject(),
+            'reason' => $this->getVacationReason(),
+            'ignorelist' => $this->getVacationIgnorelist(),
+            'excludes' => $this->getVacationExcludes(),
+            'days' => $this->getVacationDays(),
+            'addresses' => $this->getVacationAddresses()
+        );
     }
 
 }

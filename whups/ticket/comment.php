@@ -1,19 +1,17 @@
 <?php
 /**
  * Copyright 2001-2002 Robert E. Coyle <robertecoyle@hotmail.com>
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://www.horde.org/licenses/bsdl.php.
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('whups');
 
-require_once WHUPS_BASE . '/lib/Forms/AddComment.php';
-
 $ticket = Whups::getCurrentTicket();
-$linkTags[] = $ticket->feedLink();
+$page_output->addLinkTag($ticket->feedLink());
 
 $vars = Horde_Variables::getDefaultVariables();
 $vars->set('id', $id = $ticket->getId());
@@ -35,15 +33,16 @@ if ($tid = $vars->get('transaction')) {
         }
 
         if (!$private) {
-            $flowed = new Horde_Text_Flowed(preg_replace("/\s*\n/U", "\n", $history[$tid]['comment']));
+            $flowed = new Horde_Text_Flowed(preg_replace("/\s*\n/U", "\n", $history[$tid]['comment']), 'UTF-8');
             $vars->set('newcomment', $flowed->toFlowed(true));
         }
     }
 }
 
 $title = sprintf(_("Comment on %s"), '[#' . $id . '] ' . $ticket->get('summary'));
-$commentForm = new AddCommentForm($vars, $title);
-if ($vars->get('formname') == 'addcommentform' && $commentForm->validate($vars)) {
+$commentForm = new Whups_Form_AddComment($vars, $title);
+if ($vars->get('formname') == 'whups_form_addcomment' &&
+    $commentForm->validate($vars)) {
     $commentForm->getInfo($vars, $info);
 
     // Add comment.
@@ -72,22 +71,24 @@ if ($vars->get('formname') == 'addcommentform' && $commentForm->validate($vars))
         $ticket->change('comment-perms', $info['group']);
     }
 
-    $result = $ticket->commit();
-    if (is_a($result, 'PEAR_Error')) {
-        $notification->push($result, 'horde.error');
-    } else {
+    try {
+        $ticket->commit();
         $notification->push(_("Comment added"), 'horde.success');
         $ticket->show();
+    } catch (Whups_Exception $e) {
+        $notification->push($e->getMessage(), 'horde.error');
     }
 }
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 require WHUPS_TEMPLATES . '/menu.inc';
 require WHUPS_TEMPLATES . '/prevnext.inc';
 
 $tabs = Whups::getTicketTabs($vars, $id);
 echo $tabs->render('comment');
 
-$commentForm->renderActive(new Horde_Form_Renderer(), $vars, 'comment.php', 'post');
+$commentForm->renderActive(new Horde_Form_Renderer(), $vars, Horde::url('ticket/comment.php'), 'post');
 
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * An cclient based Kolab storage driver.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Driver_Cclient
@@ -369,7 +369,7 @@ extends Horde_Kolab_Storage_Driver_Base
             throw new Horde_Kolab_Storage_Exception(
                 sprintf(
                     Horde_Kolab_Storage_Translation::t(
-                        "Failed setting ACL on folder %s for user %s to %acl. Error: %s"
+                        "Failed setting ACL on folder %s for user %s to %s. Error: %s"
                     ),
                     $folder,
                     $user,
@@ -680,8 +680,8 @@ extends Horde_Kolab_Storage_Driver_Base
     {
         rewind($msg);
         $result = @imap_append(
-            $this->getBackend(), 
-            $this->_getBaseMbox() . $this->encodePath($folder), 
+            $this->getBackend(),
+            $this->_getBaseMbox() . $this->encodePath($folder),
             stream_get_contents($msg)
         );
         if (!$result) {
@@ -711,10 +711,10 @@ extends Horde_Kolab_Storage_Driver_Base
     {
         $this->select($folder);
 
-        foreach($uids as $uid) {
+        foreach ($uids as $uid) {
             $result = @imap_delete(
-                $this->getBackend(), 
-                $uid, 
+                $this->getBackend(),
+                $uid,
                 FT_UID
             );
             if (!$result) {
@@ -746,8 +746,8 @@ extends Horde_Kolab_Storage_Driver_Base
         $this->select($old_folder);
 
         $result = @imap_mail_move(
-            $this->getBackend(), 
-            $uid, 
+            $this->getBackend(),
+            $uid,
             $this->encodePath($new_folder),
             CP_UID
         );
@@ -811,7 +811,7 @@ extends Horde_Kolab_Storage_Driver_Base
                 $params[$val->attribute] = $val->value;
             }
 
-            $params = Horde_Mime::decodeParam('content-type', $params, 'UTF-8');
+            $params = Horde_Mime::decodeParam('content-type', $params);
             foreach ($params['params'] as $key => $val) {
                 $ob->setContentTypeParameter($key, $val);
             }
@@ -826,7 +826,7 @@ extends Horde_Kolab_Storage_Driver_Base
                     $dparams[$val->attribute] = $val->value;
                 }
 
-                $dparams = Horde_Mime::decodeParam('content-disposition', $dparams, 'UTF-8');
+                $dparams = Horde_Mime::decodeParam('content-disposition', $dparams);
                 foreach ($dparams['params'] as $key => $val) {
                     $ob->setDispositionParameter($key, $val);
                 }
@@ -844,7 +844,7 @@ extends Horde_Kolab_Storage_Driver_Base
                 $ob->setContentId($data->id);
             }
             if ($data->ifdescription) {
-                $ob->setDescription(Horde_Mime::decode($data->description, 'UTF-8'));
+                $ob->setDescription(Horde_Mime::decode($data->description));
             }
 
             $ob->setTransferEncoding($this->_mimeEncodings[$data->encoding]);

@@ -2,10 +2,10 @@
 /**
  * SyncML Backend for the Horde Application framework.
  *
- * Copyright 2005-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2005-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you did not
- * receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Karsten Fourmont <karsten@horde.org>
  * @package SyncMl
@@ -13,9 +13,9 @@
 class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
 {
     /**
-     * A PEAR DB instance.
+     * A database instance.
      *
-     * @var DB
+     * @var Horde_Db_Adapter_Base
      */
     protected $_db;
 
@@ -37,7 +37,7 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
     {
         parent::__construct($params);
 
-        $this->_db = $GLOBALS['injector']->getInstance('Horde_Core_Factory_DbPear')->create();
+        $this->_db = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Db')->create();
     }
 
     /**
@@ -52,7 +52,7 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
         if ($this->_backendMode == Horde_SyncMl_Backend::MODE_TEST) {
             /* After a session the user gets automatically logged out, so we
              * have to login again. */
-            Horde_Auth::setAuth($this->_user, array());
+            $GLOBALS['registry']->setAuth($this->_user, array());
         }
     }
 
@@ -87,6 +87,184 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
         parent::close();
     }
 
+    protected function _fastsync($databaseURI, $from_ts, $to_ts)
+    {
+        global $registry;
+
+        $results = array(
+            'adds' => array(),
+            'mods' => array(),
+            'dels' => array());
+
+        $map = array(
+            'adds' => 'add',
+            'dels' => 'delete',
+            'mods' => 'modify');
+
+        $database = $this->normalize($databaseURI);
+
+        // Get ALL server changes from backend
+        try {
+            $changes = $registry->{$database}->getChanges($from_ts, $to_ts);
+        } catch (Horde_Exception $e) {
+            $this->logMessage(
+                sprintf(
+                    ' %s getChanges() failed during _fastSync: %s', $database, $e->getMessage()),
+                'ERR');
+        }
+
+        $add_ts = array();
+        foreach (array_keys($results) as $type) {
+            foreach ($changes[$map[$type]] as $suid) {
+                // Only server needs to check for client sent entries:
+                if ($this->_backendMode != Horde_SyncMl_Backend::MODE_SERVER) {
+                    switch ($type) {
+                    case 'adds':
+                        $id = 0;
+                        break;
+                    case 'mods':
+                    case 'dels':
+                        $id = $suid;
+                    }
+                    $results[$type][$suid] = $id;
+                    continue;
+                }
+
+                try {
+                    $change_ts = $registry->{$database}->getActionTimestamp(
+                        $suid, $map[$type], Horde_SyncMl_Backend::getParameter($databaseURI, 'source'));
+                } catch (Horde_Exception $e) {
+                    $this->logMessage($e->getMessage(), 'ERR');
+                    return;
+                }
+                // If added, then deleted all since last sync, don't bother
+                // sending change
+                if ($type == 'adds') {
+                    $add_ts[$suid] = $change_ts;
+                } elseif ($type == 'dels') {
+                    if (isset($results['adds'][$suid]) && $add_ts[$suid] < $change_ts) {
+                        unset($results['adds'][$suid]);
+                        continue;
+                    }
+                    if (isset($results['mods'][$suid])) {
+                        unset($results['mods'][$suid]);
+                    }
+                }
+
+                $sync_ts = $this->_getChangeTS($database, $suid);
+                if ($sync_ts && $sync_ts >= $change_ts) {
+                    // Change was done by us upon request of client.  Don't
+                    // mirror that back to the client.
+                    $this->logMessage(
+                        "Added to server from client: $suid ignored", 'DEBUG');
+                    continue;
+                }
+
+                // Sanity check and prepare list of changes
+                if ($type != 'adds') {
+                    $cuid = $this->_getCuid($database, $suid);
+                    if (empty($cuid) && $type == 'mods') {
+                        $this->logMessage(
+                            "Unable to create change for server id $suid: client id not found in map, adding instead.", 'WARN');
+                        $results['adds'][$suid] = 0;
+                        continue;
+                    } elseif (empty($cuid) && $type == 'dels') {
+                         $this->logMessage(
+                            "Unable to create delete for server id $suid: client id not found in map", 'WARN');
+                        continue;
+                    } else {
+                        $id = $cuid;
+                    }
+                } else {
+                    $id = 0;
+                }
+                $results[$type][$suid] = $id;
+            }
+        }
+
+        return $results;
+    }
+
+    protected function _slowsync($databaseURI, $from_ts, $to_ts)
+    {
+        global $registry;
+
+        $results = array(
+            'adds' => array(),
+            'dels' => array(),
+            'mods' => array());
+
+        $database = $this->normalize($databaseURI);
+
+        // Return all db entries directly rather than bother history. But
+        // first check if we only want to sync data from a given start
+        // date:
+        $start = trim(Horde_SyncMl_Backend::getParameter($databaseURI, 'start'));
+        try {
+            if (!empty($start)) {
+                if (strlen($start) == 4) {
+                    $start .= '0101000000';
+                } elseif (strlen($start) == 6) {
+                    $start .= '01000000';
+                } elseif (strlen($start) == 8) {
+                    $start .= '000000';
+                }
+                $start = new Horde_Date($start);
+                $this->logMessage('Slow-syncing all events starting from ' . (string)$start, 'DEBUG');
+                $data = $registry->{$database}->listUids(
+                            Horde_SyncMl_Backend::getParameter($databaseURI, 'source'), $start);
+            } else {
+                $data = $registry->{$database}->listUids(
+                            Horde_SyncMl_Backend::getParameter($databaseURI, 'source'));
+            }
+        } catch (Horde_Exception $e) {
+            $this->logMessage(
+                "$database/list or $database/listBy failed while retrieving server additions:"
+                    . $e->getMessage(), 'ERR');
+            return;
+        }
+
+        foreach ($data as $suid) {
+            // Only server needs to check for client sent entries:
+            if ($this->_backendMode != Horde_SyncMl_Backend::MODE_SERVER) {
+                $results['adds'][$suid] = 0;
+                continue;
+            }
+
+            // Ignore if a map entry is present
+            $cuid = $this->_getCuid($database, $suid);
+            if ($cuid) {
+                $this->logMessage(
+                    "Added to server from client during SlowSync: $suid ignored", 'DEBUG');
+                continue;
+            }
+
+            try {
+                $add_ts  = $registry->{$database}->getActionTimestamp(
+                    $suid,
+                    'add',
+                    Horde_SyncMl_Backend::getParameter($databaseURI, 'source'));
+            } catch (Horde_Exception $e) {
+                $this->logMessage($e->getMessage(), 'ERR');
+                return;
+            }
+
+            $sync_ts = $this->_getChangeTS($database, $suid);
+            if ($sync_ts && $sync_ts >= $add_ts) {
+                // Change was done by us upon request of client.  Don't mirror
+                // that back to the client.
+                $this->logMessage("Added to server from client: $suid ignored", 'DEBUG');
+                continue;
+            }
+            $this->logMessage(
+                "Adding to client from db $database, server id $suid", 'DEBUG');
+
+            $results['adds'][$suid] = 0;
+        }
+
+        return $results;
+    }
+
     /**
      * Returns entries that have been modified in the server database.
      *
@@ -102,189 +280,27 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
      *                             suid => cuid
      * @param array &$dels         Output array: hash of deletions suid => cuid
      *
-     * @return mixed  True on success or a PEAR_Error object.
+     * @return boolean true
      */
     public function getServerChanges($databaseURI, $from_ts, $to_ts, &$adds, &$mods,
                               &$dels)
     {
         global $registry;
 
-        $adds = $mods = $dels = array();
-        $database = $this->normalize($databaseURI);
         $slowsync = $from_ts == 0;
 
-        // Handle additions:
-        try {
-            if ($slowsync) {
-                // Return all db entries directly rather than bother history. But
-                // first check if we only want to sync data from a given start
-                // date:
-                $start = trim(Horde_SyncMl_Backend::getParameter($databaseURI, 'start'));
-                if (!empty($start)) {
-                    if (strlen($start) == 4) {
-                        $start .= '0101000000';
-                    } elseif (strlen($start) == 6) {
-                        $start .= '01000000';
-                    } elseif (strlen($start) == 8) {
-                        $start .= '000000';
-                    }
-                    $start = new Horde_Date($start);
-                    $this->logMessage('Slow-syncing all events starting from ' . (string)$start, 'DEBUG');
-                    $data = $registry->{$database}->listUids(
-                                Horde_SyncMl_Backend::getParameter($databaseURI, 'source'), $start);
-                } else {
-                    $data = $registry->{$database}->listUids(
-                                Horde_SyncMl_Backend::getParameter($databaseURI, 'source'));
-                }
-            } else {
-                $data = $registry->{$database}->listBy(
-                    'add', $from_ts, Horde_SyncMl_Backend::getParameter($databaseURI, 'source'), $to_ts);
-            }
-        } catch (Horde_Exception $e) {
-            $this->logMessage("$database/list or $database/listBy failed while retrieving server additions:"
-                              . $e->getMessage(), 'ERR');
-            return;
-        }
-
-        $add_ts = array();
-        foreach ($data as $suid) {
-            // Only server needs to check for client sent entries:
-            if ($this->_backendMode != Horde_SyncMl_Backend::MODE_SERVER) {
-                $adds[$suid] = 0;
-                continue;
-            }
-
-            if ($slowsync) {
-                // SlowSync: Ignore all entries where there already in a
-                // map entry.
-                $cuid = $this->_getCuid($database, $suid);
-                if ($cuid) {
-                    $this->logMessage(
-                        "Added to server from client during SlowSync: $suid ignored", 'DEBUG');
-                    continue;
-                }
-            }
-            try {
-                $add_ts[$suid] = $registry->{$database}->getActionTimestamp(
-                    $suid, 'add', Horde_SyncMl_Backend::getParameter($databaseURI, 'source'));
-            } catch (Horde_Exception $e) {
-                $this->logMessage($e->getMessage(), 'ERR');
-                return;
-            }
-
-            $sync_ts = $this->_getChangeTS($database, $suid);
-            if ($sync_ts && $sync_ts >= $add_ts[$suid]) {
-                // Change was done by us upon request of client.  Don't mirror
-                // that back to the client.
-                $this->logMessage("Added to server from client: $suid ignored", 'DEBUG');
-                continue;
-            }
-            $this->logMessage(
-                "Adding to client from db $database, server id $suid", 'DEBUG');
-
-            $adds[$suid] = 0;
-        }
-
-        // On SlowSync: everything is sent as add, no need to send
-        // modifications or deletions. So we are finished here:
         if ($slowsync) {
-            return true;
+            $results = $this->_slowsync($databaseURI, $from_ts, $to_ts);
+        } else {
+            $results = $this->_fastSync($databaseURI, $from_ts, $to_ts);
         }
 
-        // Handle changes:
-        try {
-            $data = $registry->$database->listBy(
-               'modify', $from_ts, Horde_SyncMl_Backend::getParameter($databaseURI,'source'), $to_ts);
-        } catch (Horde_Exception $e) {
-            $this->logMessage(
-                "$database/listBy failed while retrieving server modifications:"
-                . $e->getMessage(), 'WARN');
-            return;
-        }
+        $adds = $results['adds'];
+        $mods = $results['mods'];
+        $dels = $results['dels'];
 
-        $mod_ts = array();
-        foreach ($data as $suid) {
-            // Check if the entry has been added after the last sync.
-            if (isset($adds[$suid])) {
-                continue;
-            }
-
-            // Only server needs to check for client sent entries and update
-            // map.
-            if ($this->_backendMode == Horde_SyncMl_Backend::MODE_SERVER) {
-                $mod_ts[$suid] = $registry->$database->getActionTimestamp(
-                                     $suid, 'modify', Horde_SyncMl_Backend::getParameter($databaseURI,'source'));
-                $sync_ts = $this->_getChangeTS($database, $suid);
-                if ($sync_ts && $sync_ts >= $mod_ts[$suid]) {
-                    // Change was done by us upon request of client.  Don't
-                    // mirror that back to the client.
-                    $this->logMessage("Changed on server after sent from client: $suid ignored", 'DEBUG');
-                    continue;
-                }
-                $cuid = $this->_getCuid($database, $suid);
-                if (!$cuid) {
-                    $this->logMessage(
-                        "Unable to create change for server id $suid: client id not found in map, adding instead.", 'WARN');
-                    $adds[$suid] = 0;
-                    continue;
-                } else {
-                    $mods[$suid] = $cuid;
-                }
-            } else {
-                $mods[$suid] = $suid;
-            }
-            $this->logMessage(
-                "Modifying on client from db $database, client id $cuid -> server id $suid", 'DEBUG');
-        }
-
-        // Handle deletions.
-        try {
-            $data = $registry->$database->listBy(
-                        'delete', $from_ts, Horde_SyncMl_Backend::getParameter($databaseURI, 'source'), $to_ts);
-        } catch (Horde_Exception $e) {
-            $this->logMessage(
-                "$database/listBy failed while retrieving server deletions:"
-                . $e->getMessage(), 'WARN');
-            return;
-        }
-
-        foreach ($data as $suid) {
-            // Only server needs to check for client sent entries.
-            if ($this->_backendMode == Horde_SyncMl_Backend::MODE_SERVER) {
-                $suid_ts = $registry->$database->getActionTimestamp(
-                    $suid, 'delete', Horde_SyncMl_Backend::getParameter($databaseURI,'source'));
-
-                // Check if the entry has been added or modified after the
-                // last sync.
-                if (isset($adds[$suid]) && $add_ts[$suid] < $suid_ts) {
-                    unset($adds[$suid]);
-                    continue;
-                }
-                if (isset($mods[$suid])) {
-                    unset($mods[$suid]);
-                }
-
-                $sync_ts = $this->_getChangeTS($database, $suid);
-                if ($sync_ts && $sync_ts >= $suid_ts) {
-                    // Change was done by us upon request of client.  Don't
-                    // mirror that back to the client.
-                    $this->logMessage("Deleted on server after request from client: $suid ignored", 'DEBUG');
-                    continue;
-                }
-                $cuid = $this->_getCuid($database, $suid);
-                if (!$cuid) {
-                    $this->logMessage(
-                        "Unable to create delete for server id $suid: client id not found in map", 'WARN');
-                    continue;
-                }
-                $dels[$suid] = $cuid;
-            } else {
-                $dels[$suid] = $suid;
-            }
-            $this->logMessage(
-                "Deleting on client from db $database, client id $cuid -> server id $suid", 'DEBUG');
-        }
-
+        // @TODO: No need to return true, since errors are now thrown. H5 should
+        //        remove this.
         return true;
     }
 
@@ -306,9 +322,13 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
      */
     public function retrieveEntry($databaseURI, $suid, $contentType, $fields)
     {
-        return $GLOBALS['registry']->call(
-            $this->normalize($databaseURI) . '/export',
-            array('guid' => $suid, 'contentType' => $contentType, 'dummy' => null, 'fields' => $fields));
+        try {
+            return $GLOBALS['registry']->call(
+                $this->normalize($databaseURI) . '/export',
+                array('guid' => $suid, 'contentType' => $contentType, 'dummy' => null, 'fields' => $fields));
+        } catch (Horde_Exception $e) {
+            return PEAR::raiseError($e->getMessage());
+        }
     }
 
     /**
@@ -330,13 +350,13 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
 
         $database = $this->normalize($databaseURI);
 
-        $suid = $registry->call(
-            $database . '/import',
-            array($content,
-                  $contentType,
-                  Horde_SyncMl_Backend::getParameter($databaseURI, 'source')));
+        try {
+            $suid = $registry->call(
+                $database . '/import',
+                array($content,
+                      $contentType,
+                      Horde_SyncMl_Backend::getParameter($databaseURI, 'source')));
 
-        if (!is_a($suid, 'PEAR_Error')) {
             $this->logMessage(
                 "Added to server db $database client id $cuid -> server id $suid", 'DEBUG');
             $ts = $registry->call(
@@ -352,9 +372,10 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
             if ($this->_backendMode == Horde_SyncMl_Backend::MODE_SERVER) {
                 $this->createUidMap($database, $cuid, $suid, $ts);
             }
-        } else {
+        } catch (Horde_Exception $e) {
             // Failed import. Maybe the entry is already there. Check if a
             // guid is returned:
+            /* Not working with exceptions
             if ($suid->getDebugInfo()) {
                 $suid = $suid->getDebugInfo();
                 $this->logMessage(
@@ -363,6 +384,7 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
                     $this->createUidMap($database, $cuid, $suid, 0);
                 }
             }
+            */
 
         }
 
@@ -400,10 +422,11 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
         }
 
         // Entry exists: replace current one.
-        $ok = $registry->call($database . '/replace',
-                              array($suid, $content, $contentType));
-        if (is_a($ok, 'PEAR_Error')) {
-            return $ok;
+        try {
+            $ok = $registry->call($database . '/replace',
+                                  array($suid, $content, $contentType));
+        } catch (Horde_Exception $e) {
+            return PEAR::raiseError($e->getMessage());
         }
         $this->logMessage(
             "Replaced in server db $database client id $cuid -> server id $suid", 'DEBUG');
@@ -439,16 +462,21 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
         // Find server ID for this entry:
         // Only server needs to do a cuid<->suid map
         if ($this->_backendMode == Horde_SyncMl_Backend::MODE_SERVER) {
-            $suid = $this->_getSuid($database, $cuid);
+            try {
+                $suid = $this->_getSuid($database, $cuid);
+            } catch (Horde_Exception $e) {
+                return false;
+            }
         } else {
             $suid = $cuid;
         }
-        if (is_a($suid, 'PEAR_Error')) {
+        if (empty($suid) || is_a($suid, 'PEAR_Error')) {
             return false;
         }
 
-        $r = $registry->call($database. '/delete', array($suid));
-        if (is_a($r, 'PEAR_Error')) {
+        try {
+            $registry->call($database. '/delete', array($suid));
+        } catch (Horde_Exception $e) {
             return false;
         }
 
@@ -504,8 +532,10 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
      */
     public function setAuthenticated($username, $credData)
     {
-        Horde_Auth::setAuth($username, $credData);
-        return $GLOBALS['registry']->getAuth();
+        global $registry;
+
+        $registry->setAuth($username, $credData);
+        return $registry->getAuth();
     }
 
     /**
@@ -530,25 +560,21 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
     {
         $database = $this->normalize($databaseURI);
 
+        $values = array($clientAnchorNext, $serverAnchorNext,
+                        $this->_syncDeviceID, $database, $this->_user);
         if (!$this->readSyncAnchors($databaseURI)) {
             $query = 'INSERT INTO horde_syncml_anchors '
                 . '(syncml_clientanchor, syncml_serveranchor, '
                 . 'syncml_syncpartner, syncml_db, syncml_uid) '
                 . 'VALUES (?, ?, ?, ?, ?)';
+            $this->_db->insert($query, $values);
         } else {
             $query = 'UPDATE horde_syncml_anchors '
                 . 'SET syncml_clientanchor = ?, syncml_serveranchor = ? '
                 . 'WHERE syncml_syncpartner = ? AND syncml_db = ? AND '
                 . 'syncml_uid = ?';
+            $this->_db->update($query, $values);
         }
-        $values = array($clientAnchorNext, $serverAnchorNext,
-                        $this->_syncDeviceID, $database, $this->_user);
-
-        $this->logMessage(
-            'SQL Query by Horde_SyncMl_Backend_Horde::writeSyncAnchors(): '
-            . $query . ', values: ' . implode(', ', $values), 'DEBUG');
-
-        return $this->_db->query($query, $values);
     }
 
     /**
@@ -566,22 +592,21 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
     public function readSyncAnchors($databaseURI)
     {
         $database = $this->normalize($databaseURI);
-
         $query = 'SELECT syncml_clientanchor, syncml_serveranchor '
             . 'FROM horde_syncml_anchors '
             . 'WHERE syncml_syncpartner = ? AND syncml_db = ? AND '
             . 'syncml_uid = ?';
         $values = array($this->_syncDeviceID, $database, $this->_user);
+        try {
+            if ($res = $this->_db->selectOne($query, $values)) {
+                return array(
+                    $res['syncml_clientanchor'],
+                    $res['syncml_serveranchor']
+                );
+            }
+        } catch (Horde_Db_Exception $e) {}
 
-        $this->logMessage(
-            'SQL Query by Horde_SyncMl_Backend_Horde::readSyncAnchors(): '
-            . $query . ', values: ' . implode(', ', $values), 'DEBUG');
-        $result = $this->_db->getRow($query, $values);
-        if (is_a($result, 'PEAR_Error')) {
-            $this->logMessage($result, 'ERR');
-        }
-
-        return $result;
+        return false;
     }
 
     /**
@@ -598,17 +623,7 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
             . 'syncml_serveranchor FROM horde_syncml_anchors '
             . 'WHERE syncml_uid = ?';
         $values = array($user);
-
-        $this->logMessage(
-            'SQL Query by Horde_SyncMl_Backend_Horde::getUserAnchors(): '
-            . $query . ', values: ' . implode(', ', $values), 'DEBUG');
-        $result = $this->_db->getAssoc($query, false, $values,
-                                       DB_FETCHMODE_ASSOC, true);
-        if (is_a($result, 'PEAR_Error')) {
-            $this->logMessage($result, 'ERR');
-        }
-
-        return $result;
+        return $this->_db->selectAll($query, $values);
     }
 
     /**
@@ -626,8 +641,7 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
      */
     public function removeAnchor($user, $device = null, $database = null)
     {
-        $query = 'DELETE FROM horde_syncml_anchors '
-            . 'WHERE syncml_uid = ?';
+        $query = 'DELETE FROM horde_syncml_anchors WHERE syncml_uid = ?';
         $values = array($user);
         if (strlen($device)) {
             $query .= ' AND syncml_syncpartner = ?';
@@ -638,15 +652,36 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
             $values[] = $database;
         }
 
-        $this->logMessage(
-            'SQL Query by Horde_SyncMl_Backend_Horde::removeAnchor(): '
-            . $query . ', values: ' . implode(', ', $values), 'DEBUG');
-        $result = $this->_db->query($query, $values);
-        if (is_a($result, 'PEAR_Error')) {
-            $this->logMessage($result, 'ERR');
+        $this->_db->delete($query, $values);
+    }
+
+    /**
+     * Deletes previously written sync maps for a user.
+     *
+     * If no device or database are specified, maps for all devices and/or
+     * databases will be deleted.
+     *
+     * @param string $user      A user name.
+     * @param string $device    The ID of the client device.
+     * @param string $database  Normalized URI of database to delete. Like
+     *                          calendar, tasks, contacts or notes.
+     *
+     * @return array
+     */
+    public function removeMaps($user, $device = null, $database = null)
+    {
+        $query = 'DELETE FROM horde_syncml_map WHERE syncml_uid = ?';
+        $values = array($user);
+        if (strlen($device)) {
+            $query .= ' AND syncml_syncpartner = ?';
+            $values[] = $device;
+        }
+        if (strlen($database)) {
+            $query .= ' AND syncml_db = ?';
+            $values[] = $database;
         }
 
-        return $result;
+        $this->_db->delete($query, $values);
     }
 
     /**
@@ -672,30 +707,22 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
     {
         $database = $this->normalize($databaseURI);
 
+        $values = array($suid, (int)$timestamp, $this->_syncDeviceID,
+                        $database, $this->_user, $cuid);
         // Check if entry exists. If not insert, otherwise update.
         if (!$this->_getSuid($databaseURI, $cuid)) {
             $query = 'INSERT INTO horde_syncml_map '
                 . '(syncml_suid, syncml_timestamp, syncml_syncpartner, '
                 . 'syncml_db, syncml_uid, syncml_cuid) '
                 . 'VALUES (?, ?, ?, ?, ?, ?)';
+            $this->_db->insert($query, $values);
         } else {
             $query = 'UPDATE horde_syncml_map '
                 . 'SET syncml_suid = ?, syncml_timestamp = ? '
                 . 'WHERE syncml_syncpartner = ? AND syncml_db = ? AND '
                 . 'syncml_uid = ? AND syncml_cuid = ?';
+            $this->_db->update($query, $values);
         }
-        $values = array($suid, (int)$timestamp, $this->_syncDeviceID,
-                        $database, $this->_user, $cuid);
-
-        $this->logMessage('SQL Query by Horde_SyncMl_Backend_Horde::createUidMap(): '
-                          . $query . ', values: ' . implode(', ', $values), 'DEBUG');
-        $result = $this->_db->query($query, $values);
-        if (is_a($result, 'PEAR_Error')) {
-            $this->logMessage($result, 'ERR');
-            return $result;
-        }
-
-        return true;
     }
 
     /**
@@ -712,20 +739,11 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
     protected function _getSuid($databaseURI, $cuid)
     {
         $database = $this->normalize($databaseURI);
-
         $query = 'SELECT syncml_suid FROM horde_syncml_map '
             . 'WHERE syncml_syncpartner = ? AND syncml_db = ? AND '
             . 'syncml_uid = ? AND syncml_cuid = ?';
         $values = array($this->_syncDeviceID, $database, $this->_user, $cuid);
-
-        $this->logMessage('SQL Query by Horde_SyncMl_Backend_Horde::_getSuid(): '
-                          . $query . ', values: ' . implode(', ', $values), 'DEBUG');
-        $result = $this->_db->getOne($query, $values);
-        if (is_a($result, 'PEAR_Error')) {
-            $this->logMessage($result, 'ERR');
-        }
-
-        return $result;
+        return $this->_db->selectValue($query, $values);
     }
 
     /**
@@ -747,15 +765,7 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
             . 'WHERE syncml_syncpartner = ? AND syncml_db = ? AND '
             . 'syncml_uid = ? AND syncml_suid = ?';
         $values = array($this->_syncDeviceID, $database, $this->_user, $suid);
-
-        $this->logMessage('SQL Query by Horde_SyncMl_Backend_Horde::_getCuid(): '
-                          . $query . ', values: ' . implode(', ', $values), 'DEBUG');
-        $result = $this->_db->getOne($query, $values);
-        if (is_a($result, 'PEAR_Error')) {
-            $this->logMessage($result, 'ERR');
-        }
-
-        return $result;
+        return $this->_db->selectValue($query, $values);
     }
 
     /**
@@ -782,20 +792,11 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
     protected function _getChangeTS($databaseURI, $suid)
     {
         $database = $this->normalize($databaseURI);
-
         $query = 'SELECT syncml_timestamp FROM horde_syncml_map '
             . 'WHERE syncml_syncpartner = ? AND syncml_db = ? AND '
             . 'syncml_uid = ? AND syncml_suid = ?';
         $values = array($this->_syncDeviceID, $database, $this->_user, $suid);
-
-        $this->logMessage('SQL Query by Horde_SyncMl_Backend_Horde::_getChangeTS(): '
-                          . $query . ', values: ' . implode(', ', $values), 'DEBUG');
-        $result = $this->_db->getOne($query, $values);
-        if (is_a($result, 'PEAR_Error')) {
-            $this->logMessage($result, 'ERR');
-        }
-
-        return $result;
+        return $this->_db->selectValue($query, $values);
     }
 
     /**
@@ -812,20 +813,11 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
     public function eraseMap($databaseURI)
     {
         $database = $this->normalize($databaseURI);
-
         $query = 'DELETE FROM horde_syncml_map '
             . 'WHERE syncml_syncpartner = ? AND syncml_db = ? AND '
             . 'syncml_uid = ?';
         $values = array($this->_syncDeviceID, $database, $this->_user);
-
-        $this->logMessage('SQL Query by Horde_SyncMl_Backend_Horde::eraseMap(): '
-                          . $query . ', values: ' . implode(', ', $values), 'DEBUG');
-        $result = $this->_db->query($query, $values);
-        if (is_a($result, 'PEAR_Error')) {
-            $this->logMessage($result, 'ERR');
-        }
-
-        return $result;
+        $this->_db->delete($query, $values);
     }
 
     /**
@@ -900,7 +892,7 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
          * user data. */
         $GLOBALS['conf']['auth']['admins'][] = $user;
 
-        Horde_Auth::setAuth($user, array());
+        $GLOBALS['registry']->setAuth($user, array());
     }
 
     /**
@@ -919,7 +911,7 @@ class Horde_SyncMl_Backend_Horde extends Horde_SyncMl_Backend
 
         /* We need to be logged in to call removeUserData, otherwise we run
          * into permission issues. */
-        Horde_Auth::setAuth($this->_user, array());
+        $GLOBALS['registry']->setAuth($this->_user, array());
 
         print "\nCleaning up: removing test user data and test user...";
         $registry->removeUser($this->_user);

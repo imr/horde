@@ -2,14 +2,14 @@
 /**
  * Turba directory driver implementation for virtual address books.
  *
- * Copyright 2005-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2005-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author   Michael J. Rubinsky <mrubinsk@horde.org>
  * @category Horde
- * @license  http://www.horde.org/licenses/asl.php ASL
+ * @license  http://www.horde.org/licenses/apache ASL
  * @package  Turba
  */
 class Turba_Driver_Vbook extends Turba_Driver
@@ -86,25 +86,30 @@ class Turba_Driver_Vbook extends Turba_Driver
     /**
      * Reads the requested entries from the underlying source.
      *
-     * @param string $key    The primary key field to use.
-     * @param mixed $ids     The ids of the contacts to load.
-     * @param string $owner  Only return contacts owned by this user.
-     * @param array $fields  List of fields to return.
+     * @param string $key        The primary key field to use.
+     * @param mixed $ids         The ids of the contacts to load.
+     * @param string $owner      Only return contacts owned by this user.
+     * @param array $fields      List of fields to return.
+     * @param array $blobFields  Array of fields containing binary data.
      *
      * @return array  Hash containing the search results.
+     * @throws Turba_Exception
      */
-    protected function _read($key, $ids, $owner, array $fields)
+    protected function _read($key, $ids, $owner, array $fields,
+                             array $blobFields = array())
     {
-        return $this->_driver->_read($key, $ids, $owner, $fields);
+        return $this->_driver->_read($key, $ids, $owner, $fields, $blobFields);
     }
 
     /**
-     * Not supported for virtual address books.
+     * Adds the specified contact to the addressbook.
      *
-     * @see Turba_Driver::_add
+     * @param array $attributes  The attribute values of the contact.
+     * @param array $blob_fields TODO
+     *
      * @throws Turba_Exception
      */
-    protected function _add(array $attributes)
+    protected function _add(array $attributes, array $blob_fields = array())
     {
         throw new Turba_Exception(_("You cannot add new contacts to a virtual address book"));
     }

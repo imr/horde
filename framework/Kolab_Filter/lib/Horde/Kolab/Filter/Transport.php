@@ -9,7 +9,7 @@
  * Copyright 2004-2008 Klarälvdalens Datakonsult AB
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Steffen Hansen <steffen@klaralvdalens-datakonsult.se>
  * @author  Gunnar Wrobel <wrobel@pardus.de>
@@ -68,7 +68,7 @@ class Horde_Kolab_Filter_Transport
     {
         $class = 'Horde_Kolab_Filter_Transport_' . $driver;
         if (!class_exists($class)) {
-            include dirname(__FILE__) . '/Transport/' . $driver . '.php';
+            include __DIR__ . '/Transport/' . $driver . '.php';
         }
         if (class_exists($class)) {
             $transport = new $class($params);

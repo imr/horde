@@ -2,7 +2,7 @@
 /**
  * @author     Chuck Hagenbuch <chuck@horde.org>
  * @author     Mike Naberezny <mike@maintainable.com>
- * @license    http://opensource.org/licenses/bsd-license.php BSD
+ * @license    http://www.horde.org/licenses/bsd BSD
  * @category   Horde
  * @package    Argv
  * @subpackage UnitTests
@@ -10,6 +10,11 @@
 
 class Horde_Argv_TestCase extends PHPUnit_Framework_TestCase
 {
+    public function setUp()
+    {
+        setlocale(LC_ALL, 'C');
+    }
+
     public function makeOption()
     {
         $args = func_get_args();

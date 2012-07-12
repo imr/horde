@@ -2,7 +2,7 @@
 /**
  * Show the most-clicked bookmarks.
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://www.horde.org/licenses/bsdl.php.
@@ -59,8 +59,7 @@ class Trean_Block_Mostclicked extends Horde_Core_Block
      */
     protected function _content()
     {
-        require_once dirname(__FILE__) . '/../base.php';
-        require_once TREAN_TEMPLATES . '/star_rating_helper.php';
+        require_once __DIR__ . '/../base.php';
 
         $template = TREAN_TEMPLATES . '/block/' . $this->_params['template'] . '.inc';
 
@@ -78,5 +77,4 @@ class Trean_Block_Mostclicked extends Horde_Core_Block
 
         return $html;
     }
-
 }

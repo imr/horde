@@ -2,15 +2,15 @@
 /**
  * Horde_Data implementation for LDAP Data Interchange Format (LDIF).
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * See the enclosed file LICENSE for license information (ASL).  If you
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author  Rita Selsky <ritaselsky@gmail.com>
  * @package Horde_Data
  */
-class Turba_Data_Ldif extends Horde_Data
+class Turba_Data_Ldif extends Horde_Data_Base
 {
     protected $_extension = 'ldif';
 
@@ -126,9 +126,13 @@ class Turba_Data_Ldif extends Horde_Data
             $lines = preg_split('/\r?\n/', $record);
             $hash = array();
             foreach ($lines as $line) {
-                list($key, $delimiter, $value) = preg_split('/(:[:<]?) */', $line, 2, PREG_SPLIT_DELIM_CAPTURE);
-                if (in_array($key, $this->_mozillaAttr)) {
-                    $hash[$key] = ($delimiter == '::' ? base64_decode($value) : $value);
+                // [0] = key, [1] = delimiter, [2] = value
+                $res = preg_split('/(:[:<]?) */', $line, 2, PREG_SPLIT_DELIM_CAPTURE);
+                if ((count($res) == 3) &&
+                    in_array($res[0], $this->_mozillaAttr)) {
+                    $hash[$res[0]] = ($res[1] == '::')
+                        ? base64_decode($res[2])
+                        : $res[2];
                 }
             }
             $data[] = $hash;
@@ -282,7 +286,7 @@ class Turba_Data_Ldif extends Horde_Data
                 $data[] = $turbaHash;
             }
 
-            $GLOBALS['session']->remove('horde', 'import_data/data');
+            $this->storage->remove('data');
             return $data;
 
         default:

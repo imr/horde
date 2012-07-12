@@ -77,9 +77,9 @@ class Kronolith_View_Week
         }
         for ($i = $this->startDay; $i <= $this->endDay; ++$i) {
             $date_stamp = $this->days[$i]->dateString();
-            $this->days[$i]->setEvents(isset($allevents[$date_stamp])
-                                       ? $allevents[$date_stamp]
-                                       : array());
+            $this->days[$i]->events = isset($allevents[$date_stamp])
+                ? $allevents[$date_stamp]
+                : array();
         }
         $this->sidebyside = $this->days[$this->startDay]->sidebyside;
         $this->_currentCalendars = $this->days[$this->startDay]->currentCalendars;
@@ -140,8 +140,8 @@ class Kronolith_View_Week
                                 . 'width="' . round(99 / count($this->days[$j]->currentCalendars)) . '%" '
                                 . 'valign="top">'
                                 . $event->getLink($this->days[$j], true, $this->link(0, true));
-                            if ($showLocation) {
-                                $row .= '<div class="event-location">' . htmlspecialchars($event->location) . '</div>';
+                            if (!$event->isPrivate() && $showLocation) {
+                                $row .= '<div class="event-location">' . htmlspecialchars($event->getLocation()) . '</div>';
                             }
                             $row .= '</td>';
                         }
@@ -290,8 +290,8 @@ class Kronolith_View_Week
                                 if ($showTime) {
                                     $row .= '<div class="event-time">' . htmlspecialchars($event->getTimeRange()) . '</div>';
                                 }
-                                if ($showLocation) {
-                                    $row .= '<div class="event-location">' . htmlspecialchars($event->location) . '</div>';
+                                if (!$event->isPrivate() && $showLocation) {
+                                    $row .= '<div class="event-location">' . htmlspecialchars($event->getLocation()) . '</div>';
                                 }
                                 $row .= '</td>';
                             }

@@ -1,14 +1,11 @@
 <?php
 /**
- * Skeleton storage implementation for PHP's PEAR database abstraction layer.
+ * Skeleton storage implementation for the Horde_Db database abstraction layer.
  *
- * The table structure can be created by the scripts/sql/skeleton_foo.sql
- * script.
- *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Your Name <you@example.com>
  * @category Horde
@@ -16,13 +13,6 @@
  */
 class Skeleton_Driver_Sql extends Skeleton_Driver
 {
-    /**
-     * Hash containing connection parameters.
-     *
-     * @var array
-     */
-    protected $_params = array();
-
     /**
      * Handle for the current database connection.
      *
@@ -40,12 +30,10 @@ class Skeleton_Driver_Sql extends Skeleton_Driver
     /**
      * Constructs a new SQL storage object.
      *
-     * @param array $params  Parameters:
-     * <pre>
-     * 'db' - (Horde_Db_Adapter) [REQUIRED] The DB instance.
-     * 'table' - (string) The name of the SQL table.
-     *           DEFAULT: 'skeleton_foo'
-     * </pre>
+     * @param array $params  Class parameters:
+     *                       - db:    (Horde_Db_Adapater) A database handle.
+     *                       - table: (string, optional) The name of the
+     *                                database table.
      *
      * @throws InvalidArgumentException
      */
@@ -57,9 +45,7 @@ class Skeleton_Driver_Sql extends Skeleton_Driver
         $this->_db = $params['db'];
         unset($params['db']);
 
-        $this->_params = array_merge($this->_params, array(
-            'table' => 'skeleton_foo'
-        ), $params);
+        parent::__construct($params);
     }
 
     /**
@@ -70,8 +56,15 @@ class Skeleton_Driver_Sql extends Skeleton_Driver
     public function retrieve()
     {
         /* Build the SQL query. */
-        $query = 'SELECT * FROM ' . $this->_params['table'] . ' WHERE foo = ?';
-        $values = array($this->_params['bar']);
+
+        // Unrestricted query
+
+        $query = 'SELECT * FROM skeleton_items';
+
+        // Restricted query alternative
+
+        //$query = 'SELECT * FROM skeleton_items WHERE foo = ?';
+        //$values = array($this->_params['bar']);
 
         /* Execute the query. */
         try {
@@ -84,4 +77,23 @@ class Skeleton_Driver_Sql extends Skeleton_Driver
         $this->_foo = array_merge($this->_foo, $rows);
     }
 
+    /**
+     * Stores a foo in the database.
+     *
+     * @throws Sms_Exception
+     */
+    public function store($data)
+    {
+        $query = 'INSERT INTO skeleton_items' .
+                 ' (item_owner, item_data)' .
+                     ' VALUES (?, ?)';
+        $values = array($GLOBALS['registry']->getAuth(),
+                        $data);
+
+        try {
+            $this->_db->insert($query, $values);
+        } catch (Horde_Db_Exception $e) {
+            throw new Sms_Exception($e->getMessage());
+        }
+    }
 }

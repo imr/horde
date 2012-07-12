@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * A log decorator definition for the Kolab storage drivers.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Driver_Decorator_Log
@@ -40,7 +40,7 @@ extends Horde_Kolab_Storage_Driver_Decorator_Base
      *
      * @param Horde_Kolab_Storage_Driver $driver The decorated driver.
      * @param mixed                      $logger The log handler. This instance
-     *                                           must provide the info() method.
+     *                                           must provide the debug() method.
      */
     public function __construct(Horde_Kolab_Storage_Driver $driver, $logger)
     {
@@ -55,11 +55,11 @@ extends Horde_Kolab_Storage_Driver_Decorator_Base
      */
     public function createBackend()
     {
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf('Driver "%s": Creating backend.', $this->getDriverName())
         );
         $result = $this->_driver->createBackend();
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'Driver "%s": Backend successfully created', $this->getDriverName()
             )
@@ -74,11 +74,11 @@ extends Horde_Kolab_Storage_Driver_Decorator_Base
      */
     public function listFolders()
     {
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf('Driver "%s": Listing folders.', $this->getDriverName())
         );
         $result = parent::listFolders();
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'Driver "%s": List contained %s folders.',
                 $this->getDriverName(),
@@ -97,11 +97,11 @@ extends Horde_Kolab_Storage_Driver_Decorator_Base
      */
     public function listAnnotation($annotation)
     {
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf('Driver "%s": Listing annotation "%s".', $this->getDriverName(), $annotation)
         );
         $result = parent::listAnnotation($annotation);
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'Driver "%s": List contained %s folder annotations.',
                 $this->getDriverName(),
@@ -117,15 +117,15 @@ extends Horde_Kolab_Storage_Driver_Decorator_Base
      */
     public function getNamespace()
     {
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf('Driver "%s": Retrieving namespaces.', $this->getDriverName())
         );
         $result = parent::getNamespace();
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'Driver "%s": Retrieved namespaces [%s].',
                 $this->getDriverName(),
-                (string) $result
+                (string)$result
             )
         );
         return $result;

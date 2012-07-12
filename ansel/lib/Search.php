@@ -3,10 +3,10 @@
  * Ansel_Search:: Provides a generic interface for various types of image
  * searches that are to be displayed in a paged results view.
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Michael J. Rubinsky <mrubinsk@horde.org>
  * @package Ansel
@@ -45,7 +45,7 @@ class Ansel_Search {
         $type = basename($type);
         $class = 'Ansel_Search_' . $type;
         if (!class_exists($class)) {
-            include dirname(__FILE__) . '/Search/' . $type . '.php';
+            include __DIR__ . '/Search/' . $type . '.php';
         }
         if (class_exists($class)) {
             $search = new $class($params);

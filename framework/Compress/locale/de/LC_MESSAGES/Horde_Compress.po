@@ -1,5 +1,5 @@
 # German translations for Horde_Compress module.
-# Copyright (C) 2010 Horde Project
+# Copyright 2010-2012 Horde LLC
 # This file is distributed under the same license as the Horde_Compress module.
 # Automatically generated, 2010.
 #
@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Horde_Compress\n"
 "Report-Msgid-Bugs-To: dev@lists.horde.org\n"
-"POT-Creation-Date: 2011-02-02 16:17+0100\n"
+"POT-Creation-Date: 2012-05-01 14:03+0200\n"
 "PO-Revision-Date: 2010-10-13 01:27+0200\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: i18n@lists.horde.org\n"
@@ -17,21 +17,22 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: lib/Horde/Compress/Rar.php:54
+#: lib/Horde/Compress/Rar.php:57 lib/Horde/Compress/Rar.php:66
+#: lib/Horde/Compress/Rar.php:113
 msgid "Invalid RAR data."
 msgstr "Ungültige RAR-Daten."
 
-#: lib/Horde/Compress/Zip.php:197 lib/Horde/Compress/Zip.php:224
-#: lib/Horde/Compress/Zip.php:244
+#: lib/Horde/Compress/Zip.php:202 lib/Horde/Compress/Zip.php:207
+#: lib/Horde/Compress/Zip.php:234 lib/Horde/Compress/Zip.php:254
 msgid "Invalid ZIP data"
 msgstr "Ungültige ZIP-Daten."
 
-#: lib/Horde/Compress/Dbx.php:128 lib/Horde/Compress/Dbx.php:157
-#: lib/Horde/Compress/Dbx.php:238
+#: lib/Horde/Compress/Dbx.php:127 lib/Horde/Compress/Dbx.php:156
+#: lib/Horde/Compress/Dbx.php:237
 msgid "Invalid file format"
 msgstr "Ungültiges Dateiformat"
 
-#: lib/Horde/Compress/Zip.php:93
+#: lib/Horde/Compress/Zip.php:100
 msgid "This server can't compress zip files."
 msgstr "Dieser Server kann ZIP-Dateien nicht komprimieren."
 
@@ -40,6 +41,6 @@ msgid "This server can't uncompress gzip files."
 msgstr "Dieser Server kann ZIP-Dateien nicht entpacken."
 
 #: lib/Horde/Compress/Gzip.php:49 lib/Horde/Compress/Gzip.php:79
-#: lib/Horde/Compress/Tar.php:74
+#: lib/Horde/Compress/Tar.php:76
 msgid "Unable to decompress data."
 msgstr "Die Daten konnten nicht dekomprimiert werden."

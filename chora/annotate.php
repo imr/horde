@@ -1,20 +1,20 @@
 <?php
 /**
- * Copyright 2000-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2000-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Anil Madhavapeddy <avsm@horde.org>
  * @package Chora
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('chora');
 
 /* Spawn the file object. */
 try {
-    $fl = $VC->getFileObject($where);
+    $fl = $VC->getFile($where);
 } catch (Horde_Vcs_Exception $e) {
     Chora::fatal($e);
 }
@@ -27,11 +27,11 @@ if (!$rev || !$VC->isValidRevision($rev)) {
 
 switch (Horde_Util::getFormData('actionID')) {
 case 'log':
-    $log = $fl->queryLogs($rev);
+    $log = $fl->getLog($rev);
     if (!is_null($log)) {
-        echo '<em>' . _("Author") . ':</em> ' . Chora::showAuthorName($log->queryAuthor(), true) . '<br />' .
-            '<em>' . _("Date") . ':</em> ' . Chora::formatDate($log->queryDate()) . '<br /><br />' .
-            Chora::formatLogMessage($log->queryLog());
+        echo '<em>' . _("Author") . ':</em> ' . Chora::showAuthorName($log->getAuthor(), true) . '<br />' .
+            '<em>' . _("Date") . ':</em> ' . Chora::formatDate($log->getDate()) . '<br /><br />' .
+            Chora::formatLogMessage($log->getMessage());
     }
     exit;
 }
@@ -47,13 +47,17 @@ $extraLink = sprintf('<a href="%s">%s</a> | <a href="%s">%s</a>',
                      Chora::url('co', $where, array('r' => $rev)), _("View"),
                      Chora::url('co', $where, array('r' => $rev, 'p' => 1)), _("Download"));
 
-Horde::addScriptFile('annotate.js', 'chora');
-Horde::addInlineJsVars(array('var Chora' => array(
-    'ANNOTATE_URL' => (string)Horde::url('annotate.php', true)->add(array('actionID' => 'log', 'f' => $where, 'rev' => '')),
-    'loading_text' => _("Loading...")
-)));
+$page_output->addScriptFile('annotate.js');
+$page_output->addInlineJsVars(array(
+    'var Chora' => array(
+        'ANNOTATE_URL' => (string)Horde::url('annotate.php', true)->add(array('actionID' => 'log', 'f' => $where, 'rev' => '')),
+        'loading_text' => _("Loading...")
+    )
+));
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 require CHORA_TEMPLATES . '/menu.inc';
 require CHORA_TEMPLATES . '/headerbar.inc';
 require CHORA_TEMPLATES . '/annotate/header.inc';
@@ -69,11 +73,11 @@ while (list(,$line) = each($lines)) {
     if ($prevRev != $rev) {
         $style = (++$style % 2);
     }
-    $prev = $fl->queryPreviousRevision($rev);
+    $prev = $fl->getPreviousRevision($rev);
 
     $line = $GLOBALS['injector']->getInstance('Horde_Core_Factory_TextFilter')->filter($line['line'], 'space2html', array('encode' => true, 'encode_all' => true));
     include CHORA_TEMPLATES . '/annotate/line.inc';
 }
 
 require CHORA_TEMPLATES . '/annotate/footer.inc';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

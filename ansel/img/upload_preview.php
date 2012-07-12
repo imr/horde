@@ -1,14 +1,14 @@
 <?php
 /**
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('ansel');
 try {
     $gallery = $GLOBALS['injector']->getInstance('Ansel_Storage')->getGallery((int)Horde_Util::getFormData('gallery'));
@@ -28,7 +28,10 @@ $style->height = 115;
 $from = (int)Horde_Util::getFormData('from');
 $to = (int)Horde_Util::getFormData('to');
 $count = $to - $from + 1;
+$old_mode = $gallery->get('view_mode');
+$gallery->set('view_mode', 'Normal');
 $images = $gallery->getImages($from, $count);
+$gallery->set('view_mode', $old_mode);
 foreach ($images as $image) {
     echo  '<li>';
     echo '<div>';

@@ -4,15 +4,15 @@
  * the Horde authentication system.
  *
  * Copyright 1997-2007 Rasmus Lerdorf <rasmus@php.net>
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you did
- * not receive this file, see http://opensource.org/licenses/lgpl-2.1.php
+ * not receive this file, http://www.horde.org/licenses/lgpl21
  *
  * @author   Rasmus Lerdorf <rasmus@php.net>
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @category Horde
- * @license  http://opensource.org/licenses/lgpl-2.1.php LGPL
+ * @license http://www.horde.org/licenses/lgpl21 LGPL-2.1
  * @package  Auth
  */
 class Horde_Auth_Passwd extends Horde_Auth_Base
@@ -165,7 +165,7 @@ class Horde_Auth_Passwd extends Horde_Auth_Base
         }
 
         if ($this->_params['lock']) {
-            $this->_fplock = fopen(Horde_Util::getTempDir() . '/passwd.lock', 'w');
+            $this->_fplock = fopen(sys_get_temp_dir() . '/passwd.lock', 'w');
             flock($this->_fplock, LOCK_EX);
             $this->_locked = true;
         }
@@ -177,7 +177,7 @@ class Horde_Auth_Passwd extends Horde_Auth_Base
 
         $this->_users = array();
         while (!feof($fp)) {
-            $line = trim(fgets($fp, 128));
+            $line = trim(fgets($fp, 256));
             if (empty($line)) {
                 continue;
             }
@@ -287,21 +287,20 @@ class Horde_Auth_Passwd extends Horde_Auth_Base
      * @return array  The array of userIds.
      * @throws Horde_Auth_Exception
      */
-    public function listUsers()
+    public function listUsers($sort = false)
     {
         $this->_read();
 
         $users = array_keys($this->_users);
         if (empty($this->_params['required_groups'])) {
-            return $users;
+            return $this->_sort($users, $sort);
         }
 
         $groupUsers = array();
         foreach ($this->_params['required_groups'] as $group) {
             $groupUsers = array_merge($groupUsers, array_intersect($users, array_keys($this->_groups[$group])));
         }
-
-        return $groupUsers;
+        return $this->_sort($groupUsers, $sort);
     }
 
     /**

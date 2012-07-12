@@ -11,15 +11,15 @@
  * width - (integer) The wrapping width. Set to 0 to not wrap.
  * </pre>
  *
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Jan Schneider <jan@horde.org>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Text_Filter
  */
 class Horde_Text_Filter_Html2text extends Horde_Text_Filter_Base
@@ -188,6 +188,7 @@ class Horde_Text_Filter_Html2text extends Horde_Text_Filter_Base
 
                     case 'ol':
                     case 'ul':
+                    case 'dl':
                         ++$this->_indent;
                         $out .= "\n\n" . $this->_node($doc, $child) . "\n\n";
                         --$this->_indent;
@@ -218,6 +219,8 @@ class Horde_Text_Filter_Html2text extends Horde_Text_Filter_Base
                         break;
 
                     case 'li':
+                    case 'dd':
+                    case 'dt':
                         $out .= "\n" . str_repeat('  ', $this->_indent) . '* ' . $this->_node($doc, $child);
                         break;
 

@@ -3,14 +3,14 @@
  * The Horde_LoginTasks_Tasklist:: class is used to store the list of
  * login tasks that need to be run during this login.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  LoginTasks
  */
 class Horde_LoginTasks_Tasklist
@@ -89,12 +89,12 @@ class Horde_LoginTasks_Tasklist
      */
     public function ready($advance = false)
     {
-        $tmp = array();
+        $stasks = $tasks = array();
 
         /* Always loop through system tasks first. */
         foreach ($this->_stasks as $key => $val) {
             if (!$val->skip()) {
-                $tmp[] = $val;
+                $stasks[] = $val;
                 unset($this->_stasks[$key]);
             }
         }
@@ -104,15 +104,15 @@ class Horde_LoginTasks_Tasklist
             if ($v->needsDisplay() && ($k >= $this->_ptr)) {
                 break;
             }
-            $tmp[] = $v;
+            $tasks[] = $v;
         }
 
         if ($advance) {
-            $this->_tasks = array_slice($this->_tasks, count($tmp));
+            $this->_tasks = array_slice($this->_tasks, count($tasks));
             $this->_ptr = 0;
         }
 
-        return $tmp;
+        return array_merge($stasks, $tasks);
     }
 
     /**

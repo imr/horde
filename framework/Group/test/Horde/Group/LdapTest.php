@@ -2,15 +2,16 @@
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/Base.php';
+require_once __DIR__ . '/Base.php';
 
 /**
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
+ *
  * @author     Jan Schneider <jan@horde.org>
  * @category   Horde
  * @package    Group
  * @subpackage UnitTests
- * @copyright  2011 The Horde Project (http://www.horde.org/)
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  */
 class Horde_Group_LdapTest extends Horde_Group_Test_Base
 {
@@ -86,6 +87,14 @@ class Horde_Group_LdapTest extends Horde_Group_Test_Base
     }
 
     /**
+     * @depends testAddUser
+     */
+    public function testListAllWithMember()
+    {
+        $this->_listAllWithMember();
+    }
+
+    /**
      * @depends testListGroups
      */
     public function testRemoveUser()
@@ -125,7 +134,7 @@ class Horde_Group_LdapTest extends Horde_Group_Test_Base
     public static function tearDownAfterClass()
     {
         $config = self::getConfig('GROUP_LDAP_TEST_CONFIG');
-        if ($config && !empty($config['group']['ldap'])) {
+        if (self::$ldap) {
             $possibleids = array('My Group', 'My Other Group', 'My Second Group', 'Not My Group');
             self::$ldap->bind($config['group']['ldap']['writedn'],
                               $config['group']['ldap']['writepw']);

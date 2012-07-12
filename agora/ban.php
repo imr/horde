@@ -2,18 +2,18 @@
 /**
  * The Agora script ban users from a specific forum.
  *
- * Copyright 2006-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2006-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('agora');
 
 /* Make sure we have a forum id. */
 list($forum_id, , $scope) = Agora::getAgoraId();
-$forums = &Agora_Messages::singleton($scope, $forum_id);
+$forums = $injector->getInstance('Agora_Factory_Driver')->create($scope, $forum_id);
 if ($forums instanceof PEAR_Error) {
     $notification->push($forums->message, 'horde.error');
     Horde::url('forums.php', true)->redirect();
@@ -33,7 +33,7 @@ if (($action = Horde_Util::getFormData('action')) !== null) {
         $notification->push($result->getMessage(), 'horde.error');
     }
 
-    $url = Agora::setAgoraId($forum_id, null, Horde::url('ban.php'), $scope);
+    $url = Agora::setAgoraId($forum_id, null, Horde::url('ban.php', true), $scope);
     header('Location: ' . $url);
     exit;
 }
@@ -61,7 +61,7 @@ $view = new Agora_View();
 $view->menu = Horde::menu();
 
 Horde::startBuffer();
-$form->renderActive(null, null, 'ban.php', 'post');
+$form->renderActive(null, null, Horde::url('ban.php'), 'post');
 $view->formbox = Horde::endBuffer();
 
 Horde::startBuffer();
@@ -71,6 +71,8 @@ $view->notify = Horde::endBuffer();
 $view->banned = $banned;
 $view->forum = $forums->getForum();
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
-echo $view->render('ban.html.php');
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->header(array(
+    'title' => $title
+));
+echo $view->render('ban');
+$page_output->footer();

@@ -3,14 +3,14 @@
  * THis class provices a place to share common code relating to IMP's
  * setup and configuration of the browser HTML editor.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Ui_Editor
@@ -24,7 +24,7 @@ class IMP_Ui_Editor
      */
     static public function init($basic = false, $id = null)
     {
-        global $injector, $language, $prefs;
+        global $injector, $page_output, $language, $prefs;
 
         $injector->getInstance('Horde_Editor')->initialize(array(
             'basic' => $basic,
@@ -79,7 +79,7 @@ class IMP_Ui_Editor
             $config[] = 'toolbar: ' . $prefs->getValue('ckeditor_buttons');
         }
 
-        Horde::addInlineScript(array(
+        $page_output->addInlineScript(array(
             'window.IMP = window.IMP || {}',
             'IMP.ckeditor_config = {' . implode(',', $config) . '}'
         ));

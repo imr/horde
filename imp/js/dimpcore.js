@@ -1,140 +1,55 @@
 /**
  * dimpcore.js - Dimp UI application logic.
  *
- * Copyright 2005-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2005-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
 /* DimpCore object. */
 var DimpCore = {
+
     // Vars used and defaulting to null/false:
-    //   DMenu, Growler, inAjaxCallback, is_init, is_logout
-    //   onDoActionComplete
-    alarms: {},
-    base: null,
-    growler_log: true,
-    server_error: 0,
+    //   DMenu
 
-    doActionOpts: {
-        onException: function(r, e) { DimpCore.debug('onException', e); },
-        onFailure: function(t, o) {
-            DimpCore.debug('onFailure', t);
-            DimpCore.showNotifications([ { type: 'horde.error', message: DIMP.text.ajax_error } ]);
-        },
-        evalJS: false,
-        evalJSON: true
-    },
+    conf: {},
+    context: {},
+    text: {},
 
-    debug: function(label, e)
-    {
-        if (!this.is_logout && window.console && window.console.error) {
-            window.console.error(label, Prototype.Browser.Gecko ? e : $H(e).inspect());
-        }
-    },
+    // Wrapper methods around HordeCore functions.
 
-    // Convert object to an IMP UID Range string. See IMP::toRangeString()
-    // ob = (object) mailbox name as keys, values are array of uids.
-    toRangeString: function(ob)
-    {
-        var str = '';
-
-        $H(ob).each(function(o) {
-            if (!o.value.size()) {
-                return;
-            }
-
-            var u = (DIMP.conf.pop3 ? o.value : o.value.numericSort()),
-                first = u.shift(),
-                last = first,
-                out = [];
-
-            u.each(function(k) {
-                if (!DIMP.conf.pop3 && (last + 1 == k)) {
-                    last = k;
-                } else {
-                    out.push(first + (last == first ? '' : (':' + last)));
-                    first = last = k;
-                }
-            });
-            out.push(first + (last == first ? '' : (':' + last)));
-            str += '{' + o.key.length + '}' + o.key + out.join(',');
-        });
-
-        return str;
-    },
-
-    // Parses an IMP UID Range string. See IMP::parseRangeString()
-    // str = (string) An IMP UID range string.
-    parseRangeString: function(str)
-    {
-        var count, end, i, mbox, uidstr,
-            mlist = {},
-            uids = [];
-        str = str.strip();
-
-        while (!str.blank()) {
-            if (!str.startsWith('{')) {
-                break;
-            }
-            i = str.indexOf('}');
-            count = Number(str.substr(1, i - 1));
-            mbox = str.substr(i + 1, count);
-            i += count + 1;
-            end = str.indexOf('{', i);
-            if (end == -1) {
-                uidstr = str.substr(i);
-                str = '';
-            } else {
-                uidstr = str.substr(i, end - i);
-                str = str.substr(end);
-            }
-
-            uidstr.split(',').each(function(e) {
-                var r = e.split(':');
-                if (r.size() == 1) {
-                    uids.push(DIMP.conf.pop3 ? e : Number(e));
-                } else {
-                    // POP3 will never exist in range here.
-                    uids = uids.concat($A($R(Number(r[0]), Number(r[1]))));
-                }
-            });
-
-            mlist[mbox] = uids;
-        }
-
-        return mlist;
-    },
-
-    // 'opts' -> ajaxopts, callback, uids
+    // IMP specific 'opts': uids
     doAction: function(action, params, opts)
     {
-        params = $H(params);
-        opts = opts || {};
+        if (opts && opts.uids) {
+            params = $H(params).clone();
+            opts = opts || {};
 
-        var ajaxopts = Object.extend(Object.clone(this.doActionOpts), opts.ajaxopts || {});
-
-        if (opts.uids) {
             if (opts.uids.viewport_selection) {
                 opts.uids = this.selectionToRange(opts.uids);
             }
-            params.set('uid', this.toRangeString(opts.uids));
+
+            params.set('uid', this.toUIDString(opts.uids));
         }
 
-        ajaxopts.parameters = this.addRequestParams(params);
-        ajaxopts.onComplete = function(t, o) { this.doActionComplete(t, opts.callback); }.bind(this);
-
-        new Ajax.Request(DIMP.conf.URI_AJAX + action, ajaxopts);
+        HordeCore.doAction(action, params, opts);
     },
 
-    // 'opts' -> ajaxopts, callback
-    submitForm: function(form, opts)
+    // Dimp specific methods.
+    toUIDString: function(ob, opts)
     {
-        opts = opts || {};
-        var ajaxopts = Object.extend(Object.clone(this.doActionOpts), opts.ajaxopts || {});
-        ajaxopts.onComplete = function(t, o) { this.doActionComplete(t, opts.callback); }.bind(this);
-        $(form).request(ajaxopts);
+        if (DimpCore.conf.pop3) {
+            opts = opts || {};
+            opts.pop3 = 1;
+        }
+
+        return ImpIndices.toUIDString(ob, opts);
+    },
+
+    parseUIDString: function(str)
+    {
+        return ImpIndices.parseUIDString(str, DimpCore.conf.pop3 ? { pop3: 1 } : {});
     },
 
     selectionToRange: function(s)
@@ -143,12 +58,11 @@ var DimpCore = {
             tmp = {};
 
         if (b.getMetaData('search')) {
-            s.get('uid').each(function(r) {
-                var parts = r.split(DIMP.conf.IDX_SEP);
-                if (tmp[parts[0]]) {
-                    tmp[parts[0]].push(parts[1]);
+            s.get('dataob').each(function(r) {
+                if (tmp[r.mbox]) {
+                    tmp[r.mbox].push(r.uid);
                 } else {
-                    tmp[parts[0]] = [ parts[1] ];
+                    tmp[r.mbox] = [ r.uid ];
                 }
             });
         } else {
@@ -158,213 +72,64 @@ var DimpCore = {
         return tmp;
     },
 
-    // params - (Hash)
-    addRequestParams: function(params)
-    {
-        var p = params.clone();
-
-        if (DIMP.conf.SESSION_ID) {
-            p.update(DIMP.conf.SESSION_ID.toQueryParams());
-        }
-
-        return p;
-    },
-
-    doActionComplete: function(request, callback)
-    {
-        this.inAjaxCallback = true;
-
-        if (!request.responseJSON) {
-            if (++this.server_error == 3) {
-                this.showNotifications([ { type: 'horde.error', message: DIMP.text.ajax_timeout } ]);
-            }
-            request.request.options.onFailure(request, {});
-            this.inAjaxCallback = false;
-            return;
-        }
-
-        var r = request.responseJSON;
-
-        if (!r.msgs) {
-            r.msgs = [];
-        }
-
-        if (r.response && Object.isFunction(callback)) {
-            try {
-                callback(r);
-            } catch (e) {
-                this.debug('doActionComplete', e);
-            }
-        }
-
-        if (this.server_error >= 3) {
-            r.msgs.push({ type: 'horde.success', message: DIMP.text.ajax_recover });
-        }
-        this.server_error = 0;
-
-        this.showNotifications(r.msgs);
-
-        if (r.response && this.onDoActionComplete) {
-            this.onDoActionComplete(r.response);
-        }
-
-        this.inAjaxCallback = false;
-    },
-
-    showNotifications: function(msgs)
-    {
-        if (!msgs.size() || this.is_logout) {
-            return;
-        }
-
-        msgs.find(function(m) {
-            if (!Object.isString(m.message)) {
-                return;
-            }
-
-            switch (m.type) {
-            case 'horde.ajaxtimeout':
-                this.logout(m.message);
-                return true;
-
-            case 'horde.alarm':
-                if (!this.alarms[m.flags.alarm.id]) {
-                    this.Growler.growl(m.flags.alarm.title + ': ' + m.flags.alarm.text, {
-                        className: 'horde-alarm',
-                        sticky: 1,
-                        log: 1
-                    });
-                    this.alarms[m.flags.alarm.id] = 1;
-                }
-                break;
-
-            case 'horde.error':
-            case 'horde.message':
-            case 'horde.success':
-            case 'horde.warning':
-                this.Growler.growl(m.message.escapeHTML(), {
-                    className: m.type.replace('.', '-'),
-                    life: (m.type == 'horde.error' ? 12 : 8),
-                    log: 1
-                });
-                break;
-
-            case 'imp.reply':
-            case 'imp.forward':
-            case 'imp.redirect':
-                this.Growler.growl(m.message.escapeHTML(), {
-                    className: m.type.replace('.', '-'),
-                    life: 8
-                });
-                break;
-            }
-        }, this);
-    },
-
+    // args: params, uids
     compose: function(type, args)
     {
-        var params = {};
+        args = args || {};
+        if (!args.params) {
+            args.params = {};
+        }
         if (type) {
-            params.type = type;
+            args.params.type = type;
         }
 
-        if (type.startsWith('forward') || !args || !args.uids) {
+        if (type.startsWith('forward') || !args.uids) {
             if (type.startsWith('forward')) {
-                params.uids = this.toRangeString(this.selectionToRange(args.uids));
-            } else if (args && args.to) {
-                params.to = args.to;
+                args.params.uids = this.toUIDString(this.selectionToRange(args.uids));
             }
-            this.popupWindow(this.addURLParam(DIMP.conf.URI_COMPOSE, params), 'compose' + new Date().getTime());
+            HordeCore.popupWindow(DimpCore.conf.URI_COMPOSE, args.params, {
+                name: 'compose' + new Date().getTime()
+            });
         } else {
             args.uids.get('dataob').each(function(d) {
-                params.folder = d.view;
-                params.uid = d.imapuid;
-                this.popupWindow(this.addURLParam(DIMP.conf.URI_COMPOSE, params), 'compose' + new Date().getTime());
+                args.params.mailbox = d.mbox;
+                args.params.uid = d.uid;
+                HordeCore.popupWindow(DimpCore.conf.URI_COMPOSE, args.params, {
+                    name: 'compose' + new Date().getTime()
+                });
             }, this);
-        }
-    },
-
-    popupWindow: function(url, name, onload)
-    {
-        var opts = {
-            height: DIMP.conf.popup_height,
-            name: name.gsub(/\W/, '_'),
-            noalert: true,
-            onload: onload,
-            url: url,
-            width: DIMP.conf.popup_width
-        };
-
-        if (!Horde.popup(opts)) {
-            this.showNotifications([ { type: 'horde.warning', message: DIMP.text.popup_block } ]);
-        }
-    },
-
-    closePopup: function()
-    {
-        // Mozilla bug/feature: it will not close a browser window
-        // automatically if there is code remaining to be performed (or, at
-        // least, not here) unless the mouse is moved or a keyboard event
-        // is triggered after the callback is complete. (As of FF 2.0.0.3 and
-        // 1.5.0.11).  So wait for the callback to complete before attempting
-        // to close the window.
-        if (this.inAjaxCallback) {
-            this.closePopup.bind(this).defer();
-        } else {
-            window.close();
-        }
-    },
-
-    logout: function(url)
-    {
-        this.is_logout = true;
-        this.redirect(url || (DIMP.conf.URI_AJAX + 'logOut'));
-    },
-
-    // url = (string) URL to redirect to
-    redirect: function(url)
-    {
-        window.location.assign(this.addURLParam(url));
-    },
-
-    loadingImg: function(elt, id, show)
-    {
-        elt = $(elt);
-
-        if (show) {
-            elt.clonePosition(id, { setHeight: false, setLeft: false, setWidth: false }).show();
-        } else {
-            elt.fade({ duration: 0.2 });
         }
     },
 
     toggleButtons: function(elts, disable)
     {
         elts.each(function(b) {
-            var tmp;
             [ b.up() ].invoke(disable ? 'addClassName' : 'removeClassName', 'disabled');
-            if (this.DMenu &&
-                (tmp = b.next('.popdown'))) {
-                this.DMenu.disable(tmp.identify(), true, disable);
-            }
-        }, this);
+        });
     },
 
     // p = (Element) Parent element
     // t = (string) Context menu type
-    // trigger = (boolean) Trigger popdown on button click?
-    // d = (boolean) Disabled?
-    addPopdown: function(p, t, trigger, d)
+    // o = (object) Options:
+    //   - disabled: (boolean) Disabled?
+    //   - insert: (string) Insertion position.
+    //   - trigger: (boolean) Trigger popdown on button click?
+    addPopdown: function(p, t, o)
     {
-        var elt = new Element('SPAN', { className: 'iconImg popdownImg popdown' });
+        o = o || {};
+
+        //var elt = new Element('SPAN', { className: 'iconImg popdownImg popdown' }),
+        var elt = new Element('DIV', { className: 'horde-subnavi-arrow horde-icon-arrow-subnavi' }),
+            ins = {};
         p = $(p);
 
-        p.insert({ after: elt });
+        ins[o.insert ? o.insert : 'after'] = elt;
+        p.insert(ins);
 
-        if (trigger) {
+        if (o.trigger) {
             this.addContextMenu({
-                disable: d,
-                id: p.identify(),
+                disable: o.disabled,
+                elt: p,
                 left: true,
                 offset: p.up(),
                 type: t
@@ -372,57 +137,77 @@ var DimpCore = {
         }
 
         this.addContextMenu({
-            disable: d,
-            id: elt.identify(),
+            disable: o.disabled,
+            elt: elt,
             left: true,
             offset: elt.up(),
             type: t
         });
+    },
 
-        return elt;
+    // See addPopdown() for documentation
+    addPopdownButton: function(p, t, o)
+    {
+        this.addPopdown(p, t, o);
+        //$(p).next('SPAN.popdown').insert({ before: new Element('SPAN', { className: 'popdownSep' }) });
     },
 
     addContextMenu: function(p)
     {
         if (this.DMenu) {
-            this.DMenu.addElement(p.id, 'ctx_' + p.type, p);
+            this.DMenu.addElement(p.elt.identify(), 'ctx_' + p.type, p);
         }
     },
 
     /* Add dropdown menus to addresses. */
-    buildAddressLinks: function(alist, elt)
+    buildAddressLinks: function(alist, elt, limit)
     {
         var base, tmp,
-            cnt = alist.size();
+            df = document.createDocumentFragment();
 
-        if (cnt > 15) {
-            tmp = $('largeaddrspan').clone(true).writeAttribute('id', 'largeaddrspan_active');
+        if (alist.raw) {
+            elt.insert(alist.raw);
+            return elt;
+        }
+
+        alist.addr.each(function(o) {
+            var a = new Element('A', { className: 'address' }).store({ email: o });
+            df.appendChild(a);
+            df.appendChild(document.createTextNode(', '));
+
+            if (o.g) {
+                a.insert(o.g.escapeHTML());
+            } else if (o.p) {
+                a.writeAttribute({ title: o.b }).insert(o.p.escapeHTML());
+            } else if (o.b) {
+                a.insert(o.b.escapeHTML());
+            }
+
+            this.DMenu.addElement(a.identify(), 'ctx_contacts', { offset: a, left: true });
+        }, this);
+
+        // Remove trailing comma
+        df.removeChild(df.lastChild);
+
+        if (alist.addr.size() > 15) {
+            tmp = $('largeaddrspan').clone(true).addClassName('largeaddrspan_active');
             elt.insert(tmp);
             base = tmp.down('.dispaddrlist');
             tmp = tmp.down('.largeaddrlist');
-            tmp.setText(tmp.getText().replace('%d', cnt));
+            if (limit && alist.limit) {
+                base.down('.largeaddrlistlimit').show();
+                tmp.setText(tmp.textContent.replace('%d', alist.limit));
+            } else {
+                tmp.setText(tmp.textContent.replace('%d', alist.addr.size()));
+            }
         } else {
             base = elt;
         }
 
-        alist.each(function(o, i) {
-            var a;
-            if (o.raw) {
-                a = o.raw;
-            } else {
-                a = new Element('A', { className: 'address' }).store({ personal: o.personal, email: o.inner, address: (o.personal ? (o.personal + ' <' + o.inner + '>') : o.inner) });
-                if (o.personal) {
-                    a.writeAttribute({ title: o.inner }).insert(o.personal.escapeHTML());
-                } else {
-                    a.insert(o.inner.escapeHTML());
-                }
-                this.DMenu.addElement(a.identify(), 'ctx_contacts', { offset: a, left: true });
-            }
-            base.insert(a);
-            if (i + 1 != cnt) {
-                base.insert(', ');
-            }
-        }, this);
+        base.appendChild(df);
+        if (limit && alist.limit) {
+            base.insert(', [...]');
+        }
 
         return elt;
     },
@@ -430,91 +215,94 @@ var DimpCore = {
     /* Add message log info to message view. */
     updateMsgLog: function(log)
     {
-        var tmp = '';
-        log.each(function(entry) {
-            tmp += '<li><span class="iconImg imp-' + entry.t + '"></span>' + entry.m + '</li>';
-        });
-        $('msgloglist').down('UL').update(tmp);
-    },
+        var df, tmp;
 
-    /* Removes event handlers from address links. */
-    removeAddressLinks: function(id)
-    {
-        id.select('.address').each(function(elt) {
-            this.DMenu.removeElement(elt.identify());
-        }, this);
-    },
+        if (log) {
+            df = document.createDocumentFragment();
+            log.each(function(entry) {
+                df.appendChild(new Element('LI').insert(new Element('SPAN', { className: 'iconImg imp-' + entry.t })).insert(entry.m));
+            });
 
-    addURLParam: function(url, params)
-    {
-        var q = url.indexOf('?');
-        params = $H(params);
+            tmp = $('msgloglist').down('UL');
+            tmp.childElements().invoke('remove');
+            tmp.appendChild(df);
 
-        if (DIMP.conf.SESSION_ID) {
-            params.update(DIMP.conf.SESSION_ID.toQueryParams());
+            $('msgLogInfo').show();
+        } else {
+            $('msgLogInfo').hide();
         }
-
-        if (q != -1) {
-            params.update(url.toQueryParams());
-            url = url.substring(0, q);
-        }
-
-        return params.size() ? (url + '?' + params.toQueryString()) : url;
     },
 
+    // Abstract: define in any pages that need reloadMessage().
     reloadMessage: function(params)
     {
-        if (typeof DimpMessage != 'undefined') {
-            window.location = this.addURLParam(document.location.href, params);
-        } else {
-            DimpBase.loadPreview(null, params);
+    },
+
+    toggleCheck: function(elt, on)
+    {
+        if (on === null) {
+            elt.hide();
+            return;
         }
+
+        var a, r;
+
+        if (on) {
+            a = 'msCheckOn';
+            r = 'msCheck';
+        } else {
+            a = 'msCheck';
+            r = 'msCheckOn';
+        }
+
+        elt.removeClassName(r).addClassName(a).show();
     },
 
     /* Mouse click handler. */
     clickHandler: function(e)
     {
-        if (e.isRightClick()) {
-            return;
-        }
+        var elt = e.element(), tmp;
 
-        var elt = e.element(), id, tmp;
-
-        while (Object.isElement(elt)) {
-            id = elt.readAttribute('id');
-
-            switch (id) {
-            case 'largeaddrspan_active':
+        if (elt.hasClassName('unblockImageLink')) {
+            IMP_JS.unblockImages(e.memo);
+        } else if (elt.hasClassName('largeaddrspan_active') &&
+                   !e.memo.element().hasClassName('address')) {
+            if (e.memo.element().hasClassName('largeaddrlistlimit')) {
+                e.memo.element().hide();
+                elt.up('TD').fire('DimpCore:updateAddressHeader');
+            } else {
                 tmp = elt.down();
-                if (!tmp.next().visible() ||
-                    e.element().hasClassName('largeaddrlist')) {
-                    [ tmp.down(), tmp.down(1), tmp.next() ].invoke('toggle');
-                }
-                break;
-
-            default:
-                // CSS class based matching
-                if (elt.hasClassName('unblockImageLink')) {
-                    IMP.unblockImages(e);
-                } else if (elt.hasClassName('toggleQuoteShow')) {
-                    [ elt, elt.next() ].invoke('toggle');
-                    elt.next(1).blindDown({ duration: 0.2, queue: { position: 'end', scope: 'showquote', limit: 2 } });
-                } else if (elt.hasClassName('toggleQuoteHide')) {
-                    [ elt, elt.previous() ].invoke('toggle');
-                    elt.next().blindUp({ duration: 0.2, queue: { position: 'end', scope: 'showquote', limit: 2 } });
-                } else if (elt.hasClassName('pgpVerifyMsg')) {
-                    elt.replace(DIMP.text.verify);
-                    DimpCore.reloadMessage({ pgp_verify_msg: 1 });
-                    e.stop();
-                } else if (elt.hasClassName('smimeVerifyMsg')) {
-                    elt.replace(DIMP.text.verify);
-                    DimpCore.reloadMessage({ smime_verify_msg: 1 });
-                    e.stop();
-                }
-                break;
+                [ tmp.down(), tmp.down(1), tmp.next() ].invoke('toggle');
             }
+        } else if (elt.hasClassName('pgpVerifyMsg')) {
+            elt.replace(DimpCore.text.verify);
+            DimpCore.reloadMessage({ pgp_verify_msg: 1 });
+            e.memo.stop();
+        } else if (elt.hasClassName('smimeVerifyMsg')) {
+            elt.replace(DimpCore.text.verify);
+            DimpCore.reloadMessage({ smime_verify_msg: 1 });
+            e.memo.stop();
+        }
+    },
 
-            elt = elt.up();
+    contextOnClick: function(e)
+    {
+        var baseelt = e.element();
+
+        switch (e.memo.elt.readAttribute('id')) {
+        case 'ctx_contacts_new':
+            this.compose('new', {
+                params: {
+                    to_json: Object.toJSON(baseelt.retrieve('email'))
+                }
+            });
+            break;
+
+        case 'ctx_contacts_add':
+            this.doAction('addContact', {
+                addr: Object.toJSON(baseelt.retrieve('email'))
+            });
+            break;
         }
     },
 
@@ -532,85 +320,114 @@ var DimpCore = {
 
             // Add e-mail info to context menu if personal name is shown on
             // page.
-            if (e.element().retrieve('personal')) {
+            if ((tmp = e.element().retrieve('email')) && !tmp.g && tmp.p) {
                 $(e.memo)
                     .insert({ top: new Element('DIV', { className: 'sep' }) })
-                    .insert({ top: new Element('DIV', { className: 'contactAddr' }).insert(e.element().retrieve('email').escapeHTML()) });
+                    .insert({ top: new Element('DIV', { className: 'contactAddr' }).insert(tmp.b.escapeHTML()) });
             }
             break;
         }
     },
 
-    contextOnClick: function(e)
+    contextOnTrigger: function(e)
     {
-        var baseelt = e.element();
-
-        switch (e.memo.elt.readAttribute('id')) {
-        case 'ctx_contacts_new':
-            this.compose('new', { to: baseelt.retrieve('address') });
-            break;
-
-        case 'ctx_contacts_add':
-            this.doAction('addContact', { name: baseelt.retrieve('personal'), email: baseelt.retrieve('email') }, {}, true);
-            break;
+        if (!DimpCore.context[e.memo]) {
+            return;
         }
+
+        var div = new Element('DIV', { className: 'context', id: e.memo }).hide();
+
+        if (!Object.isArray(DimpCore.context[e.memo])) {
+            $H(DimpCore.context[e.memo]).each(function(pair) {
+                div.insert(this._contextOnTrigger(pair, e.memo));
+            }, this);
+        }
+
+        $(document.body).insert(div);
+    },
+
+    _contextOnTrigger: function(pair, ctx)
+    {
+        var elt;
+
+        if (pair.key.startsWith('_sep')) {
+            return new Element('DIV', { className: 'sep' });
+        }
+        if (pair.key.startsWith('_mbox')) {
+            return new Element('DIV', { className: 'mboxName' }).insert(pair.value.escapeHTML());
+        }
+        if (pair.key.startsWith('_sub')) {
+            var elt = new Element('DIV').hide();
+            $H(pair.value).each(function(v) {
+                elt.insert(this._contextOnTrigger(v, ctx));
+            }, this);
+            return elt;
+        }
+
+        elt = new Element('A');
+        if (pair.key.startsWith('*')) {
+            pair.key = pair.key.substring(1);
+        } else {
+            elt.insert(new Element('SPAN', { className: 'iconImg' }));
+        }
+        elt.writeAttribute('id', ctx + '_' + pair.key);
+        elt.insert(pair.value.escapeHTML());
+
+        return elt;
     },
 
     /* DIMP initialization function. */
-    init: function()
+    onDomLoad: function()
     {
-        if (this.is_init) {
-            return;
-        }
-        this.is_init = true;
+        HordeCore.initHandler('click');
 
         if (typeof ContextSensitive != 'undefined') {
             this.DMenu = new ContextSensitive();
-            document.observe('ContextSensitive:click', this.contextOnClick.bindAsEventListener(this));
-            document.observe('ContextSensitive:show', this.contextOnShow.bindAsEventListener(this));
         }
-
-        /* Add Growler notification handler. */
-        this.Growler = new Growler({
-            location: 'br',
-            log: this.growler_log,
-            noalerts: DIMP.text.noalerts,
-            info: DIMP.text.growlerinfo
-        });
-
-        if (this.growler_log) {
-            this.Growler.growlerlog.observe('Growler:toggled', function(e) {
-                $('alertsloglink')
-                    .down('A')
-                    .update(e.memo.visible ? DIMP.text.hidealog : DIMP.text.showalog);
-            }.bindAsEventListener(this));
-        }
-
-        /* Add click handler. */
-        document.observe('click', DimpCore.clickHandler.bindAsEventListener(DimpCore));
-
-        /* Catch dialog actions. */
-        document.observe('IMPDialog:success', function(e) {
-            switch (e.memo) {
-            case 'pgpPersonal':
-            case 'pgpSymmetric':
-            case 'smimePersonal':
-                IMPDialog.noreload = true;
-                this.reloadMessage({});
-                break;
-            }
-        }.bindAsEventListener(this));
-
-        /* Determine base window. Need a try/catch block here since, if the
-         * page was loaded by an opener out of this current domain, this will
-         * throw an exception. */
-        try {
-            if (parent.opener &&
-                parent.opener.location.host == window.location.host &&
-                parent.opener.DimpCore) {
-                this.base = parent.opener.DimpCore.base || parent.opener;
-            }
-        } catch (e) {}
     }
 
 };
+
+/* Initialize onload handler. */
+document.observe('dom:loaded', DimpCore.onDomLoad.bind(DimpCore));
+
+/* Browser native events. */
+document.observe('HordeCore:click', DimpCore.clickHandler.bindAsEventListener(DimpCore));
+
+/* ContextSensitive events. */
+document.observe('ContextSensitive:click', DimpCore.contextOnClick.bindAsEventListener(DimpCore));
+document.observe('ContextSensitive:show', DimpCore.contextOnShow.bindAsEventListener(DimpCore));
+document.observe('ContextSensitive:trigger', DimpCore.contextOnTrigger.bindAsEventListener(DimpCore));
+
+/* Dialog events. */
+document.observe('ImpPassphraseDialog:success', DimpCore.reloadMessage.bind(DimpCore, {}));
+
+/* Notification events. */
+document.observe('HordeCore:showNotifications', function(e) {
+    switch (e.memo.type) {
+    case 'imp.reply':
+    case 'imp.forward':
+    case 'imp.redirect':
+        HordeBase.Growler.growl(m.message.escapeHTML(), {
+            className: m.type.replace('.', '-'),
+            life: 8
+        });
+        break;
+    }
+});
+
+/* Catch image blocking actions. Put method call in function so that pages
+ * don't load IMP_JS (i.e. compose page) won't break. */
+document.observe('IMP_Ajax_Imple_ImageUnblock:do', function(e) {
+    IMP_JS.unblockImages(e);
+});
+
+/* Disable text selection for everything but compose/message body and FORM
+ * inputs. */
+document.observe(Prototype.Browser.IE ? 'selectstart' : 'mousedown', function(e) {
+    if (!e.element().up('.messageBody') &&
+        !e.element().match('TEXTAREA') &&
+        !e.element().match('INPUT')) {
+        e.stop();
+    }
+});

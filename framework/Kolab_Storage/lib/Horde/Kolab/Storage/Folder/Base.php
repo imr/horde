@@ -8,7 +8,7 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
@@ -16,10 +16,10 @@
  * The Kolab_Folder class represents an single folder in the Kolab
  * backend.
  *
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Stuart Binge <omicron@mighty.co.za>
  * @author  Gunnar Wrobel <wrobel@pardus.de>
@@ -57,9 +57,8 @@ implements Horde_Kolab_Storage_Folder
      *                                       folders.
      * @param string                   $path Path of the folder.
      */
-    public function __construct(
-        Horde_Kolab_Storage_List $list, $path
-    ) {
+    public function __construct(Horde_Kolab_Storage_List $list, $path)
+    {
         $this->_list = $list;
         $this->_path = $path;
     }
@@ -120,13 +119,25 @@ implements Horde_Kolab_Storage_Folder
     }
 
     /**
-     * Return the namespace of the folder.
+     * Return the namespace type of the folder.
      *
-     * @return string The namespace of the folder.
+     * @return string The namespace type of the folder.
      */
     public function getNamespace()
     {
         return $this->get('namespace');
+    }
+
+    /**
+     * Return the namespace prefix of the folder.
+     *
+     * @since Horde_Kolab_Storage 1.1.0
+     *
+     * @return string The namespace prefix of the folder.
+     */
+    public function getPrefix()
+    {
+        return $this->get('prefix');
     }
 
     /**
@@ -184,7 +195,7 @@ implements Horde_Kolab_Storage_Folder
      *
      * @return string The folder type.
      */
-    function getType()
+    public function getType()
     {
         return $this->get('type');
     }
@@ -230,14 +241,14 @@ implements Horde_Kolab_Storage_Folder
      *
      * @var array
      */
-    var $_attributes;
+    private $_attributes;
 
     /**
      * Additional Kolab folder attributes.
      *
      * @var array
      */
-    var $_kolab_attributes;
+    private $_kolab_attributes;
 
     /**
      * The permission handler for the folder.

@@ -2,10 +2,10 @@
 /**
  * Horde_Service_Twitter_Statuses class for updating, retrieving user statuses.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * @author Michael J. Rubinsky <mrubinsk@horde.org>
- * @license  http://opensource.org/licenses/bsd-license.php BSD
+ * @license  http://www.horde.org/licenses/bsd BSD
  * @category Horde
  * @package Service_Twitter
  */
@@ -16,7 +16,7 @@ class Horde_Service_Twitter_Statuses
      *
      * @var string
      */
-    private $_endpoint = 'http://api.twitter.com/1/statuses/';
+    private $_endpoint = 'https://api.twitter.com/1/statuses/';
 
     /**
      * Format to use json or xml
@@ -26,9 +26,9 @@ class Horde_Service_Twitter_Statuses
     private $_format = 'json';
 
     /**
-     * Const'r
+     * Constructor
      *
-     * @param Horde_Service_Twiiter $twitter
+     * @param Horde_Service_Twitter $twitter
      */
     public function __construct($twitter)
     {
@@ -38,7 +38,7 @@ class Horde_Service_Twitter_Statuses
     /**
      * Obtain the requested status
      *
-     * @return mixed  The method call results.
+     * @return string  The method call results.
      */
     public function show($id)
     {
@@ -200,6 +200,8 @@ class Horde_Service_Twitter_Statuses
      * Returns the original tweet with retweet details embedded.
      *
      * @params string id  The id for the tweet that is being retweeted.
+     *
+     * @return string
      */
     public function retweet($id)
     {
@@ -241,7 +243,8 @@ class Horde_Service_Twitter_Statuses
      *     count      - Only return this many tweets (twitter limit = 200)
      *     page       - The page number to return (note there are pagination limits)
      *   </pre>
-     * @return unknown_type
+     *
+     * @return string
      */
     public function userTimeline($params = array())
     {
@@ -262,7 +265,8 @@ class Horde_Service_Twitter_Statuses
      *     count      - Only return this many tweets (twitter limit = 200)
      *     page       - The page number to return (note there are pagination limits)
      *   </pre>
-     * @return unknown_type
+     *
+     * @return string
      */
     public function mentions($params = array())
     {

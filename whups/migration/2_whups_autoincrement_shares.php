@@ -2,7 +2,7 @@
 /**
  * Change columns to autoincrement.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://www.horde.org/licenses/bsdl.php.
@@ -19,7 +19,7 @@ class WhupsAutoIncrementShares extends Horde_Db_Migration_Base
      */
     public function up()
     {
-        $this->changeColumn('whups_shares', 'share_id', 'primaryKey');
+        $this->changeColumn('whups_shares', 'share_id', 'autoincrementKey');
         try {
             $this->dropTable('whups_shares_seq');
         } catch (Horde_Db_Exception $e) {

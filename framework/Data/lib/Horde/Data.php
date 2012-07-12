@@ -3,10 +3,10 @@
  * Abstract class to handle different kinds of Data formats and to
  * help data exchange between Horde applications and external sources.
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Jan Schneider <jan@horde.org>
  * @author   Chuck Hagenbuch <chuck@horde.org>
@@ -48,26 +48,5 @@ class Horde_Data
     const EXPORT_TSV = 103;
     /* Export Outlook CSV data. */
     const EXPORT_OUTLOOKCSV = 104;
-
-    /**
-     * Attempts to return a concrete instance based on $format.
-     *
-     * @param string $format  The type of concrete subclass to return.
-     * @param array $params   Parameters to pass to the format driver.
-     *
-     * @return Horde_Data_Driver  The newly created concrete instance.
-     * @throws Horde_Data_Exception
-     */
-    static public function factory($format, array $params = array())
-    {
-        $format = ucfirst(strtolower(basename($format)));
-        $class = __CLASS__ . '_' . $format;
-
-        if (class_exists($class)) {
-            return new $class($params);
-        }
-
-        throw new Horde_Data_Exception('Driver not found: ' . $class);
-    }
 
 }

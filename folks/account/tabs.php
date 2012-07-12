@@ -3,13 +3,13 @@
  * Copyright 2007 Obala d.o.o. (http://www.obala.si/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author Duck <duck@obala.net>
  */
 
 $folks_authentication = 'none';
-require_once dirname(__FILE__) . '/../lib/base.php';
+require_once __DIR__ . '/../lib/base.php';
 
 $auth = $injector->getInstance('Horde_Core_Factory_Auth')->create();
 

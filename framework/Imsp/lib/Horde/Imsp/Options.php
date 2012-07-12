@@ -3,19 +3,12 @@
  * Horde_Imsp_Options Class - provides an interface to IMSP server-based
  * options storage.
  *
- * Required parameters:<pre>
- *   'username'     Username to logon to IMSP server as.
- *   'password'     Password for current user.
- *   'auth_method'  The authentication method to use to login.
- *   'server'       The hostname of the IMSP server.
- *   'port'         The port of the IMSP server.</pre>
- *
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
- * @author  Michael Rubinsky <mrubinsk@horde.org>
+ * @author  Michael J Rubinsky <mrubinsk@horde.org>
  * @package Horde_Imsp
  */
 class Horde_Imsp_Options
@@ -23,7 +16,7 @@ class Horde_Imsp_Options
     /**
      * Horde_Imsp object.
      *
-     * @var Horde_Imsp
+     * @var Horde_Imsp_Client_Base
      */
     protected $_imsp;
 
@@ -35,38 +28,38 @@ class Horde_Imsp_Options
     protected $_params;
 
     /**
-     * Constructor function.
+     * Constructor.
      *
-     * @param array $params  Hash containing IMSP parameters.
+     * @param Horde_Imsp_Client_base $client  The client connection.
+     * @param array $params                   Hash containing IMSP parameters.
      */
-    public function __construct(array $params)
+    public function __construct(Horde_Imsp_Client_Base $client, array $params)
     {
         $this->_params = $params;
-        $auth = Horde_Imsp_Auth_Factory::create($this->_params['auth_method']);
-        $this->_imsp = $auth->authenticate($this->_params);
+        $this->_imsp = $client;
         $this->_imsp->_logger->debug('Horde_Imsp_Options initialized.');
     }
 
     /**
      * Function sends a GET command to IMSP server and retrieves values.
      *
-     * @param  string $optionName Name of option to retrieve. Accepts '*'
-     *                            as wild card.
+     * @param  string $option  Name of option to retrieve. Accepts '*' as wild
+     *                         card.
      *
-     * @return array  Associative array containing option=>value pairs.
+     * @return array  Hash containing option=>value pairs.
      * @throws Horde_Imsp_Exception
      */
-    public function get($optionName)
+    public function get($option)
     {
         $options = array();
-        $this->_imsp->imspSend("GET $optionName", true, true);
-        $server_response = $this->_imsp->imspReceive();
+        $this->_imsp->send("GET $option", true, true);
+        $server_response = $this->_imsp->receive();
         while (preg_match("/^\* OPTION/", $server_response)) {
             /* First, check for a {}. */
-            if (preg_match(Horde_Imsp::OCTET_COUNT, $server_response, $tempArray)) {
+            if (preg_match(Horde_Imsp_Client_Base::OCTET_COUNT, $server_response, $tempArray)) {
                 $temp = explode(' ', $server_response);
                 $options[$temp[2]] = $this->_imsp->receiveStringLiteral($tempArray[2]);
-                $this->_imsp->imspReceive();
+                $this->_imsp->receive();
             } else {
                 $temp = explode(' ', $server_response);
                 $options[$temp[2]] = trim($temp[3]);
@@ -75,31 +68,29 @@ class Horde_Imsp_Options
                 $nextElement = trim($temp[3]);
 
                 /* Was the value quoted and spaced? */
-                if ((substr($nextElement,0,1) == '"') &&
-                    (substr($nextElement,strlen($nextElement) - 1, 1) != '"')) {
+                if ((substr($nextElement, 0, 1) == '"') &&
+                    (substr($nextElement, strlen($nextElement) - 1, 1) != '"')) {
                     do {
-                        $nextElement = $temp[$i+1];
-                        $lastChar = substr($nextElement,
-                                           strlen($nextElement) - 1, 1);
+                        $nextElement = $temp[$i + 1];
+                        $lastChar = substr($nextElement, strlen($nextElement) - 1, 1);
                         $options[$temp[2]] .= ' ' . $nextElement;
                         if ($lastChar == '"') {
                             $done = true;
                         } else {
                             $done = false;
-                            $lastChar = substr($temp[$i+2],
-                                               strlen($temp[$i+2]) - 1, 1);
+                            $lastChar = substr($temp[$i + 2], strlen($temp[$i + 2]) - 1, 1);
                             $i++;
                         }
 
                     } while ($lastChar != '"');
 
                     if (!$done) {
-                        $nextElement = $temp[$i+1];
+                        $nextElement = $temp[$i + 1];
                         $options[$temp[2]] .= ' ' . $nextElement;
                     }
                 }
             }
-            $server_response = $this->_imsp->imspReceive();
+            $server_response = $this->_imsp->receive();
         }
 
         if ($server_response != 'OK') {
@@ -113,25 +104,25 @@ class Horde_Imsp_Options
     /**
      * Function sets an option value on the IMSP server.
      *
-     * @param string $optionName  Name of option to set.
-     * @param string $optionValue Value to assign.
+     * @param string $name  Name of option to set.
+     * @param string $value Value to assign.
      *
      * @throws Horde_Imsp_Exception
      */
-    public function set($optionName, $optionValue)
+    public function set($option, $value)
     {
         /* Send the beginning of the command. */
-        $this->_imsp->imspSend("SET $optionName ", true, false);
+        $this->_imsp->send("SET $option ", true, false);
 
         /* Send $optionValue as a literal {}? */
-        if (preg_match(Horde_Imsp::MUST_USE_LITERAL, $optionValue)) {
-            $biValue = sprintf("{%d}", strlen($optionValue));
-            $result = $this->_imsp->imspSend($biValue, false, true, true);
+        if (preg_match(Horde_Imsp_Client_Base::MUST_USE_LITERAL, $value)) {
+            $biValue = sprintf("{%d}", strlen($value));
+            $result = $this->_imsp->send($biValue, false, true, true);
         }
 
         /* Now send the rest of the command. */
-        $result = $this->_imsp->imspSend($optionValue, false, true);
-        $server_response = $this->_imsp->imspReceive();
+        $result = $this->_imsp->send($value, false, true);
+        $server_response = $this->_imsp->receive();
         if ($server_response != 'OK') {
             throw new Horde_Imsp_Exception('The option could not be set on the IMSP server.');
         }

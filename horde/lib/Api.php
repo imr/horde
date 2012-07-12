@@ -25,52 +25,57 @@ class Horde_Api extends Horde_Registry_Api
             'configuration' => array(
                 'link' => '%application%/admin/config/',
                 'name' => _("_Configuration"),
-                'icon' => Horde_Themes::img('config.png')
+                'icon' => 'config'
             ),
             'users' => array(
                 'link' => '%application%/admin/user.php',
                 'name' => _("_Users"),
-                'icon' => Horde_Themes::img('user.png')
+                'icon' => 'user'
             ),
             'groups' => array(
                 'link' => '%application%/admin/groups.php',
                 'name' => _("_Groups"),
-                'icon' => Horde_Themes::img('group.png')
+                'icon' => 'group'
             ),
             'perms' => array(
-                'link' => '%application%/admin/perms/index.php',
+                'link' => '%application%/admin/perms/',
                 'name' => _("_Permissions"),
-                'icon' => Horde_Themes::img('perms.png')
+                'icon' => 'perms'
+            ),
+            'locks' => array(
+                'link' => '%application%/admin/locks.php',
+                'name' => _("_Locks"),
+                'icon' => 'locked'
             ),
             'alarms' => array(
                 'link' => '%application%/admin/alarms.php',
                 'name' => _("_Alarms"),
-                'icon' => Horde_Themes::img('alerts/alarm.png')
+                'icon' => 'alarm'
             ),
             'datatree' => array(
                 'link' => '%application%/admin/datatree.php',
                 'name' => _("_DataTree"),
-                'icon' => Horde_Themes::img('datatree.png')
+                'icon' => 'datatree'
             ),
             'sessions' => array(
                 'link' => '%application%/admin/sessions.php',
                 'name' => _("Sessions"),
-                'icon' => Horde_Themes::img('user.png')
+                'icon' => 'user'
             ),
             'phpshell' => array(
                 'link' => '%application%/admin/phpshell.php',
                 'name' => _("P_HP Shell"),
-                'icon' => Horde_Themes::img('mime/php.png')
+                'icon' => 'php'
             ),
             'sqlshell' => array(
                 'link' => '%application%/admin/sqlshell.php',
                 'name' => _("S_QL Shell"),
-                'icon' => Horde_Themes::img('sql.png')
+                'icon' => 'sql'
             ),
             'cmdshell' => array(
                 'link' => '%application%/admin/cmdshell.php',
                 'name' => _("_CLI"),
-                'icon' => Horde_Themes::img('shell.png')
+                'icon' => 'shell'
             )
         );
 
@@ -78,7 +83,7 @@ class Horde_Api extends Horde_Registry_Api
             $admin['activesync'] = array(
                 'link' => '%application%/admin/activesync.php',
                 'name' => _("ActiveSync Devices"),
-                'icon' => Horde_Themes::img('mobile.png')
+                'icon' => 'mobile'
             );
         }
 
@@ -119,15 +124,17 @@ class Horde_Api extends Horde_Registry_Api
     /**
      * Returns a Horde_Block's title.
      *
-     * @param string $name   Block name.
+     * @param string $app    The block application name.
+     * @param string $name   The block name (NOT the class name).
      * @param array $params  Block parameters.
      *
      * @return string  The block title.
      */
-    public function blockTitle($name, $params = array())
+    public function blockTitle($app, $name, $params = array())
     {
+        $class = $app . '_Block_' . basename($name);
         try {
-            return $GLOBALS['injector']->getInstance('Horde_Core_Factory_BlockCollection')->create()->getBlock($name, $params)->getTitle();
+            return $GLOBALS['injector']->getInstance('Horde_Core_Factory_BlockCollection')->create()->getBlock($app, $class, $params)->getTitle();
         } catch (Horde_Exception $e) {
             return $e->getMessage();
         }
@@ -136,16 +143,17 @@ class Horde_Api extends Horde_Registry_Api
     /**
      * Returns a Horde_Block's content.
      *
-     * @param string $app    Block application.
-     * @param string $name   Block name.
+     * @param string $app    The block application name.
+     * @param string $name   The block name (NOT the classname).
      * @param array $params  Block parameters.
      *
      * @return string  The block content.
      */
     public function blockContent($app, $name, $params = array())
     {
+        $class = $app . '_Block_' . basename($name);
         try {
-            return $GLOBALS['injector']->getInstance('Horde_Core_Factory_BlockCollection')->create()->getBlock($name, $params)->getContent();
+            return $GLOBALS['injector']->getInstance('Horde_Core_Factory_BlockCollection')->create()->getBlock($app, $class, $params)->getContent();
         } catch (Horde_Exception $e) {
             return $e->getMessage();
         }
@@ -205,75 +213,30 @@ class Horde_Api extends Horde_Registry_Api
     /**
      * Removes user data.
      *
-     * @param string $user      Name of user to remove data for.
-     * @param boolean $allapps  Remove data from all applications?
+     * @param string $user  Name of user to remove data for.
+     * @param string $app   Remove data from this application. If boolean
+     *                      true, removes all applications. If boolean false,
+     *                      removes only base Horde data.
      *
      * @throws Horde_Exception
      */
-    public function removeUserData($user, $allapps = false)
+    public function removeUserData($user, $app = false)
     {
-        global $conf, $injector, $registry;
-
-        if (!$registry->isAdmin() && ($user != $registry->getAuth())) {
-            throw new Horde_Exception(_("You are not allowed to remove user data."));
+        if ($app === true) {
+            $app = null;
+        } elseif ($app === false || !strlen($app)) {
+            $app = false;
         }
 
-        /* Error flag */
-        $haveError = false;
+        $GLOBALS['registry']->removeUserData($user, $app);
 
-        /* Remove user's prefs */
-        $prefs = $injector->getInstance('Horde_Core_Factory_Prefs')->create('horde', array(
-            'user' => $user
-        ));
-        try {
-            $prefs->remove();
-        } catch (Horde_Exception $e) {
-            $haveError = true;
-        }
-
-        /* Remove user from all groups */
-        $groups = $GLOBALS['injector']->getInstance('Horde_Group');
-        try {
-            $allGroups = $groups->listGroups($user);
-            foreach (array_keys($allGroups) as $id) {
-                $groups->removeUser($id, $user);
-            }
-        } catch (Horde_Group_Exception $e) {
-            Horde::logMessage($e, 'ERR');
-            $haveError = true;
-        }
-
-        /* Remove the user from all application permissions */
-        $perms = $injector->getInstance('Horde_Perms');
-        try {
-            $tree = $perms->getTree();
-        } catch (Horde_Perms_Exception $e) {
-            Horde::logMessage($e, 'ERR');
-            $haveError = true;
-            $tree = array();
-        }
-
-        foreach (array_keys($tree) as $id) {
+        if ($GLOBALS['conf']['activesync']['enabled']) {
             try {
-                $perm = $perms->getPermissionById($id);
-                if ($perms->getPermissions($perm, $user)) {
-                    // The Horde_Perms::ALL is used if this is a matrix perm,
-                    // otherwise it's ignored in the method and the entry is
-                    // totally removed.
-                    $perm->removeUserPermission($user, Horde_Perms::ALL, true);
-                }
-            } catch (Horde_Perms_Exception $e) {
-                Horde::logMessage($e, 'ERR');
-                $haveError = true;
+                $GLOBALS['injector']->getInstance('Horde_ActiveSyncState')
+                    ->removeState(array('user' => $user));
+            } catch (Horde_ActiveSync_Exception $e) {
+                throw Horde_Exception($e);
             }
-        }
-
-        if ($allapps) {
-            $registry->removeUserData($user);
-        }
-
-        if ($haveError) {
-            throw new Horde_Exception(sprintf(_("There was an error removing global data for %s. Details have been logged."), $user));
         }
     }
 
@@ -441,7 +404,7 @@ class Horde_Api extends Horde_Registry_Api
         try {
             $shares->removeShare($share);
         } catch (Horde_Share_Exception $e) {
-            throw new Horde_Exception_Prior($e);
+            throw new Horde_Exception_Wrapped($e);
         }
     }
 

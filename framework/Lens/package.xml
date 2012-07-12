@@ -3,7 +3,7 @@
  <name>Horde_Lens</name>
  <channel>pear.horde.org</channel>
  <summary>Horde Lens decorating iterator/flyweight implementation</summary>
- <description>This package provides a way of wrapping iterators to avoid looping over them multiple times, using a single decorator object (the &quot;lens&quot;) instead of creating one decorator for every element.</description>
+ <description>A way of wrapping iterators to avoid looping over them multiple times, using a single decorator object (the &quot;lens&quot;) instead of creating one decorator for every element.</description>
  <lead>
   <name>Chuck Hagenbuch</name>
   <user>chuck</user>
@@ -20,7 +20,7 @@
   <release>beta</release>
   <api>beta</api>
  </stability>
- <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+ <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
  <notes>
 *
  </notes>
@@ -40,7 +40,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -65,7 +65,7 @@
     <api>alpha</api>
    </stability>
    <date>2011-03-07</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First alpha release for Horde 4.
    </notes>

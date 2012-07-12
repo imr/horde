@@ -2,18 +2,22 @@
 /**
  * Block: show list of new mail messages.
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Block_Newmail extends Horde_Core_Block
 {
+    /**
+     */
+    public $updateable = true;
+
     /**
      */
     public function __construct($app, $params = array())
@@ -25,16 +29,29 @@ class IMP_Block_Newmail extends Horde_Core_Block
 
     /**
      */
+    protected function _params()
+    {
+        return array(
+            'msgs_shown' => array(
+                'type' => 'int',
+                'name' => _("The number of unseen messages to show"),
+                'default' => 3
+            )
+        );
+    }
+
+    /**
+     */
     protected function _content()
     {
+        $inbox = IMP_Mailbox::get('INBOX');
+
         /* Filter on INBOX display, if requested. */
-        if ($GLOBALS['prefs']->getValue('filter_on_display')) {
-            $GLOBALS['injector']->getInstance('IMP_Filter')->filter('INBOX');
-        }
+        $inbox->filterOnDisplay();
 
         $query = new Horde_Imap_Client_Search_Query();
         $query->flag(Horde_Imap_Client::FLAG_SEEN, false);
-        $ids = $GLOBALS['injector']->getInstance('IMP_Search')->runQuery($query, 'INBOX', Horde_Imap_Client::SORT_SEQUENCE, 1);
+        $ids = $inbox->runSearchQuery($query, Horde_Imap_Client::SORT_SEQUENCE, 1);
         $indices = $ids['INBOX'];
 
         $html = '<table cellspacing="0" width="100%">';
@@ -42,8 +59,7 @@ class IMP_Block_Newmail extends Horde_Core_Block
         if (empty($indices)) {
             $html .= '<tr><td><em>' . _("No unread messages") . '</em></td></tr>';
         } else {
-            $charset = 'UTF-8';
-            $imp_ui = new IMP_Ui_Mailbox('INBOX');
+            $imp_ui = new IMP_Ui_Mailbox($inbox);
             $shown = empty($this->_params['msgs_shown'])
                 ? 3
                 : $this->_params['msgs_shown'];
@@ -52,26 +68,26 @@ class IMP_Block_Newmail extends Horde_Core_Block
             $query->envelope();
 
             try {
-                $fetch_ret = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->fetch('INBOX', $query, array(
-                    'ids' => new Horde_Imap_Client_Ids(array_slice($indices, 0, $shown))
+                $imp_imap = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create();
+                $fetch_ret = $imp_imap->fetch($inbox, $query, array(
+                    'ids' => $imp_imap->getIdsOb(array_slice($indices, 0, $shown))
                 ));
-            } catch (Horde_Imap_Client_Exception $e) {
-                $fetch_ret = array();
+            } catch (IMP_Imap_Exception $e) {
+                $fetch_ret = new Horde_Imap_Client_Fetch_Results();
             }
 
-            reset($fetch_ret);
-            while (list($uid, $ob) = each($fetch_ret)) {
+            foreach ($fetch_ret as $uid => $ob) {
                 $envelope = $ob->getEnvelope();
 
                 $date = $imp_ui->getDate($envelope->date);
-                $from = $imp_ui->getFrom($envelope, array('specialchars' => $charset));
+                $from = $imp_ui->getFrom($envelope);
                 $subject = $imp_ui->getSubject($envelope->subject, true);
 
                 $html .= '<tr style="cursor:pointer" class="text"><td>' .
-                    IMP::generateIMPUrl('mailbox.php', 'INBOX', $uid)->link() .
-                    '<strong>' . $from['from'] . '</strong><br />' .
+                    $inbox->url('message.php', $uid)->link() .
+                    '<strong>' . htmlspecialchars($from['from'], ENT_QUOTES, 'UTF-8') . '</strong><br />' .
                     $subject . '</a></td>' .
-                    '<td>' . htmlspecialchars($date, ENT_QUOTES, $charset) . '</td></tr>';
+                    '<td>' . htmlspecialchars($date, ENT_QUOTES, 'UTF-8') . '</td></tr>';
             }
 
             $more_msgs = count($indices) - $shown;
@@ -81,7 +97,7 @@ class IMP_Block_Newmail extends Horde_Core_Block
         }
 
         return $html .
-               '<tr><td colspan="2" style="cursor:pointer" align="right">' . IMP::generateIMPUrl('mailbox.php', 'INBOX')->link() . $text . '</a></td></tr>' .
+               '<tr><td colspan="2" style="cursor:pointer" align="right">' . $inbox->url('mailbox.php')->link() . $text . '</a></td></tr>' .
                '</table>';
     }
 

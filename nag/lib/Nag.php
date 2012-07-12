@@ -3,7 +3,7 @@
  * Nag Base Class.
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Jon Parise <jon@horde.org>
  * @author  Chuck Hagenbuch <chuck@horde.org>
@@ -98,7 +98,7 @@ class Nag
      *
      * @return string
      */
-    public static function secondsToString($seconds)
+    static public function secondsToString($seconds)
     {
         $hours = floor($seconds / 3600);
         $minutes = ($seconds / 60) % 60;
@@ -128,6 +128,55 @@ class Nag
                 return sprintf(_("%d minutes"), $minutes);
             }
         }
+    }
+
+    /**
+     * Parses a complete date-time string into a Horde_Date object.
+     *
+     * @param string $date       The date-time string to parse.
+     * @param boolean $withtime  Whether time is included in the string.
+     *
+     * @return Horde_Date  The parsed date.
+     * @throws Horde_Date_Exception
+     */
+    static public function parseDate($date, $withtime = true)
+    {
+        // strptime() is not available on Windows.
+        if (!function_exists('strptime')) {
+            return new Horde_Date($date);
+        }
+
+        // strptime() is locale dependent, i.e. %p is not always matching
+        // AM/PM. Set the locale to C to workaround this, but grab the
+        // locale's D_FMT before that.
+        $format = Horde_Nls::getLangInfo(D_FMT);
+        if ($withtime) {
+            $format .= ' '
+                . ($GLOBALS['prefs']->getValue('twentyFour') ? '%H:%M' : '%I:%M %p');
+        }
+        $old_locale = setlocale(LC_TIME, 0);
+        setlocale(LC_TIME, 'C');
+
+        // Try exact format match first.
+        $date_arr = strptime($date, $format);
+        setlocale(LC_TIME, $old_locale);
+
+        if (!$date_arr) {
+            // Try with locale dependent parsing next.
+            $date_arr = strptime($date, $format);
+            if (!$date_arr) {
+                // Try throwing at Horde_Date finally.
+                return new Horde_Date($date);
+            }
+        }
+
+        return new Horde_Date(
+            array('year'  => $date_arr['tm_year'] + 1900,
+                  'month' => $date_arr['tm_mon'] + 1,
+                  'mday'  => $date_arr['tm_mday'],
+                  'hour'  => $date_arr['tm_hour'],
+                  'min'   => $date_arr['tm_min'],
+                  'sec'   => $date_arr['tm_sec']));
     }
 
     /**
@@ -280,13 +329,13 @@ class Nag
     {
         if ($tasklist === null) {
             $tasklist = self::getDefaultTasklist(Horde_Perms::EDIT);
-        }
-        if (!array_key_exists($tasklist, self::listTasklists(false, Horde_Perms::EDIT))) {
+        } elseif (!self::hasPermission($tasklist, Horde_Perms::EDIT)) {
             return PEAR::raiseError(_("Permission Denied"));
         }
 
         $storage = Nag_Driver::singleton($tasklist);
-        $dateParser = Horde_Date_Parser::factory();
+        $dateParser = Horde_Date_Parser::factory(
+            array('locale' => $GLOBALS['prefs']->getValue('language')) );
 
         $quickParser = new Nag_QuickParser();
         $tasks = $quickParser->parse($text);
@@ -308,9 +357,9 @@ class Nag
             }
 
             if (isset($task['parent'])) {
-                $newTask = $storage->add($name, '', 0, $due, 3, 0.0, 0, '', 0, null, null, $tasks[$task['parent']]['id']);
+                $newTask = $storage->add(array('name' => $name, 'due' => $due, 'parent' => $tasks[$task['parent']]['id']));
             } else {
-                $newTask = $storage->add($name, '', 0, $due, 3);
+                $newTask = $storage->add(array('name' => $name, 'due' => $due));
             }
             $uids[] = $newTask[1];
             $task['id'] = $newTask[0];
@@ -357,6 +406,12 @@ class Nag
     /**
      * Lists all task lists a user has access to.
      *
+     * This method takes the $conf['share']['hidden'] setting into account. If
+     * this setting is enabled, even if requesting permissions different than
+     * SHOW, it will only return calendars that the user owns or has SHOW
+     * permissions for. For checking individual calendar's permissions, use
+     * hasPermission() instead.
+     *
      * @param boolean $owneronly  Only return tasklists that this user owns?
      *                            Defaults to false.
      * @param integer $permission The permission to filter tasklists by.
@@ -369,15 +424,44 @@ class Nag
         if ($owneronly && !$GLOBALS['registry']->getAuth()) {
             return array();
         }
-        try {
-            $tasklists = $GLOBALS['nag_shares']->listShares(
-                $GLOBALS['registry']->getAuth(),
-                array('perm' => $permission,
-                      'attributes' => $owneronly ? $GLOBALS['registry']->getAuth() : null,
-                      'sort_by' => 'name'));
-        } catch (Horde_Share_Exception $e) {
-            Horde::logMessage($e->getMessage(), 'ERR');
-            return array();
+
+        if ($owneronly || empty($GLOBALS['conf']['share']['hidden'])) {
+            try {
+                $tasklists = $GLOBALS['nag_shares']->listShares(
+                    $GLOBALS['registry']->getAuth(),
+                    array('perm' => $permission,
+                          'attributes' => $owneronly ? $GLOBALS['registry']->getAuth() : null,
+                          'sort_by' => 'name'));
+            } catch (Horde_Share_Exception $e) {
+                Horde::logMessage($e->getMessage(), 'ERR');
+                return array();
+            }
+        } else {
+            try {
+                $tasklists = $GLOBALS['nag_shares']->listShares(
+                    $GLOBALS['registry']->getAuth(),
+                    array('perm' => $permission,
+                          'attributes' => $GLOBALS['registry']->getAuth(),
+                          'sort_by' => 'name'));
+            } catch (Horde_Share_Exception $e) {
+                Horde::logMessage($e);
+                return array();
+            }
+            $display_tasklists = @unserialize($GLOBALS['prefs']->getValue('display_tasklists'));
+            if (is_array($display_tasklists)) {
+                foreach ($display_tasklists as $id) {
+                    try {
+                        $tasklist = $GLOBALS['nag_shares']->getShare($id);
+                        if ($tasklist->hasPermission($GLOBALS['registry']->getAuth(), $permission)) {
+                            $tasklists[$id] = $tasklist;
+                        }
+                    } catch (Horde_Exception_NotFound $e) {
+                    } catch (Horde_Share_Exception $e) {
+                        Horde::logMessage($e);
+                        return array();
+                    }
+                }
+            }
         }
 
         return $tasklists;
@@ -412,6 +496,29 @@ class Nag
     }
 
     /**
+     * Returns whether the current user has certain permissions on a tasklist.
+     *
+     * @since Nag 3.0.3
+     *
+     * @param string $tasklist  A tasklist id.
+     * @param integer $perm     A Horde_Perms permission mask.
+     *
+     * @return boolean  True if the current user has the requested permissions.
+     */
+    static public function hasPermission($tasklist, $perm)
+    {
+        try {
+            $share = $GLOBALS['nag_shares']->getShare($tasklist);
+            if (!$share->hasPermission($GLOBALS['registry']->getAuth(), $perm)) {
+                throw new Horde_Exception_NotFound();
+            }
+        } catch (Horde_Exception_NotFound $e) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Returns the default tasklist for the current user at the specified
      * permissions level.
      *
@@ -441,7 +548,7 @@ class Nag
     /**
      * Creates a new share.
      *
-     * @param array $info  Hash with calendar information.
+     * @param array $info  Hash with tasklist information.
      *
      * @return Horde_Share  The new share.
      */
@@ -722,18 +829,10 @@ class Nag
             $GLOBALS['display_tasklists'] = array_keys($GLOBALS['all_tasklists']);
         }
 
-        /* If the user doesn't own a task list, create one. */
-        if (!empty($GLOBALS['conf']['share']['auto_create']) &&
-            $GLOBALS['registry']->getAuth() &&
-            !count(self::listTasklists(true))) {
-            $identity = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Identity')->create();
-            $share = $GLOBALS['nag_shares']->newShare(
-                $GLOBALS['registry']->getAuth(),
-                strval(new Horde_Support_Randomid()),
-                sprintf(_("Task list of %s"), $identity->getName())
-            );
-            $GLOBALS['nag_shares']->addShare($share);
-            $GLOBALS['display_tasklists'][] = $share->getName();
+        $tasklists = $GLOBALS['injector']->getInstance('Nag_Factory_Tasklists')
+            ->create();
+        if (($new_default = $tasklists->ensureDefaultShare()) !== null) {
+            $GLOBALS['display_tasklists'][] = $new_default;
         }
 
         $GLOBALS['prefs']->setValue('display_tasklists', serialize($GLOBALS['display_tasklists']));
@@ -741,9 +840,19 @@ class Nag
 
     public static function menu()
     {
+        $sidebar = Horde::menu(array('menu_ob' => true))->render();
+        $perms = $GLOBALS['injector']->getInstance('Horde_Core_Perms');
+        if (Nag::getDefaultTasklist(Horde_Perms::EDIT) &&
+            ($perms->hasAppPermission('max_tasks') === true ||
+             $perms->hasAppPermission('max_tasks') > Nag::countTasks())) {
+            $sidebar->addNewButton(
+                _("_New Task"),
+                Horde::url('task.php')->add('actionID', 'add_task'));
+        }
         Horde::startBuffer();
         include NAG_TEMPLATES . '/quick.inc';
-        return Horde::menu() . Horde::endBuffer();
+        return $GLOBALS['injector']->getInstance('Horde_View_Topbar')->render()
+            . $sidebar . Horde::endBuffer();
     }
 
     /**
@@ -857,11 +966,13 @@ class Nag
             if (strpos($email, '@') === false) {
                 continue;
             }
-            list($mailbox, $host) = explode('@', $email);
             if (!isset($addresses[$vals['lang']][$vals['tf']][$vals['df']])) {
                 $addresses[$vals['lang']][$vals['tf']][$vals['df']] = array();
             }
-            $addresses[$vals['lang']][$vals['tf']][$vals['df']][] = Horde_Mime_Address::writeAddress($mailbox, $host, $identity->getValue('fullname'));
+
+            $tmp = new Horde_Mail_Rfc822_Address($email);
+            $tmp->personal = $identity->getValue('fullname');
+            $addresses[$vals['lang']][$vals['tf']][$vals['df']][] = strval($tmp);
         }
 
         if (!$addresses) {
@@ -922,7 +1033,7 @@ class Nag
                             . sprintf(_("Changed parent task from \"%s\" to \"%s\""),
                                       $old_parent ? $old_parent->name : _("no parent"),
                                       $parent ? $parent->name : _("no parent"));
-                    } catch (Tag_Exception $e) {
+                    } catch (Nag_Exception $e) {
                     }
                 }
                 if ($old_task->category != $task->category) {
@@ -1521,6 +1632,37 @@ class Nag
         } else {
             return $diff;
         }
+    }
+
+    /**
+     * Returns the calendars that should be used for syncing.
+     *
+     * @return array  An array of calendar ids
+     */
+    static public function getSyncLists()
+    {
+        $cs = unserialize($GLOBALS['prefs']->getValue('sync_lists'));
+        if (!empty($cs)) {
+            // Have a pref, make sure it's still available
+            $lists = self::listTasklists(false, Horde_Perms::EDIT);
+            $cscopy = array_flip($cs);
+            foreach ($cs as $c) {
+                if (empty($lists[$c])) {
+                    unset($cscopy[$c]);
+                }
+            }
+
+            // Have at least one
+            if (count($cscopy)) {
+                return array_flip($cscopy);
+            }
+        }
+
+        if ($cs = self::getDefaultTasklist(Horde_Perms::EDIT)) {
+            return array($cs);
+        }
+
+        return array();
     }
 
 }

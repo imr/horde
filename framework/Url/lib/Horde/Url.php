@@ -2,14 +2,14 @@
 /**
  * This file contains the Horde_Url class for manipulating URLs.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Jan Schneider <jan@horde.org>
  * @author   Michael Slusarz <slusarz@horde.org>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @category Horde
  * @package  Url
  */
@@ -77,7 +77,7 @@ class Horde_Url
      * @param boolean $raw  Whether to output the URL in the raw URL format or
      *                      HTML-encoded.
      */
-    public function __construct($url, $raw = null)
+    public function __construct($url = '', $raw = null)
     {
         if ($url instanceof Horde_Url) {
             $this->anchor = $url->anchor;
@@ -256,7 +256,7 @@ class Horde_Url
             $url .= '?' . implode($raw ? '&' : '&amp;', $url_params);
         }
         if ($this->anchor) {
-            $url .= '#' . rawurlencode($this->anchor);
+            $url .= '#' . ($raw ? $this->anchor : rawurlencode($this->anchor));
         }
 
         return strval($url);

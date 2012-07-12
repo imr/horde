@@ -2,15 +2,16 @@
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/Autoload.php';
+require_once __DIR__ . '/Autoload.php';
 
 /**
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
+ *
  * @author     Jan Schneider <jan@horde.org>
  * @category   Horde
  * @package    Group
  * @subpackage UnitTests
- * @copyright  2011 The Horde Project (http://www.horde.org/)
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  */
 class Horde_Group_Test_Base extends Horde_Test_Case
 {
@@ -92,6 +93,14 @@ class Horde_Group_Test_Base extends Horde_Test_Case
         $this->assertEquals('My Other Group', $groups[self::$groupids[1]]);
         $groups = self::$group->listGroups('jane');
         $this->assertEquals(1, count($groups));
+        $this->assertEquals('My Other Group', $groups[self::$groupids[1]]);
+    }
+
+    protected function _listAllWithMember()
+    {
+        $groups = self::$group->listAll('joe');
+        $this->assertEquals(2, count($groups));
+        $this->assertEquals('My Group',       $groups[self::$groupids[0]]);
         $this->assertEquals('My Other Group', $groups[self::$groupids[1]]);
     }
 

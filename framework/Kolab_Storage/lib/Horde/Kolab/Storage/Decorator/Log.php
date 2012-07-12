@@ -7,22 +7,24 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * A log decorator for the Kolab storage handler.
  *
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
+ *
+ * @deprecated
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Decorator_Log
@@ -47,7 +49,7 @@ implements Horde_Kolab_Storage
      *
      * @param Horde_Kolab_Storage $storage The storage handler.
      * @param mixed               $logger  The log handler. This instance
-     *                                     must provide the info() method.
+     *                                     must provide the debug() method.
      */
     public function __construct(Horde_Kolab_Storage $storage, $logger)
     {
@@ -106,10 +108,13 @@ implements Horde_Kolab_Storage
      *                             access in the folder.
      * @param int    $data_version Format version of the object data.
      *
-     * @return Horde_Kolab_Data The data object.
+     * @return Horde_Kolab_Storage_Data The data object.
      */
     public function getData($folder, $object_type = null, $data_version = 1)
     {
-        return $this->_storage->getData($folder, $object_type, $data_version);
+        return new Horde_Kolab_Storage_Data_Decorator_Log(
+            $this->_storage->getData($folder, $object_type, $data_version),
+            $this->_logger
+        );
     }
 }

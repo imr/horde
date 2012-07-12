@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * The log decorator for folder lists from Kolab storage.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_List_Decorator_Log
@@ -45,14 +45,12 @@ implements Horde_Kolab_Storage_List, Horde_Kolab_Storage_List_Query
     /**
      * Constructor.
      *
-     * @param Horde_Kolab_Storage_List $list   The original list handler.
-     * @param mixed                    $logger The log handler. This instance
-     *                                         must provide the info() method.
+     * @param Horde_Kolab_Storage_List $list  The original list handler.
+     * @param mixed $logger                   The log handler. This instance
+     *                                        must provide the debug() method.
      */
-    public function __construct(
-        Horde_Kolab_Storage_List $list,
-        $logger
-    ) {
+    public function __construct(Horde_Kolab_Storage_List $list, $logger)
+    {
         $this->_list = $list;
         $this->_logger = $logger;
     }
@@ -97,9 +95,9 @@ implements Horde_Kolab_Storage_List, Horde_Kolab_Storage_List_Query
      */
     public function createFolder($folder, $type = null)
     {
-        $this->_logger->info(sprintf('Creating folder %s.', $folder));
+        $this->_logger->debug(sprintf('Creating folder %s.', $folder));
         $result = $this->_list->createFolder($folder, $type);
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf('Successfully created folder %s [type: %s].', $folder, $type)
         );
     }
@@ -113,9 +111,9 @@ implements Horde_Kolab_Storage_List, Horde_Kolab_Storage_List_Query
      */
     public function deleteFolder($folder)
     {
-        $this->_logger->info(sprintf('Deleting folder %s.', $folder));
+        $this->_logger->debug(sprintf('Deleting folder %s.', $folder));
         $result = $this->_list->deleteFolder($folder);
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf('Successfully deleted folder %s.', $folder)
         );
     }
@@ -130,9 +128,9 @@ implements Horde_Kolab_Storage_List, Horde_Kolab_Storage_List_Query
      */
     public function renameFolder($old, $new)
     {
-        $this->_logger->info(sprintf('Renaming folder %s.', $old));
+        $this->_logger->debug(sprintf('Renaming folder %s.', $old));
         $result = $this->_list->renameFolder($old, $new);
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf('Successfully renamed folder %s to %s.', $old, $new)
         );
     }
@@ -168,14 +166,14 @@ implements Horde_Kolab_Storage_List, Horde_Kolab_Storage_List_Query
      */
     public function listFolders()
     {
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'Listing folders for %s.',
                 $this->getId()
             )
         );
         $result = $this->_list->listFolders();
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'List for %s contained %s folders.',
                 $this->getId(),
@@ -193,14 +191,14 @@ implements Horde_Kolab_Storage_List, Horde_Kolab_Storage_List_Query
      */
     public function listFolderTypes()
     {
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'Listing folder type annotations for %s.',
                 $this->getId()
             )
         );
         $result = $this->_list->listFolderTypes();
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'List for %s contained %s folders and annotations.',
                 $this->getId(),
@@ -233,12 +231,14 @@ implements Horde_Kolab_Storage_List, Horde_Kolab_Storage_List_Query
     /**
      * Synchronize the list information with the information from the backend.
      *
+     * @param array $params Additional parameters.
+     *
      * @return NULL
      */
-    public function synchronize()
+    public function synchronize($params = array())
     {
         $this->_list->synchronize();
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'Synchronized folder list for %s.',
                 $this->getId()

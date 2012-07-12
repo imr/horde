@@ -3,13 +3,13 @@
  * Copyright Obala d.o.o. (www.obala.si)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Duck <duck@obala.net>
  * @package Folks
  */
 
-define('FOLKS_BASE', dirname(__FILE__) . '/..');
+define('FOLKS_BASE', __DIR__ . '/..');
 require_once FOLKS_BASE . '/lib/base.php';
 require_once 'tabs.php';
 
@@ -91,10 +91,12 @@ if ($form->validate()) {
 
 }
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 require FOLKS_TEMPLATES . '/menu.inc';
 
 echo $tabs->render('edit');
 $form->renderActive(null, null, null, 'post');
 
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

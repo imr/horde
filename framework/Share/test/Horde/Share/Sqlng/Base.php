@@ -2,15 +2,16 @@
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/../Base.php';
+require_once __DIR__ . '/../Base.php';
 
 /**
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
+ *
  * @author     Jan Schneider <jan@horde.org>
  * @category   Horde
  * @package    Share
  * @subpackage UnitTests
- * @copyright  2010 The Horde Project (http://www.horde.org/)
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  */
 class Horde_Share_Test_Sqlng_Base extends Horde_Share_Test_Base
 {
@@ -102,6 +103,25 @@ class Horde_Share_Test_Sqlng_Base extends Horde_Share_Test_Base
     /**
      * @depends testPermissions
      */
+     public function testListOwners()
+     {
+        $owners = self::$share->listOwners();
+        $this->assertInternalType('array', $owners);
+        $this->assertTrue(in_array('john', $owners));
+     }
+
+    /**
+     * @depends testPermissions
+     */
+     public function testCountOwners()
+     {
+        $count = self::$share->countOwners();
+        $this->assertTrue($count > 0);
+     }
+
+    /**
+     * @depends testPermissions
+     */
     public function testListAllShares()
     {
         parent::listAllShares();
@@ -155,6 +175,14 @@ class Horde_Share_Test_Sqlng_Base extends Horde_Share_Test_Base
         parent::removeShare();
     }
 
+    /**
+     * @depends testGetShare
+     */
+    public function testRenameShare()
+    {
+        parent::renameShare();
+    }
+
     public function testCallback()
     {
         parent::callback(new Horde_Share_Object_Sqlng(array()));
@@ -162,7 +190,7 @@ class Horde_Share_Test_Sqlng_Base extends Horde_Share_Test_Base
 
     public static function setUpBeforeClass()
     {
-        require_once dirname(__FILE__) . '/../migration/sqlng.php';
+        require_once __DIR__ . '/../migration/sqlng.php';
         migrate_sqlng(self::$db);
 
         $group = new Horde_Group_Test();

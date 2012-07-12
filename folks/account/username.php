@@ -3,12 +3,12 @@
  * Copyright 2007 Obala d.o.o. (http://www.obala.si/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author Duck <duck@obala.net>
  */
 
-require_once dirname(__FILE__) . '/tabs.php';
+require_once __DIR__ . '/tabs.php';
 
 $vars = Horde_Variables::getDefaultVariables();
 
@@ -39,13 +39,14 @@ if ($form->validate()) {
         Folks::sendMail($info['email'], _("Your username was requested"), $body);
 
         $notification->push(sprintf(_("Your username was sent, check your email (%s)."), $users['user_email']), 'horde.success');
-        $registry->authenticateFailure('folks');
+        throw new Horde_Exception_AuthenticationFailure();
+
     }
 }
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 require FOLKS_TEMPLATES . '/menu.inc';
-
 require FOLKS_TEMPLATES . '/login/signup.php';
-
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

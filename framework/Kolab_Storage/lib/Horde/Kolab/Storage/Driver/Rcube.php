@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * A Roundcube Imap based Kolab storage driver.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Driver_Rcube
@@ -207,7 +207,7 @@ extends Horde_Kolab_Storage_Driver_Base
         }
         return $result;
     }
-    
+
     /**
      * Retrieve the access rights the current user has on a folder.
      *
@@ -761,7 +761,7 @@ extends Horde_Kolab_Storage_Driver_Base
             }
 
             if ($data[4] !== null) {
-                $ob->setDescription(Horde_Mime::decode($data[4], 'UTF-8'));
+                $ob->setDescription(Horde_Mime::decode($data[4]));
             }
 
             if ($data[5] !== null) {

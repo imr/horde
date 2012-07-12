@@ -8,7 +8,7 @@
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 
@@ -16,15 +16,15 @@
  * The Components_Dependencies:: interface is a central broker for
  * providing the dependencies to the different application parts.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 interface Components_Dependencies
@@ -55,6 +55,22 @@ interface Components_Dependencies
     public function getModules();
 
     /**
+     * Set the CLI parser.
+     *
+     * @param Horde_Argv_Parser $parser The parser.
+     *
+     * @return NULL
+     */
+    public function setParser($parser);
+
+    /**
+     * Return the CLI parser.
+     *
+     * @retunr Horde_Argv_Parser The parser.
+     */
+    public function getParser();
+
+    /**
      * Returns the continuous integration setup handler.
      *
      * @return Components_Runner_CiSetup The CI setup handler.
@@ -74,6 +90,13 @@ interface Components_Dependencies
      * @return Components_Runner_Release The release handler.
      */
     public function getRunnerRelease();
+
+    /**
+     * Returns the qc handler for a package.
+     *
+     * @return Components_Runner_Qc The qc handler.
+     */
+    public function getRunnerQc();
 
     /**
      * Returns the change log handler for a package.
@@ -97,11 +120,18 @@ interface Components_Dependencies
     public function getRunnerDistribute();
 
     /**
-     * Returns the documentation handler for a package.
+     * Returns the website documentation handler for a package.
      *
-     * @return Components_Runner_Document The distribution handler.
+     * @return Components_Runner_Webdocs The documentation handler.
      */
-    public function getRunnerDocument();
+    public function getRunnerWebdocs();
+
+    /**
+     * Returns the documentation fetch handler for a package.
+     *
+     * @return Components_Runner_Fetchdocs The fetch handler.
+     */
+    public function getRunnerFetchdocs();
 
     /**
      * Returns the installer for a package.
@@ -113,9 +143,9 @@ interface Components_Dependencies
     /**
      * Returns the package XML handler for a package.
      *
-     * @return Components_Runner_PearPackageXml The package XML handler.
+     * @return Components_Runner_Update The package XML handler.
      */
-    public function getRunnerPearPackageXml();
+    public function getRunnerUpdate();
 
     /**
      * Returns the release tasks handler.
@@ -130,4 +160,18 @@ interface Components_Dependencies
      * @return Components_Output The output handler.
      */
     public function getOutput();
+
+    /**
+     * Returns a component instance factory.
+     *
+     * @return Components_Component_Factory The component factory.
+     */
+    public function getComponentFactory();
+
+    /**
+     * Returns the handler for remote PEAR servers.
+     *
+     * @return Horde_Pear_Remote The handler.
+     */
+    public function getRemote();
 }

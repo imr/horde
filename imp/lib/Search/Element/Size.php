@@ -2,14 +2,14 @@
 /**
  * This class handles size-related search queries.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Search_Element_Size extends IMP_Search_Element
@@ -34,7 +34,7 @@ class IMP_Search_Element_Size extends IMP_Search_Element
          * s = (integer) Size (in bytes). */
         $this->_data = new stdClass;
         $this->_data->s = intval($size);
-        $this->_data->l = intval($larger);
+        $this->_data->l = intval(!empty($larger));
     }
 
     /**
@@ -51,8 +51,8 @@ class IMP_Search_Element_Size extends IMP_Search_Element
     public function queryText()
     {
         $label = $this->_data->l
-            ? _("Size (KB) >")
-            : _("Size (KB) <");
+            ? _("Size - Greater Than (KB)")
+            : _("Size - Less Than (KB)");
 
         return $label . ' ' . ($this->_data->s / 1024);
     }

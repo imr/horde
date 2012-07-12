@@ -1,0 +1,68 @@
+#!/usr/bin/env php
+<?php
+/**
+ * This script clears cache data from a backend.
+ *
+ * Usage: horde-clear-cache [-f]
+ *        -f: Force clearing without prompt.
+ *
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
+ *
+ * See the enclosed file COPYING for license information (LGPL). If you
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
+ *
+ * @author   Michael Slusarz <slusarz@horde.org>
+ * @category Horde
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
+ * @package  Horde
+ */
+
+$baseFile = __DIR__ . '/../lib/Application.php';
+if (file_exists($baseFile)) {
+    require_once $baseFile;
+} else {
+    require_once 'PEAR/Config.php';
+    require_once PEAR_Config::singleton()
+        ->get('horde_dir', null, 'pear.horde.org') . '/lib/Application.php';
+}
+Horde_Registry::appInit('horde', array(
+    'authentication' => 'none',
+    'cli' => true
+));
+
+try {
+    $cache = $injector->getInstance('Horde_Cache');
+} catch (Exception $e) {
+    $cli->fatal($e);
+}
+
+$c = new Console_Getopt();
+$argv = $c->readPHPArgv();
+array_shift($argv);
+$options = $c->getopt2($argv, 'f');
+if ($options instanceof PEAR_Error) {
+    $cli->fatal($options->getMessage());
+}
+
+$prompt = false;
+
+foreach ($options[0] as $val) {
+    switch ($val[0]) {
+    case 'f':
+        $prompt = true;
+        break;
+    }
+}
+
+if (!$prompt) {
+    $prompt = $cli->prompt($cli->red('Are you sure you want to expire all cached data?'), array('y' => 'Yes', 'n' => 'No'), 'n') == 'y';
+}
+
+if ($prompt) {
+    try {
+        $cache->clear();
+        $cli->message('Cache data cleared.', 'cli.success');
+    } catch (Horde_Exception $e) {
+        $cli->fatal($e);
+    }
+}

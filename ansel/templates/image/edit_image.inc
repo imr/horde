@@ -5,7 +5,7 @@
 $image_src = Ansel::getImageUrl($image_id, 'screen');
 
 echo $galleryurl->link() . Horde::img('galleries.png') . ' ' . _("Back to gallery") . '</a> ';
-echo $ImageGenerator_url->link() . Horde::img('galleries.png') . ' ' . _("Cancel") . '</a> ';
+echo $imageGenerator_url->link() . Horde::img('galleries.png') . ' ' . _("Cancel") . '</a> ';
 
 if (Ansel::isAvailable('rotate')) {
     echo $imageurl->copy()->add('actionID', 'previewrotate270')->link() . Horde::img('image/rotate-270.png') . ' ' . _("Rotate Left") . '</a> ';
@@ -23,7 +23,7 @@ if (Ansel::isAvailable('grayscale')) {
 }
 if (Ansel::isAvailable('TextWatermark')) {
     $url = new Horde_Url('#');
-    echo $url->link(array('target' => '_blank', 'onclick.raw' => Horde::popupJs(Horde::url($imageurl), array('params' => array('actionID' => 'setwatermark', 'share' => $gallery->getName()), 'width' => 450, 'height' => 250, 'urlencode' => true)) . 'return false;')) . Horde::img('text.png') . ' ' . _("Watermark") . '</a> ';
+    echo $url->link(array('target' => '_blank', 'onclick.raw' => Horde::popupJs(Horde::url($imageurl), array('params' => array('actionID' => 'setwatermark', 'share' => $gallery->name), 'width' => 450, 'height' => 250, 'urlencode' => true)) . 'return false;')) . Horde::img('text.png') . ' ' . _("Watermark") . '</a> ';
 }
 
 $selfUrl = Horde::selfUrl(true);

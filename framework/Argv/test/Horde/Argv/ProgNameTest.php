@@ -1,11 +1,11 @@
 <?php
 
-require_once dirname(__FILE__) . '/TestCase.php';
+require_once __DIR__ . '/TestCase.php';
 
 /**
  * @author     Chuck Hagenbuch <chuck@horde.org>
  * @author     Mike Naberezny <mike@maintainable.com>
- * @license    http://opensource.org/licenses/bsd-license.php BSD
+ * @license    http://www.horde.org/licenses/bsd BSD
  * @category   Horde
  * @package    Argv
  * @subpackage UnitTests
@@ -13,6 +13,18 @@ require_once dirname(__FILE__) . '/TestCase.php';
 
 class Horde_Argv_ProgNameTest extends Horde_Argv_TestCase
 {
+    public function setUp()
+    {
+        if (!isset($_SERVER['argv'])) {
+            $_SERVER['argv'] = array('test');
+        }
+    }
+
+    public function tearDown()
+    {
+        unset($_SERVER['argv']);
+    }
+
     public function assertUsage($parser, $expectedUsage)
     {
         $this->assertEquals($parser->getUsage(), $expectedUsage);

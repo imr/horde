@@ -1,13 +1,13 @@
 <?php
 /**
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL). If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @package Mnemo
  */
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('mnemo');
 
 /* Get the current action ID. */
@@ -54,14 +54,13 @@ case 'search_memos':
     break;
 }
 
-if ($prefs->getValue('show_panel')) {
-    $bodyClass = 'rightPanel';
-}
-
-Horde::addScriptFile('tables.js', 'horde', true);
-Horde::addScriptFile('quickfinder.js', 'horde', true);
-require $registry->get('templates', 'horde') . '/common-header.inc';
-echo Horde::menu();
+$page_output->addScriptFile('tables.js', 'horde');
+$page_output->addScriptFile('quickfinder.js', 'horde');
+$page_output->header(array(
+    'body_class' => $prefs->getValue('show_panel') ? 'rightPanel' : null,
+    'title' => $title
+));
+echo Mnemo::menu();
 $notification->notify();
 require MNEMO_TEMPLATES . '/list/header.inc';
 
@@ -84,6 +83,7 @@ if (count($memos)) {
 
     require MNEMO_TEMPLATES . '/list/memo_headers.inc';
 
+    $history = $GLOBALS['injector']->getInstance('Horde_History');
     foreach ($memos as $memo_id => $memo) {
         $viewurl = Horde_Util::addParameter(
             'view.php',
@@ -100,6 +100,14 @@ if (count($memos)) {
             $notepad = $memo['memolist_id'];
         }
 
+        // Get memo`s most recent modification date or, if nonexistent,
+        // the creation (add) date
+        $guid = 'mnemo:' . $memo['memolist_id'] . ':' . $memo['uid'];
+        $modDate = $history->getActionTimestamp($guid, 'modify');
+        if ($modDate == 0) {
+            $modDate = $history->getActionTimestamp($guid, 'add');
+        }
+
         require MNEMO_TEMPLATES . '/list/memo_summaries.inc';
     }
 
@@ -109,4 +117,4 @@ if (count($memos)) {
 }
 
 require MNEMO_TEMPLATES . '/panel.inc';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

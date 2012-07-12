@@ -2,10 +2,10 @@
 /**
  * The Serialize:: class provides various methods of encapsulating data.
  *
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Stephane Huther <shuther1@free.fr>
  * @author   Michael Slusarz <slusarz@horde.org>
@@ -27,7 +27,6 @@ class Horde_Serialize
     const GZ_COMPRESS = 8;
     const GZ_ENCODE = 9;
     const BASE64 = 10;
-    const SQLXML = 11;
     const RAW = 12;
     const URL = 13;
     const UTF7 = 14;
@@ -133,9 +132,6 @@ class Horde_Serialize
         case self::GZ_ENCODE:
             return Horde_Util::extensionExists('zlib');
 
-        case self::SQLXML:
-            return @include_once 'XML/sql2xml.php';
-
         case self::LZF:
             return Horde_Util::extensionExists('lzf');
 
@@ -198,7 +194,7 @@ class Horde_Serialize
             break;
 
         case self::IMAPUTF8:
-            $data = Horde_Mime::decode($data, 'UTF-8');
+            $data = Horde_Mime::decode($data);
             break;
 
         // $params['level'] = Level of compression (default: 3)
@@ -232,12 +228,6 @@ class Horde_Serialize
             $data = urlencode($data);
             break;
 
-        case self::SQLXML:
-            require_once 'DB.php';
-            $sql2xml = new xml_sql2xml();
-            $data = $sql2xml->getXML($data);
-            break;
-
         // $params = Source character set
         case self::UTF7:
             $data = Horde_String::convertCharset($data, $params, 'UTF-7');
@@ -251,11 +241,9 @@ class Horde_Serialize
         case self::JSON:
             $tmp = json_encode($data);
 
-            /* Basic error handling attempts. Requires PHP 5.3+.
-             * Error code 5, although not documented, indicates non UTF-8
-             * data. */
-            if (function_exists('json_last_error') &&
-                (json_last_error() == 5)) {
+            /* Basic error handling attempts.  Error code 5, although not
+             * documented, indicates non UTF-8 data. */
+            if (json_last_error() == 5) {
                 $data = json_encode(Horde_String::convertCharset($data, $params, 'UTF-8', true));
             } else {
                 $data = $tmp;
@@ -290,7 +278,6 @@ class Horde_Serialize
     {
         switch ($mode) {
         case self::NONE:
-        case self::SQLXML:
             break;
 
         case self::RAW:
@@ -319,7 +306,7 @@ class Horde_Serialize
             break;
 
         case self::IMAPUTF8:
-            $data = Horde_Mime::encode($data, 'UTF-8');
+            $data = Horde_Mime::encode($data);
             break;
 
         case self::BASIC:

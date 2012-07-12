@@ -3,10 +3,10 @@
  * The Hylax:: class providing some support functions to the Hylax
  * module.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Marko Djukic <marko@oblo.com>
  * @package Hylax
@@ -107,7 +107,7 @@ class Hylax {
                         'preview' => 1);
 
         /* Set the params for the popup to view the full size pages. */
-        Horde::addScriptFile('popup.js', 'horde');
+        $GLOBALS['page_output']->addScriptFile('popup.js', 'horde');
         $popup_w = 620;
         $popup_h = 860;
 

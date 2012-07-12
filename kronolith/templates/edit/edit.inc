@@ -1,5 +1,8 @@
 <?php
-$showCalSelect = (!$GLOBALS['prefs']->isLocked('default_share') && count($calendars) > 1 && empty($GLOBALS['show_resource_calendars']));
+$showCalSelect =
+    !$GLOBALS['prefs']->isLocked('default_share') &&
+    (count($calendars) > 1 || !empty($GLOBALS['display_resource_calendars'])) &&
+    (!$event->initialized || $event->hasPermission(Horde_Perms::DELETE));
 $show_img = Horde::img('plus.png', _("Show"));
 $hide_img = Horde::img('minus.png', _("Hide"), 'style="display:none"');
 ?>
@@ -77,7 +80,7 @@ $hide_img = Horde::img('minus.png', _("Hide"), 'style="display:none"');
             $rd = Kronolith::getDriver('Resource');
             $rc = $rd->getResource($rd->getResourceIdByCalendar($cal));
             printf('<option value="%s"%s>%s</option>',
-                    htmlspecialchars($cal), '', $rc->get('name')) . "\n";
+                    'resource_' . htmlspecialchars($cal), '', $rc->get('name')) . "\n";
         }
     } else {
         // Normal view
@@ -412,7 +415,7 @@ if ($event->alarm) {
  <td colspan="4">
    <input type="text" name="tags" id="tags" value="<?php echo (!empty($tags) ? htmlspecialchars($tags) : '')?>" size="40" />
    <span id="tags_loading_img" style="display:none;"><?php echo Horde::img('loading.gif', _("Loading...")) ?></span>
-   <?php $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create(array('kronolith', 'TagAutoCompleter'), array('triggerId' => 'tags', 'id' => $event->uid)); ?>
+   <?php $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create('Kronolith_Ajax_Imple_TagAutoCompleter', array('id' => 'tags')); ?>
  </td>
 </tr>
 <!-- spacer -->

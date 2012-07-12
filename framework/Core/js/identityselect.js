@@ -2,7 +2,7 @@
  * Horde identity selection javascript.
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Core
@@ -14,12 +14,6 @@ var HordeIdentitySelect = {
     {
         var identity = $('identity'),
             id = Number($F(identity));
-
-        if (id < 0) {
-            identity.up('FORM').reset();
-            identity.setValue(id);
-            return;
-        }
 
         this.identities[id].each(function(a) {
             var field = $(a[0]);
@@ -42,6 +36,7 @@ var HordeIdentitySelect = {
     onDomLoad: function()
     {
         $('identity').observe('change', this.newChoice.bind(this));
+        this.newChoice();
     }
 
 };

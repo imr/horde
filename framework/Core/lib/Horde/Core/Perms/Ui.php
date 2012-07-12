@@ -3,10 +3,10 @@
  * The Horde_Core_Perms_Ui class provides UI methods for the Horde permissions
  * system.
  *
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @category Horde
@@ -103,16 +103,20 @@ class Horde_Core_Perms_Ui
                 $add_link = $add->add('perm_id', $perm_id)->link(array('class' => 'permsAdd', 'title' => Horde_Core_Translation::t("Add New Permission"))) . $add_img . '</a>';
                 $base_node_params = array('icon' => Horde_Themes::img('administration.png'));
 
-                $tree->addNode($perm_id, null, Horde_Core_Translation::t("All Permissions"), 0, true,
-                               $base_node_params + $node_class,
-                               array($add_link));
+                $tree->addNode(array(
+                    'id' => $perm_id,
+                    'label' => Horde_Core_Translation::t("All Permissions"),
+                    'expanded' => true,
+                    'params' => $base_node_params + $node_class,
+                    'right' => array($add_link)
+                ));
             } else {
                 $parent_id = $this->_perms->getParent($node);
 
                 $perms_extra = array();
                 $parents = explode(':', $node);
 
-                if (!in_array($parents[0], $GLOBALS['registry']->listApps())) {
+                if (!in_array($parents[0], $GLOBALS['registry']->listApps(array('notoolbar', 'active', 'hidden')))) {
                     // This backend has permissions for an application that is
                     // not installed.  Perhaps the application has been removed
                     // or the backend is shared with other Horde installations.
@@ -144,9 +148,14 @@ class Horde_Core_Perms_Ui
                 $expanded = isset($nodes[$current]) &&
                     strpos($nodes[$current], $node) === 0 &&
                     $nodes[$current] != $node;
-                $tree->addNode($perm_id, $parent_id, $name,
-                               substr_count($node, ':') + 1, $expanded,
-                               $perms_node + $node_class, $perms_extra);
+                $tree->addNode(array(
+                    'id' => $perm_id,
+                    'parent' => $parent_id,
+                    'label' => $name,
+                    'expanded' => $expanded,
+                    'params' => $perms_node + $node_class,
+                    'right' => $perms_extra
+                ));
             }
         }
 
@@ -255,7 +264,7 @@ class Horde_Core_Perms_Ui
 
         /* Get permission configuration. */
         $this->_type = $permission->get('type');
-        $params = $permission->get('params');
+        $params = $this->_corePerms->getParams($permission->getName());
 
         /* Default permissions. */
         $perm_val = $permission->getDefaultPermissions();

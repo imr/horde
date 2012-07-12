@@ -3,15 +3,15 @@
  * The Horde_Mime_Magic:: class provides an interface to determine a MIME type
  * for various content, if it provided with different levels of information.
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Anil Madhavapeddy <anil@recoil.org>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Mime
  */
 class Horde_Mime_Magic
@@ -31,7 +31,7 @@ class Horde_Mime_Magic
     static protected function _getMimeExtensionMap()
     {
         if (is_null(self::$_map)) {
-            require dirname(__FILE__) . '/mime.mapping.php';
+            require __DIR__ . '/mime.mapping.php';
             self::$_map = $mime_extension_map;
         }
 
@@ -140,11 +140,9 @@ class Horde_Mime_Magic
      * @param string $path      The path to the file to analyze.
      * @param string $magic_db  Path to the mime magic database.
      * @param array $opts       Additional options:
-     * <pre>
-     * 'nostrip' - (boolean) Don't strip parameter information from MIME
-     *             type string.
-     *             DEFAULT: false
-     * </pre>
+     *   - nostrip: (boolean) Don't strip parameter information from MIME
+     *              type string.
+     *              DEFAULT: false
      *
      * @return mixed  The MIME type of the file. Returns false if the file
      *                type can not be determined.
@@ -187,11 +185,9 @@ class Horde_Mime_Magic
      * @param string $data      The file data to analyze.
      * @param string $magic_db  Path to the mime magic database.
      * @param array $opts       Additional options:
-     * <pre>
-     * 'nostrip' - (boolean) Don't strip parameter information from MIME
-     *             type string.
-     *             DEFAULT: false
-     * </pre>
+     *   - nostrip: (boolean) Don't strip parameter information from MIME
+     *              type string.
+     *              DEFAULT: false
      *
      * @return mixed  The MIME type of the file. Returns false if the file
      *                type can not be determined.

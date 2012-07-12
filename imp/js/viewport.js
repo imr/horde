@@ -8,10 +8,9 @@
  *
  * Required options:
  * -----------------
- * ajax_url: (string) The URL to send the viewport requests to.
- *           This URL should return its response in an object named
- *           'ViewPort' (other information can be returned in the response and
- *           will be ignored by this class).
+ * ajax: (function) The function that will send the AJAX request to the server
+ *       endpoint. The parameters to send to the server will be passed in as
+ *       the first argument as a Hash object.
  * container: (Element/string) A DOM element/ID of the container that holds
  *            the viewport. This element should be empty and have no children.
  * onContent: (function) A function that takes 2 arguments - the data object
@@ -28,39 +27,26 @@
  *
  * Optional options:
  * -----------------
- * ajax_opts: (object) Any additional options to pass to the Ajax.Request
- *            object when sending an AJAX message.
  * buffer_pages: (integer) The number of viewable pages to send to the browser
  *               per server access when listing rows.
- * empty_msg: (string) A string to display when the view is empty. Inserted in
- *            a SPAN element with class 'vpEmpty'.
+ * empty_msg: (string | function) A string to display when the view is empty.
+ *            Inserted in a SPAN element with class 'vpEmpty'. If a function,
+ *            will use the return value from the function for the text.
  * limit_factor: (integer) When browsing through a list, if a user comes
  *               within this percentage of the end of the current cached
  *               viewport, send a background request to the server to retrieve
  *               the next slice.
- * list_class: (string) The CSS class to use for the list container.
+ * list_class: (string) The CSS class to use for the results list.
+ * list_header: (Element/string) A DOM element to insert above the results list
+ *              as a header.
  * lookbehind: (integer) What percentage of the received buffer should be
  *             used to download rows before the given row number?
- * onAjaxFailure: (function) Callback function that handles a failure response
- *                from an AJAX request.
- *                params: (XMLHttpRequest object)
- *                        (mixed) Result of evaluating the X-JSON response
- *                        header, if any (can be null).
- *                return: NONE
  * onAjaxRequest: (function) Callback function that allows additional
  *                parameters to be added to the outgoing AJAX request.
- *                params: (string) The current view.
- *                return: (Hash) Parameters to add to the outgoing request.
- * onAjaxResponse: (function) Callback function that allows user-defined code
- *                 to additionally process the AJAX return data.
- *                params: (XMLHttpRequest object)
- *                        (mixed) Result of evaluating the X-JSON response
- *                        header, if any (can be null).
- *                return: NONE
- * onCachedList: (function) Callback function that allows the cache ID string
- *               to be dynamically generated.
- *               params: (string) The current view.
- *               return: (string) The cache ID string to use.
+ *                params: (Hash) The params list (the current view can be
+ *                        obtained via the view property).
+ *                return: (Hash) The params list to use for the outgoing
+ *                        request.
  * onContentOffset: (function) Callback function that alters the starting
  *                  offset of the content about to be rendered.
  *                  params: (integer) The current offset.
@@ -80,6 +66,8 @@
  *             pane_mode is 'vert'.
  * split_bar_class: (object) The CSS class(es) to use for the split bar.
  *                  Takes two properties: 'horiz' and 'vert'.
+ * split_bar_handle_class: (object) The CSS class(es) to use for the split bar
+ *                         handle. Takes two properties: 'horiz' and 'vert'.
  * wait: (integer) How long, in seconds, to wait before displaying an
  *       informational message to users that the list is still being
  *       built.
@@ -93,10 +81,6 @@
  * ViewPort:add
  *   Fired when a row has been added to the screen.
  *   params: (Element) The viewport row being added.
- *
- * ViewPort:cacheUpdate
- *   Fired when the internal cached data of a view is changed.
- *   params: (string) View which is being updated.
  *
  * ViewPort:clear
  *   Fired when a row is being removed from the screen.
@@ -115,9 +99,17 @@
  *   Fired when a fetch AJAX response is completed.
  *   params: (string) Current view.
  *
+ * ViewPort:endRangeFetch
+ *   Fired when a fetch rangeslice AJAX response is completed.
+ *   params: (string) Current view.
+ *
  * ViewPort:fetch
  *   Fired when a non-background AJAX response is sent.
  *   params: (string) Current view.
+ *
+ * ViewPort:remove
+ *   Fired when rows are removed from the buffer.
+ *   params: (ViewPort_Selection) The removed rows.
  *
  * ViewPort:select
  *   Fired when rows are selected.
@@ -167,36 +159,30 @@
  *          In the format: [first_row]:[last_row]
  *
  *
- * Incoming AJAX response has the following params:
- * ------------------------------------------------
+ * Incoming AJAX response has the following parameters:
+ * ----------------------------------------------------
  * cacheid: (string) A unique string that changes whenever the viewport
  *          list changes.
- * data: (object) Data for each entry that is passed to the template to create
- *       the viewable rows. Keys are a unique ID (see also the 'rowlist'
- *       entry). Values are the data objects. Internal keys for these data
- *       objects must NOT begin with the string 'VP_'.
- * disappear: (array) If update is set, this is the list of unique IDs that
- *            have been cached by the browser but no longer appear on the
- *            server.
- * label: (string) [REQUIRED when initial is true] The label to use for the
+ * data: (object) Data for each entry. Keys are a unique ID (see also the
+ *       'rowlist' entry). Values are the data objects. Internal keys for
+ *       these data objects must NOT begin with the string 'VP_' (reserved
+ *       keys). These values update current cached values.
+ * data_reset: (integer) If set, purge all browser cached data objects.
+ * disappear: (array) The list of unique IDs that are browser cached but no
+ *            longer exist on the server.
+ * label: (string) [REQUIRED on initial response] The label to use for the
  *        view.
- * metadata [optional]: (object) Metadata for the view. Entries in buffer are
- *                      updated with these entries (unless resetmd is set).
- * rangelist [optional]: (object) The list of unique IDs -> rownumbers that
- *                       correspond the the given request. Only returned for
- *                       a rangeslice request.
- * requestid: (string) The request ID sent in the outgoing AJAX request.
- * reset [optional]: (integer) If set, purges all cached data.
- * resetmd [optional]: (integer) If set, purges all user metadata.
+ * metadata: (object) Metadata for the view. Entries in buffer are updated
+ *           with these entries.
+ * metadata_reset: (integer) If set, purges all browser cached metadata.
+ * rangelist: (object) The list of unique IDs -> rownumbers that correspond
+ *            to the given request. Only returned for a rangeslice request.
+ * requestid: (string) The request ID from the outgoing AJAX request.
  * rowlist: (object) A mapping of unique IDs (keys) to the row numbers
  *          (values). Row numbers start at 1.
- * rownum [optional]: (integer) The row number to position screen on.
+ * rowlist_reset: (integer) If set, purges the browser cached rowlist.
+ * rownum: (integer) The row number to position screen on.
  * totalrows: (integer) Total number of rows in the view.
- * update [optional]: (integer) If set, update the rowlist instead of
- *                    overwriting it.
- * updatecacheid [optional]: (string) If set, simply update the cacheid with
- *                           the new value. Indicates that the browser
- *                           contains the up-to-date version of the cache.
  * view: (string) The view ID of the request.
  *
  *
@@ -209,8 +195,8 @@
  *   VP_rownum: (integer) The row number of the row.
  *
  *
- * Scroll bars use ars styled using these CSS class names:
- * -------------------------------------------------------
+ * Scroll bars are styled using these CSS class names:
+ * ---------------------------------------------------
  * vpScroll - The scroll bar container.
  * vpScrollUp - The UP arrow.
  * vpScrollCursor - The cursor used to slide within the bounds.
@@ -220,10 +206,10 @@
  * Requires prototypejs 1.6+, scriptaculous 1.8+ (effects.js only), and
  * Horde's dragdrop2.js and slider2.js.
  *
- * Copyright 2005-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2005-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
 var ViewPort = Class.create({
@@ -234,14 +220,21 @@ var ViewPort = Class.create({
             buffer_pages: 10,
             limit_factor: 35,
             lookbehind: 40,
-            split_bar_class: {}
+            split_bar_class: {},
+            split_bar_handle_class: {}
         }, opts);
 
         this.opts.container = $(opts.container);
         this.opts.pane_data = $(opts.pane_data);
 
-        this.opts.content = new Element('DIV', { className: opts.list_class }).setStyle({ float: 'left', overflow: 'hidden' });
-        this.opts.container.insert(this.opts.content);
+        this.opts.content = new Element('DIV', { className: opts.list_class }).setStyle({ float: 'left' });
+        this.opts.list_container = new Element('DIV');
+        if (this.opts.list_header) {
+            this.opts.list_container.insert(this.opts.list_header);
+        }
+        this.opts.list_container.insert(this.opts.content);
+
+        this.opts.container.insert(this.opts.list_container);
 
         this.scroller = new ViewPort_Scroller(this);
 
@@ -266,10 +259,7 @@ var ViewPort = Class.create({
         this.id = 0;
 
         // Init empty string now.
-        this.empty_msg = new Element('SPAN', { className: 'vpEmpty' }).insert(opts.empty_msg);
-
-        // Set up AJAX response function.
-        this.ajax_response = this.opts.onAjaxResponse || this._ajaxRequestComplete.bind(this);
+        this.empty_msg = new Element('SPAN', { className: 'vpEmpty' });
 
         Event.observe(window, 'resize', this.onResize.bind(this));
     },
@@ -311,7 +301,7 @@ var ViewPort = Class.create({
             if (!this.view) {
                 this.onResize(true);
             } else if (this.view != view) {
-                this.active_req = null;
+                delete this.active_req;
             }
             this.view = view;
         }
@@ -319,7 +309,7 @@ var ViewPort = Class.create({
         if (curr = this.views[view]) {
             this._updateContent(curr.getMetaData('offset') || 0, f_opts);
             if (!opts.background) {
-                this._ajaxRequest({ checkcache: 1 });
+                this.opts.ajax(this.addRequestParams({ checkcache: 1 }));
             }
             return;
         }
@@ -346,7 +336,12 @@ var ViewPort = Class.create({
     // view = ID of view
     deleteView: function(view)
     {
+        if (this.view == view) {
+            return false;
+        }
+
         delete this.views[view];
+        return true;
     },
 
     // rownum = (integer) Row number
@@ -404,54 +399,40 @@ var ViewPort = Class.create({
     },
 
     // vs = (ViewPort_Selection) A ViewPort_Selection object.
-    // opts = (object) TODO [noupdate, view]
-    remove: function(vs, opts)
+    remove: function(vs)
     {
-        if (!vs.size()) {
-            return;
-        }
-
-        if (this.isbusy) {
-            this.remove.bind(this, vs, opts).defer();
-            return;
-        }
-
-        this.isbusy = true;
-        opts = opts || {};
-
-        var args = { duration: 0.2, to: 0.01 },
-            visible = vs.get('div');
-
-        this.deselect(vs);
-
-        // If we have visible elements to remove, only call refresh after
-        // the last effect has finished.
-        if (visible.size()) {
-            // Set 'to' to a value slightly above 0 to prevent fade()
-            // from auto hiding.  Hiding is unnecessary, since we will be
-            // removing from the document shortly.
-            visible.slice(0, -1).invoke('fade', args);
-            args.afterFinish = this._removeids.bind(this, vs, opts);
-            visible.last().fade(args);
-        } else {
-            this._removeids(vs, opts);
+        if (vs.size()) {
+            if (this.isbusy) {
+                this.remove.bind(this, vs).defer();
+            } else {
+                this.isbusy = true;
+                try {
+                    this._remove(vs);
+                    if (vs.getBuffer().getView() == this.view) {
+                        this.requestContentRefresh(this.currentOffset());
+                    }
+                } catch (e) {
+                    this.isbusy = false;
+                    throw e;
+                }
+                this.isbusy = false;
+            }
         }
     },
 
     // vs = (ViewPort_Selection) A ViewPort_Selection object.
-    // opts = (object) TODO [noupdate, view]
-    _removeids: function(vs, opts)
+    _remove: function(vs)
     {
-        this._getBuffer(opts.view).setMetaData({ total_rows: this.getMetaData('total_rows', opts.view) - vs.size() }, true);
+        var buffer = vs.getBuffer();
 
-        this._getBuffer().remove(vs.get('rownum'));
-        this.opts.container.fire('ViewPort:cacheUpdate', opts.view || this.view);
-
-        if (!opts.noupdate) {
-            this.requestContentRefresh(this.currentOffset());
+        if (buffer.getView() == this.view) {
+            this.deselect(vs);
         }
 
-        this.isbusy = false;
+        this.opts.container.fire('ViewPort:remove', vs);
+
+        buffer.remove(vs.get('rownum'));
+        buffer.setMetaData({ total_rows: buffer.getMetaData('total_rows') - vs.size() }, true);
     },
 
     // nowait = (boolean) If true, don't delay before resizing.
@@ -469,16 +450,15 @@ var ViewPort = Class.create({
         if (nowait) {
             this._onResize(size);
         } else {
-            this.resizefunc = this._onResize.bind(this, size).delay(0.1);
+            this.resizefunc = this._onResize.bind(this, size).defer();
         }
     },
 
     // size = (integer) The page size to use instead of auto-determining.
     _onResize: function(size)
     {
-        var h,
-            c = this.opts.content,
-            c_opts = {},
+        var c_opts = {},
+            h = this.opts.list_header ?  this.opts.list_header.getHeight() : 0,
             lh = this._getLineHeight(),
             sp = this.split_pane;
 
@@ -497,19 +477,21 @@ var ViewPort = Class.create({
 
             if (!size) {
                 this.page_size = (sp.horiz.loc && sp.horiz.loc > 0)
-                    ? Math.min(sp.horiz.loc, this.getPageSize('splitmax'))
+                    ? Math.min(sp.horiz.loc, this.getPageSize('max'))
                     : this.getPageSize('default');
             }
             sp.horiz.loc = this.page_size;
 
-            if (sp.spacer) {
-                sp.spacer.hide();
-            }
-
-            h = lh * this.page_size;
-            c.setStyle({ height: h + 'px', width: '100%' });
+            h += lh * this.page_size;
+            this.opts.list_container.setStyle({
+                height: h + 'px',
+                float: 'none',
+                overflow: 'hidden',
+                width: 'auto'
+            });
+            this.opts.content.setStyle({ width: '100%' });
             sp.currbar.show();
-            this.opts.pane_data.setStyle({ height: (this._getMaxHeight() - h - lh) + 'px' }).show();
+            this.opts.pane_data.show().setStyle({ height: Math.max(document.viewport.getHeight() - this.opts.pane_data.viewportOffset()[1], 0) + 'px' });
             break;
 
         case 'vert':
@@ -523,14 +505,14 @@ var ViewPort = Class.create({
                 sp.vert.width = parseInt(this.opts.container.clientWidth * 0.35, 10);
             }
 
-            if (sp.spacer) {
-                sp.spacer.hide();
-            }
-
-            h = lh * this.page_size;
-            c.setStyle({ height: h + 'px', width: sp.vert.width + 'px' });
-            sp.currbar.setStyle({ height: h + 'px' }).show();
-            this.opts.pane_data.setStyle({ height: h + 'px' }).show();
+            h += lh * this.page_size;
+            this.opts.list_container.setStyle({
+                float: 'left',
+                height: h + 'px'
+            });
+            this.opts.content.setStyle({ width: sp.vert.width + 'px' });
+            sp.currbar.setStyle({ height: h - sp.currbar.getLayout().get('border-bottom') + 'px' }).show();
+            this.opts.pane_data.setStyle({ height: h - this.opts.pane_data.getLayout().get('border-bottom') + 'px' }).show();
             break;
 
         default:
@@ -539,21 +521,21 @@ var ViewPort = Class.create({
                     sp.horiz.loc = this.page_size;
                 }
                 [ this.opts.pane_data, sp.currbar ].invoke('hide');
-                sp.curr = sp.currbar = null;
+                delete sp.curr;
+                delete sp.currbar;
             }
 
             if (!size) {
                 this.page_size = this.getPageSize('max');
             }
 
-            if (sp.spacer) {
-                sp.spacer.show();
-            } else {
-                sp.spacer = new Element('DIV').setStyle({ clear: 'left' });
-                this.opts.content.up().insert(sp.spacer);
-            }
-
-            c.setStyle({ height: (lh * this.page_size) + 'px', width: '100%' });
+            this.opts.list_container.setStyle({
+                float: 'none',
+                height: (h + (lh * this.page_size)) + 'px',
+                overflow: 'hidden',
+                width: 'auto'
+            });
+            this.opts.content.setStyle({ width: '100%' });
             break;
         }
 
@@ -562,10 +544,12 @@ var ViewPort = Class.create({
         }
     },
 
-    // offset = (integer) TODO
+    // offset = (integer) Offset of row to display
     // opts = (object) See _updateContent()
     requestContentRefresh: function(offset, opts)
     {
+        offset = Math.max(0, offset);
+
         if (!this._updateContent(offset, opts)) {
             return false;
         }
@@ -599,12 +583,22 @@ var ViewPort = Class.create({
     _fetchBuffer: function(opts)
     {
         if (this.isbusy) {
-            return this._fetchBuffer.bind(this, opts).defer();
+            this._fetchBuffer.bind(this, opts).defer();
+        } else {
+            this.isbusy = true;
+            try {
+                this._fetchBufferDo(opts);
+            } catch (e) {
+                this.isbusy = false;
+                throw e;
+            }
+            this.isbusy = false;
         }
+    },
 
-        this.isbusy = true;
-
-        var llist, lrows, rlist, tmp, type, value,
+    _fetchBufferDo: function(opts)
+    {
+        var llist, lrows, rlist, tmp, value,
             view = (opts.view || this.view),
             b = this._getBuffer(view),
             params = $H(opts.params),
@@ -619,10 +613,7 @@ var ViewPort = Class.create({
 
         // Determine if we are querying via offset or a search query
         if (opts.search || opts.initial || opts.purge) {
-            /* If this is an initial request, 'type' will be set correctly
-             * further down in the code. */
             if (opts.search) {
-                type = 'search';
                 value = opts.search;
                 params.set('search', Object.toJSON(value));
             }
@@ -644,7 +635,6 @@ var ViewPort = Class.create({
         }
 
         if (!opts.search) {
-            type = 'rownum';
             value = opts.offset + 1;
 
             // llist: keys - request_ids; vals - loading rownums
@@ -664,7 +654,6 @@ var ViewPort = Class.create({
                 if (!this.active_req && !opts.background) {
                     this.active_req = llist.keys().numericSort().last();
                 }
-                this.isbusy = false;
                 return;
             }
 
@@ -674,7 +663,6 @@ var ViewPort = Class.create({
             rlist = $A($R(tmp.start, tmp.end)).diff(b.getAllRows());
 
             if (!rlist.size()) {
-                this.isbusy = false;
                 return;
             }
 
@@ -697,9 +685,10 @@ var ViewPort = Class.create({
             this._handleWait();
         }
 
-        this._ajaxRequest(params, { noslice: true, view: view });
-
-        this.isbusy = false;
+        this.opts.ajax(this.addRequestParams(params, {
+            noslice: true,
+            view: view
+        }));
     },
 
     // rownum = (integer) Row number
@@ -761,78 +750,45 @@ var ViewPort = Class.create({
     // Returns a Hash object
     addRequestParams: function(args, opts)
     {
+        args = args || {};
         opts = opts || {};
+
         var cid = this.getMetaData('cacheid', opts.view),
-            cached, params, rowlist;
+            params = $H(),
+            cached, rowlist;
 
-        params = this.opts.onAjaxRequest
-            ? this.opts.onAjaxRequest(opts.view || this.view)
-            : $H();
-
-        params.update({ view: opts.view || this.view });
+        params.set('view', opts.view || this.view);
 
         if (cid) {
-            params.update({ cacheid: cid });
+            params.set('cacheid', cid);
         }
 
         if (!opts.noslice) {
             rowlist = this._getSliceBounds(this.currentOffset(), null, opts.view);
-            params.update({ slice: rowlist.start + ':' + rowlist.end });
+            params.set('slice', rowlist.start + ':' + rowlist.end);
         }
 
-        if (this.opts.onCachedList) {
-            cached = this.opts.onCachedList(opts.view || this.view);
-        } else {
-            cached = this._getBuffer(opts.view).getAllUIDs();
-            cached = cached.size()
-                ? Object.toJSON(cached)
-                : '';
+        cached = this._getBuffer(opts.view).getAllUIDs();
+        if (cached.size()) {
+            params.set('cache', Object.toJSON(cached));
         }
 
-        if (cached.length) {
-            params.update({ cache: cached });
-        }
+        params.update(args);
 
-        return params.merge(args);
-    },
-
-    // params - (object) A list of parameters to send to server
-    // opts - (object) Args to pass to addRequestParams().
-    _ajaxRequest: function(params, other)
-    {
-        new Ajax.Request(this.opts.ajax_url, Object.extend(this.opts.ajax_opts || {}, {
-            evalJS: false,
-            evalJSON: true,
-            onComplete: this.ajax_response,
-            onFailure: this.opts.onAjaxFailure || Prototype.emptyFunction,
-            parameters: this.addRequestParams(params, other)
-        }));
-    },
-
-    _ajaxRequestComplete: function(r)
-    {
-        if (r.responseJSON) {
-            this.parseJSONResponse(r.responseJSON);
-        }
+        return this.opts.onAjaxRequest
+            ? $H(this.opts.onAjaxRequest(params))
+            : params;
     },
 
     // r - (object) responseJSON returned from the server.
     parseJSONResponse: function(r)
     {
-        if (!r.ViewPort) {
-            return;
-        }
-
-        r = r.ViewPort;
-
         if (r.rangelist) {
             this.select(this.createSelection('uid', r.rangelist, r.view));
-            this.opts.container.fire('ViewPort:endFetch', r.view);
+            this.opts.container.fire('ViewPort:endRangeFetch', r.view);
         }
 
-        if (!Object.isUndefined(r.updatecacheid)) {
-            this._getBuffer(r.view).setMetaData({ cacheid: r.updatecacheid }, true);
-        } else if (!Object.isUndefined(r.cacheid)) {
+        if (!Object.isUndefined(r.cacheid)) {
             this._ajaxResponse(r);
         }
     },
@@ -842,42 +798,55 @@ var ViewPort = Class.create({
     {
         if (this.isbusy) {
             this._ajaxResponse.bind(this, r).defer();
-            return;
+        } else {
+            this.isbusy = true;
+            try {
+                this._ajaxResponseDo(r);
+            } catch (e) {
+                this.isbusy = false;
+                throw e;
+            }
+            this.isbusy = false;
         }
+    },
 
-        this.isbusy = true;
+    _ajaxResponseDo: function(r)
+    {
         this._clearWait();
 
         var callback, offset, tmp,
             buffer = this._getBuffer(r.view),
             llist = buffer.getMetaData('llist') || $H();
 
-        buffer.update(Object.isArray(r.data) ? {} : r.data, Object.isArray(r.rowlist) ? {} : r.rowlist, r.metadata || {}, { reset: r.reset, resetmd: r.resetmd, update: r.update });
-
-        if (r.reset) {
-            this.select(new ViewPort_Selection());
-        } else if (r.update && r.disappear && r.disappear.size()) {
-            this.deselect(this.createSelection('uid', r.disappear, r.view));
-            buffer.removeData(r.disappear);
+        if (r.data_reset) {
+            this.deselect(this.getSelected());
+        } else if (r.disappear && r.disappear.size()) {
+            this._remove(this.createSelection('uid', r.disappear, r.view));
         }
+
+        buffer.update(Object.isArray(r.data) ? {} : r.data, Object.isArray(r.rowlist) ? {} : r.rowlist, r.metadata || {}, {
+            datareset: r.data_reset,
+            mdreset: r.metadata_reset,
+            rowreset: r.rowlist_reset
+        });
 
         llist.unset(r.requestid);
 
         tmp = {
             cacheid: r.cacheid,
-            llist: llist,
-            total_rows: r.totalrows
+            llist: llist
         };
         if (r.label) {
             tmp.label = r.label;
         }
+        if (r.totalrows) {
+            tmp.total_rows = r.totalrows;
+        }
         buffer.setMetaData(tmp, true);
-
-        this.opts.container.fire('ViewPort:cacheUpdate', r.view);
 
         if (r.requestid &&
             r.requestid == this.active_req) {
-            this.active_req = null;
+            delete this.active_req;
             callback = buffer.getMetaData('callback');
             offset = buffer.getMetaData('req_offset');
 
@@ -892,21 +861,20 @@ var ViewPort = Class.create({
         }
 
         if (this.view == r.view) {
-            this._updateContent(Object.isUndefined(r.rownum) ? (Object.isUndefined(offset) ? this.currentOffset() : offset) : Number(r.rownum) - 1, { updated: r.update });
+            this._updateContent(Object.isUndefined(r.rownum) ? (Object.isUndefined(offset) ? this.currentOffset() : offset) : Number(r.rownum) - 1, { updated: r.rowlist_reset });
         } else if (r.rownum) {
             // We loaded in the background. If rownumber information was
             // provided, we need to save this or else we will position the
             // viewport incorrectly.
             buffer.setMetaData({ offset: Number(r.rownum) - 1 }, true);
         }
-
-        this.isbusy = false;
     },
 
-    // offset = (integer) TODO
+    // offset = (integer) Offset of row to display
     // opts = (object) TODO [background, updated, view]
     _updateContent: function(offset, opts)
     {
+        offset = Math.max(0, offset);
         opts = opts || {};
 
         if (!this._getBuffer(opts.view).sliceLoaded(offset)) {
@@ -961,7 +929,7 @@ var ViewPort = Class.create({
         } else {
             vr.each(this.opts.content.fire.bind(this.opts.content, 'ViewPort:clear'));
             vr.invoke('remove');
-            c.update(this.empty_msg.clone(true));
+            c.update(this.empty_msg.clone(true).insert(Object.isFunction(this.opts.empty_msg) ? this.opts.empty_msg() : this.opts.empty_msg));
         }
 
         this.scroller.updateDisplay();
@@ -1011,7 +979,7 @@ var ViewPort = Class.create({
     {
         if (this.waitHandler) {
             clearTimeout(this.waitHandler);
-            this.waitHandler = null;
+            delete this.waitHandler;
         }
     },
 
@@ -1086,17 +1054,11 @@ var ViewPort = Class.create({
                 : Math.max(parseInt(this.getPageSize('max') * 0.45, 10), 5);
 
         case 'max':
-        case 'splitmax':
-            return parseInt(this._getMaxHeight() / this._getLineHeight()) - (type == 'max' ? 0 : 1);
+            return parseInt((document.viewport.getHeight() - this.opts.content.viewportOffset()[1]) / this._getLineHeight(), 10);
 
         default:
             return this.page_size;
         }
-    },
-
-    _getMaxHeight: function()
-    {
-        return document.viewport.getHeight() - this.opts.content.viewportOffset()[1];
     },
 
     bufferSize: function()
@@ -1117,6 +1079,15 @@ var ViewPort = Class.create({
         this.onResize(true);
     },
 
+    // Return the vertical width of the row listing if splitbar is enabled
+    // and is in vertical mode.
+    getVertWidth: function()
+    {
+        return (this.pane_mode == 'vert')
+            ? this.opts.content.getWidth()
+            : 0;
+    },
+
     _initSplitBar: function()
     {
         var sp = this.split_pane;
@@ -1132,7 +1103,8 @@ var ViewPort = Class.create({
             return;
         }
 
-        sp.currbar = sp[this.pane_mode].bar = new Element('DIV', { className: this.opts.split_bar_class[this.pane_mode] });
+        sp.currbar = sp[this.pane_mode].bar = new Element('DIV', { className: this.opts.split_bar_class[this.pane_mode] })
+            .insert(new Element('DIV', { className: this.opts.split_bar_handle_class[this.pane_mode] }));
 
         if (!this.opts.pane_data.descendantOf(this.opts.container)) {
             this.opts.container.insert(this.opts.pane_data.remove());
@@ -1142,7 +1114,7 @@ var ViewPort = Class.create({
 
         switch (this.pane_mode) {
         case 'horiz':
-            new Drag(sp.currbar.setStyle({ clear: 'left' }), {
+            new Drag(sp.currbar, {
                 constraint: 'vertical',
                 ghosting: true,
                 nodrop: true,
@@ -1191,7 +1163,7 @@ var ViewPort = Class.create({
             // times in snap().
             sp.lh = this._getLineHeight();
             sp.lines = this.page_size;
-            sp.max = this.getPageSize('splitmax');
+            sp.max = this.getPageSize('max');
             sp.orig = this.page_size;
             sp.pos = this.opts.content.viewportOffset()[1];
         }
@@ -1216,7 +1188,7 @@ var ViewPort = Class.create({
 
         case 'vert':
             drag = DragDrop.Drags.getDrag(e.element());
-            sp.vert.width = drag.lastCoord[0] - this.opts.content.viewportOffset()[0];
+            sp.vert.width = drag.lastCoord[0] - this.opts.list_container.viewportOffset()[0];
             this.opts.content.setStyle({ width: sp.vert.width + 'px' });
             change = drag.wasDragged;
             break;
@@ -1275,7 +1247,6 @@ var ViewPort = Class.create({
         return this.createSelection('rownum', this.getAllRows(view), view);
     },
 
-
     getSelection: function(view)
     {
         var buffer = this._getBuffer(view);
@@ -1296,7 +1267,10 @@ var ViewPort = Class.create({
             slice = this.createSelection('rownum', vs);
             if (vs.size() != slice.size()) {
                 this.opts.container.fire('ViewPort:fetch', this.view);
-                return this._ajaxRequest({ rangeslice: 1, slice: vs.min() + ':' + vs.size() });
+                return this.opts.ajax(this.addRequestParams({
+                    rangeslice: 1,
+                    slice: vs.min() + ':' + vs.size()
+                }));
             }
             vs = slice;
         }
@@ -1473,20 +1447,20 @@ ViewPort_Buffer = Class.create({
     // d = (object) Data
     // l = (object) Rowlist
     // md = (object) User defined metadata
-    // opts = (object) TODO [reset, resetmd, update]
+    // opts = (object) TODO [datareset, mdreset, rowreset]
     update: function(d, l, md, opts)
     {
         d = $H(d);
         l = $H(l);
         opts = opts || {};
 
-        if (!opts.reset && this.data.size()) {
+        if (!opts.datareset) {
             this.data.update(d);
         } else {
             this.data = d;
         }
 
-        if (opts.update || opts.reset) {
+        if (opts.rowreset || opts.datareset) {
             this.resetRowlist();
         }
 
@@ -1495,24 +1469,24 @@ ViewPort_Buffer = Class.create({
             this.rowlist.set(o.value, o.key);
         }, this);
 
-        if (opts.resetmd) {
-            this.usermdata = $H(md);
-        } else {
-            $H(md).each(function(pair) {
-                if (Object.isString(pair.value) ||
-                    Object.isNumber(pair.value) ||
-                    Object.isArray(pair.value)) {
-                    this.usermdata.set(pair.key, pair.value);
-                } else {
-                    var val = this.usermdata.get(pair.key);
-                    if (val) {
-                        this.usermdata.get(pair.key).update($H(pair.value));
-                    } else {
-                        this.usermdata.set(pair.key, $H(pair.value));
-                    }
-                }
-            }, this);
+        if (opts.mdreset) {
+            this.usermdata = $H();
         }
+
+        $H(md).each(function(pair) {
+            if (Object.isString(pair.value) ||
+                Object.isNumber(pair.value) ||
+                Object.isArray(pair.value)) {
+                this.usermdata.set(pair.key, pair.value);
+            } else {
+                var val = this.usermdata.get(pair.key);
+                if (val) {
+                    val.update($H(pair.value));
+                } else {
+                    this.usermdata.set(pair.key, $H(pair.value));
+                }
+            }
+        }, this);
     },
 
     // offset = (integer) Offset of the beginning of the slice.
@@ -1643,6 +1617,7 @@ ViewPort_Buffer = Class.create({
             newsize = rowsize - rownums.size();
 
         return this.rowlist.keys().each(function(n) {
+            n = parseInt(n, 10);
             if (n >= minrow) {
                 var id = this.rowlist.get(n), r;
                 if (rownums.include(n)) {
@@ -1668,6 +1643,7 @@ ViewPort_Buffer = Class.create({
     resetRowlist: function()
     {
         this.rowlist = $H();
+        this.setMetaData({ total_rows: 0 }, true);
     },
 
     clear: function()
@@ -1695,6 +1671,16 @@ ViewPort_Buffer = Class.create({
         } else {
             this.usermdata.update(vals);
         }
+    },
+
+    debug: function()
+    {
+        return Object.toJSON({
+            data: this.data,
+            mdata: this.mdata,
+            rowlist: this.rowlist,
+            selected: this.selected.get('uid')
+        });
     }
 
 }),
@@ -1797,16 +1783,28 @@ ViewPort_Selection = Class.create({
     //   regex - Matches the RegExp contained in the query.
     search: function(params)
     {
-        return this._search(params, this.get('dataob'));
-    },
-
-    _search: function(params, data)
-    {
-        return new ViewPort_Selection(this.buffer, 'uid', data.findAll(function(i) {
+        return new ViewPort_Selection(this.buffer, 'uid', this.get('dataob').findAll(function(i) {
             // i = data object
             return $H(params).all(function(k) {
                 // k.key = search key; k.value = search criteria
                 return $H(k.value).all(function(s) {
+                    // Normalize dynamically created values. We know the
+                    // required types for these values, and certain browsers
+                    // do strict type-checking (e.g. Chrome).
+                    switch (k.key) {
+                    case 'VP_domid':
+                    case 'VP_id':
+                        s.value = s.value.invoke('toString');
+                        break;
+
+                    case 'VP_rownum':
+                        s.value = s.value.collect(function(i) {
+                            var val = parseInt(i, 10);
+                            return isNaN(val) ? null : val;
+                        }).compact();
+                        break;
+                    }
+
                     // s.key = search type; s.value = search query
                     switch (s.key) {
                     case 'equal':

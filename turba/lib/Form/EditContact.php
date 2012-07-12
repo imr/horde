@@ -20,7 +20,7 @@ class Turba_Form_EditContact extends Turba_Form_ContactBase
     {
         global $conf;
 
-        parent::__construct($vars, $contact, 'Turba_View_EditContact');
+        parent::__construct($vars, '', 'Turba_View_EditContact');
         $this->_contact = $contact;
 
         $this->setButtons(_("Save"));
@@ -30,9 +30,7 @@ class Turba_Form_EditContact extends Turba_Form_ContactBase
 
         parent::_addFields($this->_contact);
 
-        if ($conf['documents']['type'] != 'none') {
-            $this->addVariable(_("Add file"), 'vfs', 'file', false);
-        }
+        $this->addVariable(_("Add file"), 'vfs', 'file', false);
 
         $object_values = $vars->get('object');
         $object_keys = array_keys($contact->attributes);
@@ -78,7 +76,7 @@ class Turba_Form_EditContact extends Turba_Form_ContactBase
             throw $e;
         }
 
-        if ($conf['documents']['type'] != 'none' && isset($info['vfs'])) {
+        if (isset($info['vfs'])) {
             try {
                 $this->_contact->addFile($info['vfs']);
                 $notification->push(sprintf(_("\"%s\" updated."), $this->_contact->getValue('name')), 'horde.success');
@@ -90,6 +88,24 @@ class Turba_Form_EditContact extends Turba_Form_ContactBase
         }
 
         return true;
+    }
+
+    /**
+     */
+    public function renderActive($renderer, $vars, $action, $method)
+    {
+        parent::renderActive($renderer, $vars, $action, $method);
+
+        if ($this->_contact->isGroup()) {
+            $edit_url = Horde::url('browse.php')->add(array(
+                'key' => $this->_contact->getValue('__key'),
+                'source' => $this->_contact->getSource()
+            ));
+
+            echo '<div class="editGroupMembers">' .
+                Horde::link($edit_url) . '<span class="iconImg groupImg"></span>' . _("Edit/View Group Members") . '</a>' .
+                '</div>';
+        }
     }
 
 }

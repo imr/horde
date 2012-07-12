@@ -7,15 +7,15 @@
  * Facebook API, unless the user allows the Horde application to access it -
  * and even then, it's a proxied email address.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you did
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author   Michael J. Rubinsky <mrubinsk@horde.org>
  * @author   Jan Schneider <jan@horde.org>
  * @category Horde
- * @license  http://www.horde.org/licenses/asl.php ASL
+ * @license  http://www.horde.org/licenses/apache ASL
  * @package  Turba
  */
 class Turba_Driver_Facebook extends Turba_Driver
@@ -26,6 +26,19 @@ class Turba_Driver_Facebook extends Turba_Driver
      * @var Horde_Service_Facebook
      */
     private $_facebook;
+
+    /**
+     * Constructor
+     *
+     * @param string $name
+     * @param array $params
+     */
+    public function __construct($name = '', array $params = array())
+    {
+        parent::__construct($name, $params);
+        $this->_facebook = $params['storage'];
+        unset($params['storage']);
+    }
 
     /**
      * Checks if the current user has the requested permissions on this
@@ -48,7 +61,7 @@ class Turba_Driver_Facebook extends Turba_Driver
      }
 
     /**
-     * Searches the favourites list with the given criteria and returns a
+     * Searches with the given criteria and returns a
      * filtered list of results. If the criteria parameter is an empty array,
      * all records will be returned.
      *
@@ -103,17 +116,19 @@ class Turba_Driver_Facebook extends Turba_Driver
     }
 
     /**
-     * Reads the given data from the API method and returns the result's
-     * fields.
+     * Reads the given data from the address book and returns the results.
      *
-     * @param array $criteria  Search criteria.
-     * @param mixed $ids       Data identifier.
-     * @param string $owner    Restrict contacts to those owned by this user.
-     * @param array $fields    List of fields to return.
+     * @param string $key        The primary key field to use.
+     * @param mixed $ids         The ids of the contacts to load.
+     * @param string $owner      Only return contacts owned by this user.
+     * @param array $fields      List of fields to return.
+     * @param array $blobFields  Array of fields containing binary data.
      *
      * @return array  Hash containing the search results.
+     * @throws Turba_Exception
      */
-    protected function _read(array $criteria, $ids, $owner, array $fields)
+    protected function _read($key, $ids, $owner, array $fields,
+                             array $blobFields = array())
     {
         return $this->_getEntry($ids, $fields);
     }
@@ -123,12 +138,11 @@ class Turba_Driver_Facebook extends Turba_Driver
      */
     protected function _getEntry(array $keys, array $fields)
     {
-        $facebook = $GLOBALS['injector']->getInstance('Horde_Service_Facebook');
-        $fields = implode(', ', $fields);
-        $fql = 'SELECT ' . $fields . ' FROM user WHERE uid IN (' . implode(', ', $keys) . ')';
-
+        $cleanfields = implode(', ', $this->_prepareFields($fields));
+        $fql = 'SELECT ' . $cleanfields . ' FROM user WHERE uid IN (' . implode(', ', $keys) . ')';
         try {
-            return $facebook->fql->run($fql);
+            $results = array($this->_fqlToTurba($fields, current($this->_facebook->fql->run($fql))));
+            return $results;
         } catch (Horde_Service_Facebook_Exception $e) {
             Horde::logMessage($e, 'ERR');
             throw new Turba_Exception($e);
@@ -140,31 +154,65 @@ class Turba_Driver_Facebook extends Turba_Driver
      */
     protected function _getAddressBook(array $fields = array())
     {
-        $facebook = $GLOBALS['injector']->getInstance('Horde_Service_Facebook');
-        $fields = implode(', ', $fields);
-        // For now, just try a fql query with name and email.
-        $fql = 'SELECT ' . $fields . ' FROM user WHERE uid IN ('
-            . 'SELECT uid2 FROM friend WHERE uid1=' . $facebook->auth->getUser() . ')';
-
+        $cleanfields = implode(', ', $this->_prepareFields($fields));
         try {
-            $results = $facebook->fql->run($fql);
+            $fql = 'SELECT ' . $cleanfields . ' FROM user WHERE uid IN ('
+                . 'SELECT uid2 FROM friend WHERE uid1=' . $this->_facebook->auth->getLoggedInUser() . ')';
+            $results = $this->_facebook->fql->run($fql);
         } catch (Horde_Service_Facebook_Exception $e) {
             Horde::logMessage($e, 'ERR');
-            return array();
+            if ($e->getCode() == Horde_Service_Facebook_ErrorCodes::API_EC_PARAM_SESSION_KEY) {
+                throw new Turba_Exception(_("You are not connected to Facebook. Create a Facebook connection in the Global Preferences."));
+            }
+            throw new Turba_Exception($e);
         }
 
+        // Now pull out the results that are arrays
         $addressbook = array();
-        foreach ($results as $result) {
-            if (!empty($result['birthday'])) {
-                // Make sure the birthdate is in a standard format that
-                // listDateObjects will understand.
-                $bday = new Horde_Date($result['birthday']);
-                $result['birthday'] = $bday->format('Y-m-d');
-            }
-            $addressbook[$result['uid']] = $result;
+        foreach ($results as &$result) {
+            $addressbook[$result['uid']] = $this->_fqlToTurba($fields, $result);
         }
 
         return $addressbook;
     }
 
+    protected function _fqlToTurba($fields, $result)
+    {
+        //$remove = array();
+        foreach ($fields as $field) {
+            if (strpos($field, '.') !== false) {
+                $key = substr($field, 0, strpos($field, '.'));
+                $subfield = substr($field, strpos($field, '.') + 1);
+                $result[$field] = $result[$key][$subfield];
+            }
+        }
+        if (!empty($result['birthday_date'])) {
+            // Make sure the birthdate is in a standard format that
+            // listDateObjects will understand.
+            $bday = new Horde_Date($result['birthday_date']);
+            $result['birthday_date'] = $bday->format('Y-m-d');
+        }
+
+        return $result;
+    }
+
+    /**
+     * Parse out a fields array for use in a FB FQL query.
+     *
+     * @param array $fields  The fields, as configured in backends.php
+     *
+     *
+     */
+    protected function _prepareFields($fields)
+    {
+        return array_map(array($this, '_prepareCallback'), $fields);
+    }
+
+    static public function _prepareCallback($field)
+    {
+        if (strpos($field, '.') === false) {
+            return $field;
+        }
+        return substr($field, 0, strpos($field, '.'));
+    }
 }

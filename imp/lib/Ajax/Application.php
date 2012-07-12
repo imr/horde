@@ -2,24 +2,38 @@
 /**
  * Defines the AJAX interface for IMP.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Global tasks:
+ *   - msgload: (string) Indices of the messages to load in the background
+ *              (IMAP sequence string; mailboxes are base64url encoded).
+ *   - poll: (string) The list of mailboxes to process (JSON encoded
+ *           array; mailboxes are base64url encoded). If an empty array, polls
+ *           all mailboxes.
+ *
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Ajax_Application extends Horde_Core_Ajax_Application
 {
     /**
-     * Determines if notification information is sent in response.
+     * The mailbox (view) we are dealing with on the browser.
      *
-     * @var boolean
+     * @var IMP_Mailbox
      */
-    public $notify = true;
+    protected $_mbox;
+
+    /**
+     * Queue object.
+     *
+     * @var IMP_Ajax_Queue
+     */
+    protected $_queue;
 
     /**
      * The list of actions that require readonly access to the session.
@@ -31,127 +45,187 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
     );
 
     /**
-     * Determines the HTTP response output type.
-     *
-     * @see Horde::sendHTTPResponse().
-     *
-     * @return string  The output type.
      */
-    public function responseType()
+    protected function _init()
     {
-        return ($this->_action == 'addAttachment')
-            ? 'js-json'
-            : parent::responseType();
+        global $injector, $registry;
+
+        $this->addHelper(new Horde_Core_Ajax_Application_Helper_Imple());
+        if ($registry->getView() == $registry::VIEW_SMARTMOBILE) {
+            $this->addHelper(new IMP_Ajax_Application_Helper_Smartmobile());
+        }
+
+        $this->_queue = $injector->getInstance('IMP_Ajax_Queue');
+
+        /* Bug #10462: 'view' POST parameter is base64url encoded to
+         * workaround suhosin. */
+        if (isset($this->_vars->view)) {
+            $this->_mbox = IMP_Mailbox::formFrom($this->_vars->view);
+        }
+
+        /* Make sure the viewport entry is initialized. */
+        $vp = isset($this->_vars->viewport)
+            ? Horde_Serialize::unserialize($this->_vars->viewport, Horde_Serialize::JSON)
+            : new stdClass;
+        $this->_vars->viewport = new Horde_Support_ObjectStub($vp);
+
+        /* GLOBAL TASKS */
+
+        /* Check for global msgload task. */
+        if (isset($this->_vars->msgload)) {
+            $indices = new IMP_Indices_Form($this->_vars->msgload);
+            foreach ($indices as $ob) {
+                foreach ($ob->uids as $val) {
+                    $this->_queue->message($ob->mbox, $val, true, true);
+                }
+            }
+        }
+
+        /* Check for global poll task. */
+        if (isset($this->_vars->poll)) {
+            $poll = Horde_Serialize::unserialize($this->_vars->poll, Horde_Serialize::JSON);
+            if (empty($poll)) {
+                $this->_queue->poll($injector->getInstance('IMP_Imap_Tree')->getPollList());
+            } else {
+                $this->_queue->poll(IMP_Mailbox::formFrom($poll));
+            }
+        }
+    }
+
+    /**
+     */
+    public function send()
+    {
+        $this->getTasks();
+        parent::send();
+    }
+
+    /**
+     * Get the list of tasks.
+     *
+     * @return array  Task list.
+     */
+    public function getTasks()
+    {
+        $this->_queue->add($this);
+        return $this->tasks;
+    }
+
+    /**
+     * AJAX action: Check access rights for creation of a submailbox.
+     *
+     * Variables used:
+     *   - mbox: (string) The name of the mailbox to check (base64url
+     *           encoded).
+     *
+     * @return boolean  True if submailboxes can be created.
+     */
+    public function createMailboxPrepare()
+    {
+        $mbox = IMP_Mailbox::formFrom($this->_vars->mbox);
+
+        if ($mbox->access_creatembox) {
+            return true;
+        }
+
+        $GLOBALS['notification']->push(sprintf(_("You may not create child mailboxes in \"%s\"."), $mbox->display), 'horde.error');
+        return false;
     }
 
     /**
      * AJAX action: Create a mailbox.
      *
      * Variables used:
-     * <pre>
-     * 'mbox' - (string) The name of the new mailbox.
-     * 'parent' - (string) The parent mailbox.
-     * </pre>
+     *   - mbox: (string) The name of the new mailbox.
+     *   - noexpand: (integer) Submailbox is not yet expanded.
+     *   - parent: (string) The parent mailbox (base64url encoded).
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'mailbox' - (object) Mailboxes that were altered. Contains the
-     *             following properties:
-     *   'a' - (array) Mailboxes that were added.
-     *   'c' - (array) Mailboxes that were changed.
-     *   'd' - (array) Mailboxes that were deleted.
-     * </pre>
+     * @return boolean  True on success, false on failure.
      */
     public function createMailbox()
     {
-        if (!$this->_vars->mbox) {
+        if (!isset($this->_vars->mbox)) {
             return false;
         }
 
-        $imptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
-        $imptree->eltDiffStart();
+        $result = false;
 
-        $new = Horde_String::convertCharset($this->_vars->mbox, 'UTF-8', 'UTF7-IMAP');
         try {
-            $new = $imptree->createMailboxName($this->_vars->parent, $new);
+            $new_mbox = $GLOBALS['injector']->getInstance('IMP_Imap_Tree')->createMailboxName(
+                isset($this->_vars->parent) ? IMP_Mailbox::formFrom($this->_vars->parent) : '',
+                $this->_vars->mbox
+            );
 
-            if ($result =$GLOBALS['injector']->getInstance('IMP_Folder')->create($new, $GLOBALS['prefs']->getValue('subscribe'))) {
-                $result = new stdClass;
-                $result->mailbox = $this->_getMailboxResponse($imptree);
+            if ($new_mbox->exists) {
+                $GLOBALS['notification']->push(sprintf(_("Mailbox \"%s\" already exists."), $new_mbox->display), 'horde.warning');
+            } elseif ($new_mbox->create()) {
+                $result = true;
+                if (isset($this->_vars->parent) && $this->_vars->noexpand) {
+                    $this->_queue->setMailboxOpt('noexpand', 1);
+                }
             }
         } catch (Horde_Exception $e) {
             $GLOBALS['notification']->push($e);
-            $result = false;
         }
 
         return $result;
+    }
+
+    /**
+     * AJAX action: Check access rights for deletion/rename of mailbox.
+     *
+     * Variables used:
+     *   - mbox: (string) The name of the mailbox to check (base64url
+     *           encoded).
+     *   - type: (string) Either 'delete' or 'rename'.
+     *
+     * @return boolean  True if mailbox can be deleted/renamed.
+     */
+    public function deleteMailboxPrepare()
+    {
+        $mbox = IMP_Mailbox::formFrom($this->_vars->mbox);
+
+        if ($mbox->access_deletembox) {
+            return true;
+        }
+
+        switch ($this->_vars->type) {
+        case 'delete':
+            $GLOBALS['notification']->push(sprintf(_("You may not delete \"%s\"."), $mbox->display), 'horde.error');
+            break;
+
+        case 'rename':
+            $GLOBALS['notification']->push(sprintf(_("You may not rename \"%s\"."), $mbox->display), 'horde.error');
+            break;
+        }
+
+        return false;
     }
 
     /**
      * AJAX action: Delete a mailbox.
      *
      * Variables used:
-     * <pre>
-     * 'mbox' - (string) The full mailbox name to delete.
-     * </pre>
+     *   - container: (boolean) True if base element is a container.
+     *   - mbox: (string) The full mailbox name to delete (base64url encoded).
+     *   - subfolders: (boolean) Delete all subfolders?
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'mailbox' - (object) Mailboxes that were altered. Contains the
-     *             following properties:
-     *   'a' - (array) Mailboxes that were added.
-     *   'c' - (array) Mailboxes that were changed.
-     *   'd' - (array) Mailboxes that were deleted.
-     * </pre>
+     * @return boolean  True on success, false on failure.
      */
     public function deleteMailbox()
     {
-        if (!$this->_vars->mbox) {
-            return false;
-        }
-
-        $imptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
-        $imptree->eltDiffStart();
-
-        $imp_search = $GLOBALS['injector']->getInstance('IMP_Search');
-
-        if ($imp_search->isVFolder($this->_vars->mbox, true)) {
-            $GLOBALS['notification']->push(sprintf(_("Deleted Virtual Folder \"%s\"."), $imp_search[$this->_vars->mbox]->label), 'horde.success');
-            unset($imp_search[$this->_vars->mbox]);
-            $result = true;
-        } else {
-            $result = $GLOBALS['injector']->getInstance('IMP_Folder')->delete(array($this->_vars->mbox));
-        }
-
-        if ($result) {
-            $result = new stdClass;
-            $result->mailbox = $this->_getMailboxResponse($imptree);
-        }
-
-        return $result;
+        return ($this->_vars->mbox && IMP_Mailbox::formFrom($this->_vars->mbox)->delete(array('subfolders' => !empty($this->_vars->subfolders), 'subfolders_only' => !empty($this->_vars->container))));
     }
 
     /**
      * AJAX action: Rename a mailbox.
      *
      * Variables used:
-     * <pre>
-     * 'new_name' - (string) New mailbox name (child node).
-     * 'new_parent' - (string) New parent name.
-     * 'old_name' - (string) Full name of old mailbox.
-     * </pre>
+     *   - new_name: (string) New mailbox name (child node) (UTF-8).
+     *   - new_parent: (string) New parent name (UTF-8; base64url encoded).
+     *   - old_name: (string) Full name of old mailbox (base64url encoded).
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'mailbox' - (object) Mailboxes that were altered. Contains the
-     *             following properties:
-     *   'a' - (array) Mailboxes that were added.
-     *   'c' - (array) Mailboxes that were changed.
-     *   'd' - (array) Mailboxes that were deleted.
-     * </pre>
+     * @return boolean  True on success, false on failure.
      */
     public function renameMailbox()
     {
@@ -159,41 +233,60 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
             return false;
         }
 
-        $imptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
-        $imptree->eltDiffStart();
-
-        $result = false;
-
         try {
-            $new = Horde_String::convertCharset($imptree->createMailboxName($this->_vars->new_parent, $this->_vars->new_name), 'UTF-8', 'UTF7-IMAP');
+            $new_name = $GLOBALS['injector']->getInstance('IMP_Imap_Tree')->createMailboxName(
+                isset($this->_vars->new_parent) ? IMP_Mailbox::formFrom($this->_vars->new_parent) : '',
+                $this->_vars->new_name
+            );
 
-            if (($this->_vars->old_name != $new) &&
-                $GLOBALS['injector']->getInstance('IMP_Folder')->rename($this->_vars->old_name, $new)) {
-                $result = new stdClass;
-                $result->mailbox = $this->_getMailboxResponse($imptree);
+            $old_name = IMP_Mailbox::formFrom($this->_vars->old_name);
+
+            if (($old_name != $new_name) && $old_name->rename($new_name)) {
+                $this->_queue->poll($new_name);
+                return true;
             }
         } catch (Horde_Exception $e) {
             $GLOBALS['notification']->push($e);
         }
 
-        return $result;
+        return false;
+    }
+
+    /**
+     * AJAX action: Check access rights for a mailbox, and provide number of
+     * messages to be emptied.
+     *
+     * Variables used:
+     *   - mbox: (string) The name of the mailbox to check (base64url
+     *           encoded).
+     *
+     * @return integer  The number of messages to be deleted.
+     */
+    public function emptyMailboxPrepare()
+    {
+        $mbox = IMP_Mailbox::formFrom($this->_vars->mbox);
+
+        if (!$mbox->access_empty) {
+            $GLOBALS['notification']->push(sprintf(_("The mailbox \"%s\" may not be emptied."), $mbox->display), 'horde.error');
+            return 0;
+        }
+
+        $poll_info = $mbox->poll_info;
+        if (empty($poll_info->msgs)) {
+            $GLOBALS['notification']->push(sprintf(_("The mailbox \"%s\" is already empty."), $mbox->display), 'horde.message');
+            return 0;
+        }
+
+        return $poll_info->msgs;
     }
 
     /**
      * AJAX action: Empty a mailbox.
      *
      * Variables used:
-     * <pre>
-     * 'mbox' - (string) The full mailbox name to empty.
-     * </pre>
+     *   - mbox: (string) The full mailbox name to empty (base64url encoded).
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'mbox' - (string) The mailbox that was emptied.
-     * 'poll' - (array) Mailbox names as the keys, number of unseen messages
-     *          as the values.
-     * </pre>
+     * @return boolean  True on success, false on failure.
      */
     public function emptyMailbox()
     {
@@ -201,110 +294,97 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
             return false;
         }
 
-        $GLOBALS['injector']->getInstance('IMP_Message')->emptyMailbox(array($this->_vars->mbox));
+        $mbox = IMP_Mailbox::formFrom($this->_vars->mbox);
 
-        $result = new stdClass;
-        $result->mbox = $this->_vars->mbox;
-        $result->poll = array($this->_vars->mbox => 0);
+        $GLOBALS['injector']->getInstance('IMP_Message')->emptyMailbox(array($mbox));
 
-        return $result;
+        $this->_queue->poll($mbox);
+
+        $vp = $this->_viewPortOb($mbox);
+        $vp->data_reset = 1;
+        $vp->rowlist_reset = 1;
+        $this->addTask('viewport', $vp);
+
+        return true;
     }
 
     /**
      * AJAX action: Flag all messages in a mailbox.
      *
      * Variables used:
-     * <pre>
-     * 'add' - (integer) Add the flags?
-     * 'flags' - (string) The IMAP flags to add/remove (JSON serialized
-     *           array).
-     * 'mbox' - (string) The full malbox name.
-     * </pre>
+     *   - add: (integer) Add the flags?
+     *   - flags: (string) The IMAP flags to add/remove (JSON serialized
+     *            array).
+     *   - mbox: (string) The full mailbox name (base64url encoded).
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'flag' - (object) See flagEntry().
-     * 'poll' - (array) Mailbox names as the keys, number of unseen messages
-     *          as the values.
-     * </pre>
+     * @return boolean  True on success, false on failure.
      */
     public function flagAll()
     {
         $flags = Horde_Serialize::unserialize($this->_vars->flags, Horde_Serialize::JSON);
-        if (!$this->_vars->mbox ||
-            empty($flags) ||
-            !$GLOBALS['injector']->getInstance('IMP_Message')->flagAllInMailbox($flags, array($this->_vars->mbox), $this->_vars->add)) {
+        if (!$this->_vars->mbox || empty($flags)) {
             return false;
         }
 
-        $result = new stdClass;
+        $mbox = IMP_Mailbox::formFrom($this->_vars->mbox);
 
-        /* Get list of flags that were also affected by this flag
-         * change. */
-        $result->flag = $this->flagEntry($flags, $this->_vars->add, $this->_vars->mbox);
-
-        if ($poll = $this->pollEntry($this->_vars->mbox)) {
-            $result->poll = $poll;
+        if (!$GLOBALS['injector']->getInstance('IMP_Message')->flagAllInMailbox($flags, array($mbox), $this->_vars->add)) {
+            return false;
         }
 
-        return $result;
+        $this->_queue->poll($mbox);
+
+        return true;
     }
 
     /**
      * AJAX action: List mailboxes.
      *
      * Variables used:
-     * <pre>
-     * 'all' - (integer) 1 to show all mailboxes.
-     * 'initial' - (string) 1 to indicate the initial request for mailbox
-     *             list.
-     * 'mboxes' - (string) The list of mailboxes to process (JSON encoded
-     *            array).
-     * 'reload' - (integer) 1 to force reload of mailboxes.
-     * 'unsub' - (integer) 1 to show unsubscribed mailboxes.
-     * </pre>
+     *   - all: (integer) 1 to show all mailboxes.
+     *   - base: (string) The base mailbox.
+     *   - initial: (string) 1 to indicate the initial request for mailbox
+     *              list.
+     *   - mboxes: (string) The list of mailboxes to process (JSON encoded
+     *             array; mailboxes are base64url encoded).
+     *   - reload: (integer) 1 to force reload of mailboxes.
+     *   - unsub: (integer) 1 to show unsubscribed mailboxes.
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'expand' - (integer) Expand subfolders on load.
-     * 'mailbox' - (object) Mailboxes that were altered. Contains the
-     *             following properties:
-     *   'a' - (array) Mailboxes that were added.
-     *   'c' - (array) Mailboxes that were changed.
-     *   'd' - (array) Mailboxes that were deleted.
-     * 'quota' - (array) See _getQuota().
-     * </pre>
+     * @return boolean  True.
      */
     public function listMailboxes()
     {
-        $imptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
-
         /* This might be a long running operation. */
         if ($this->_vars->initial) {
-            session_write_close();
+            $GLOBALS['session']->close();
         }
 
+        $imptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
         $initreload = ($this->_vars->initial || $this->_vars->reload);
-        $result = new stdClass;
 
-        $mask = IMP_Imap_Tree::FLIST_VFOLDER;
+        $mask = IMP_Imap_Tree::FLIST_VFOLDER | IMP_Imap_Tree::FLIST_NOSPECIALMBOXES;
         if ($this->_vars->unsub) {
             $mask |= IMP_Imap_Tree::FLIST_UNSUB;
         }
 
-        if (!$this->_vars->all) {
+        if (isset($this->_vars->base)) {
+            $this->_queue->setMailboxOpt('base', $this->_vars->base);
+        }
+
+        if ($this->_vars->all) {
+            $this->_queue->setMailboxOpt('all', 1);
+        } else {
             if ($initreload) {
                 $mask |= IMP_Imap_Tree::FLIST_ANCESTORS | IMP_Imap_Tree::FLIST_SAMELEVEL;
                 if ($GLOBALS['prefs']->getValue('nav_expanded')) {
-                    $result->expand = 1;
+                    $this->_queue->setMailboxOpt('expand', 1);
                     $mask |= IMP_Imap_Tree::FLIST_EXPANDED;
                 } else {
                     $mask |= IMP_Imap_Tree::FLIST_NOCHILDREN;
                 }
             } else {
-                $mask |= IMP_Imap_Tree::FLIST_NOCHILDREN | IMP_Imap_Tree::FLIST_NOBASE;
+                $this->_queue->setMailboxOpt('expand', 1);
+                $mask |= IMP_Imap_Tree::FLIST_EXPANDED | IMP_Imap_Tree::FLIST_NOBASE;
             }
         }
 
@@ -314,81 +394,64 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
 
         $imptree->showUnsubscribed($this->_vars->unsub);
 
-        $folder_list = array();
         if (!empty($this->_vars->mboxes)) {
-            foreach (Horde_Serialize::unserialize($this->_vars->mboxes, Horde_Serialize::JSON) as $val) {
+            $mboxes = IMP_Mailbox::formFrom(Horde_Serialize::unserialize($this->_vars->mboxes, Horde_Serialize::JSON));
+            if ($initreload) {
+                $mboxes = array_merge(array('INBOX'), array_diff($mboxes, array('INBOX')));
+            }
+
+            foreach ($mboxes as $val) {
                 $imptree->setIteratorFilter($mask, $val);
-                $folder_list += iterator_to_array($imptree);
+                foreach ($imptree as $val2) {
+                    $imptree->addEltDiff($val2);
+                    $this->_queue->poll($val2);
+                }
 
                 if (!$initreload) {
                     $imptree->expand($val);
                 }
             }
-
-            if ($initreload && empty($folder_list)) {
-                $imptree->setIteratorFilter($mask, 'INBOX');
-                $folder_list += iterator_to_array($imptree);
-            }
         }
 
-        /* Add special folders explicitly to the initial folder list, since
-         * they are ALWAYS displayed and may appear outside of the folder
-         * slice requested. */
+        /* Add special mailboxes explicitly to the initial folder list, since
+         * they are ALWAYS displayed, may appear outside of the folder
+         * slice requested, and need to be sorted logically. */
         if ($initreload) {
-            foreach (IMP_Mailbox::getSpecialMailboxes() as $val) {
-                if (!is_array($val)) {
-                    $val = array($val);
-                }
-
-                foreach (array_map('strval', $val) as $val2) {
-                    if (!isset($folder_list[$val2]) &&
-                        ($tmp = $imptree[$val2])) {
-                        $folder_list[$val2] = $tmp;
-                    }
+            foreach (IMP_Mailbox::getSpecialMailboxesSort() as $val) {
+                if ($imptree[$val]) {
+                    $imptree->addEltDiff($val);
                 }
             }
+
+            /* Poll all mailboxes on initial display. */
+            $this->_queue->poll($imptree->getPollList());
         }
 
-        $result->mailbox = $this->_getMailboxResponse($imptree, array(
-            'a' => array_values($folder_list),
-            'c' => array(),
-            'd' => array()
-        ));
-
-        $quota = $this->_getQuota();
-        if (!is_null($quota)) {
-            $result->quota = $quota;
-        }
+        $this->_queue->quota();
 
         if ($this->_vars->initial) {
-            session_start();
+            $GLOBALS['session']->start();
         }
 
-        return $result;
+        return true;
     }
 
     /**
      * AJAX action: Expand mailboxes (saves expanded state in prefs).
      *
      * Variables used:
-     * <pre>
-     * 'encoded' - (integer) 1 if mboxes is URL encoded.
-     * 'mboxes' - (string) The list of mailboxes to process (JSON encoded
-     *            array) if 'all' is 0.
-     * </pre>
+     *   - mboxes: (string) The list of mailboxes to process (JSON encoded
+     *             array; mailboxes are base64url encoded).
      *
      * @return boolean  True.
      */
     public function expandMailboxes()
     {
-        $imptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
-
         if (!empty($this->_vars->mboxes)) {
+            $imptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
+
             foreach (Horde_Serialize::unserialize($this->_vars->mboxes, Horde_Serialize::JSON) as $val) {
-                if ($this->_vars->encoded) {
-                    $val = rawurldecode($val);
-                }
-                $imptree->expand($val);
+                $imptree->expand(IMP_Mailbox::formFrom($val));
             }
         }
 
@@ -399,12 +462,9 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      * AJAX action: Collapse mailboxes.
      *
      * Variables used:
-     * <pre>
-     * 'all' - (integer) 1 to show all mailboxes.
-     * 'encoded' - (integer) 1 if mboxes is URL encoded.
-     * 'mboxes' - (string) The list of mailboxes to process (JSON encoded
-     *            array) if 'all' is 0.
-     * </pre>
+     *   - all: (integer) 1 to show all mailboxes.
+     *   - mboxes: (string) The list of mailboxes to process (JSON encoded
+     *             array; mailboxes are base64url encoded) if 'all' is 0.
      *
      * @return boolean  True.
      */
@@ -416,10 +476,7 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
             $imptree->collapseAll();
         } elseif (!empty($this->_vars->mboxes)) {
             foreach (Horde_Serialize::unserialize($this->_vars->mboxes, Horde_Serialize::JSON) as $val) {
-                if ($this->_vars->encoded) {
-                    $val = rawurldecode($val);
-                }
-                $imptree->collapse($val);
+                $imptree->collapse(IMP_Mailbox::formFrom($val));
             }
         }
 
@@ -430,59 +487,35 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      * AJAX action: Poll mailboxes.
      *
      * See the list of variables needed for _changed() and _viewPortData().
-     * Additional variables used:
-     * <pre>
-     * 'view' - (string) The current view (mailbox).
-     * </pre>
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'poll' - (array) Mailbox names as the keys, number of unseen messages
-     *          as the values.
-     * 'quota' - (array) See _getQuota().
-     * 'ViewPort' - (object) See _viewPortData().
-     * </pre>
+     * @return boolean  True.
      */
     public function poll()
     {
-        $changed = false;
+        /* Actual polling handled by the global 'poll' handler. Still need
+         * separate poll action because there are other tasks done when
+         * specifically requesting a poll. */
 
-        $result = new stdClass;
-        $result->poll = $this->pollEntry();
+        $this->_queue->quota();
 
-        if ($this->_vars->view &&
-            ($changed = $this->_changed())) {
-            $result->ViewPort = $this->_viewPortData(true);
+        if ($this->_mbox && $this->_changed()) {
+            $this->addTask('viewport', $this->_viewPortData(true));
         }
 
-        if (!is_null($changed)) {
-            $quota = $this->_getQuota();
-            if (!is_null($quota)) {
-                $result->quota = $quota;
-            }
-        }
-
-        return $result;
+        return true;
     }
 
     /**
      * AJAX action: Modify list of polled mailboxes.
      *
      * Variables used:
-     * <pre>
-     * 'add' - (integer) 1 to add to the poll list, 0 to remove.
-     * 'mbox' - (string) The full mailbox name to modify.
-     * </pre>
+     *   - add: (integer) 1 to add to the poll list, 0 to remove.
+     *   - mbox: (string) The full mailbox name to modify (base64url encoded).
      *
      * @return mixed  False on failure, or an object with the following
      *                entries:
-     * <pre>
-     * 'add' - (integer) 1 if added to the poll list, 0 if removed.
-     * 'mbox' - (string) The full mailbox name modified.
-     * 'poll' - (array) Mailbox names as the keys, number of unseen messages
-     *          as the values.
-     * </pre>
+     *   - add: (integer) 1 if added to the poll list, 0 if removed.
+     *   - mbox: (string) The full mailbox name modified.
      */
     public function modifyPoll()
     {
@@ -490,7 +523,7 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
             return false;
         }
 
-        $display = IMP_Mailbox::get($this->_vars->mbox)->display;
+        $mbox = IMP_Mailbox::formFrom($this->_vars->mbox);
 
         $imptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
 
@@ -499,16 +532,12 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
         $result->mbox = $this->_vars->mbox;
 
         if ($this->_vars->add) {
-            $imptree->addPollList($this->_vars->mbox);
-            try {
-                if ($info = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->status($this->_vars->mbox, Horde_Imap_Client::STATUS_UNSEEN)) {
-                    $result->poll = array($this->_vars->mbox => intval($info['unseen']));
-                }
-            } catch (Horde_Imap_Client_Exception $e) {}
-            $GLOBALS['notification']->push(sprintf(_("\"%s\" mailbox now polled for new mail."), $display), 'horde.success');
+            $imptree->addPollList($mbox);
+            $this->_queue->poll($mbox);
+            $GLOBALS['notification']->push(sprintf(_("\"%s\" mailbox now polled for new mail."), $mbox->display), 'horde.success');
         } else {
-            $imptree->removePollList($this->_vars->mbox);
-            $GLOBALS['notification']->push(sprintf(_("\"%s\" mailbox no longer polled for new mail."), $display), 'horde.success');
+            $imptree->removePollList($mbox);
+            $GLOBALS['notification']->push(sprintf(_("\"%s\" mailbox no longer polled for new mail."), $mbox->display), 'horde.success');
         }
 
         return $result;
@@ -518,109 +547,144 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      * AJAX action: [un]Subscribe to a mailbox.
      *
      * Variables used:
-     * <pre>
-     * 'mbox' - (string) The full mailbox name to [un]subscribe to.
-     * 'sub' - (integer) 1 to subscribe, empty to unsubscribe.
-     * </pre>
+     *   - mbox: (string) The full mailbox name to [un]subscribe to (base64url
+     *           encoded).
+     *   - sub: (integer) 1 to subscribe, empty to unsubscribe.
      *
      * @return boolean  True on success, false on failure.
      */
     public function subscribe()
     {
-        if (!$GLOBALS['prefs']->getValue('subscribe')) {
+        return $GLOBALS['prefs']->getValue('subscribe')
+            ? IMP_Mailbox::formFrom($this->_vars->mbox)->subscribe($this->_vars->sub)
+            : false;
+    }
+
+    /**
+     * AJAX action: Import a mailbox.
+     *
+     * Variables used:
+     *   - import_mbox: (string) The mailbox to import into (base64url
+     *                  encoded).
+     *
+     * @return object  Returns response object to display JSON HTML-encoded.
+     *                 Embedded data: false on failure, or an object with the
+     *                 following properties:
+     *   - action: (string) The action name (importMailbox).
+     *   - mbox: (string) The mailbox the messages were imported to (base64url
+     *           encoded).
+     */
+    public function importMailbox()
+    {
+        global $injector, $notification;
+
+        $mbox = IMP_Mailbox::formFrom($this->_vars->import_mbox);
+
+        try {
+            $notification->push($injector->getInstance('IMP_Ui_Folder')->importMbox($mbox, 'import_file'), 'horde.success');
+        } catch (Horde_Exception $e) {
+            $notification->push($e);
             return false;
         }
 
-        $imp_folder = $GLOBALS['injector']->getInstance('IMP_Folder');
-        return $this->_vars->sub
-            ? $imp_folder->subscribe(array($this->_vars->mbox))
-            : $imp_folder->unsubscribe(array($this->_vars->mbox));
+        $result = new stdClass;
+        $result->action = 'importMailbox';
+        $result->mbox = $this->_vars->import_mbox;
+
+        $this->_queue->poll($mbox);
+
+        return new Horde_Core_Ajax_Response_HordeCore_JsonHtml($result);
     }
 
     /**
      * AJAX action: Output ViewPort data.
      *
      * See the list of variables needed for _changed() and _viewPortData().
-     * Additional variables used:
-     * <pre>
-     * 'checkcache' - (integer) If 1, only send data if cache has been
-     *                invalidated.
-     * 'rangeslice' - (string) Range slice. See js/viewport.js.
-     * 'requestid' - (string) Request ID. See js/viewport.js.
-     * 'sortby' - (integer) The Horde_Imap_Client sort constant.
-     * 'sortdir' - (integer) 0 for ascending, 1 for descending.
-     * 'view' - (string) The current full mailbox name.
-     * </pre>
+     * Additional variables used (contained in 'viewport' parameter):
+     *   - checkcache: (integer) If 1, only send data if cache has been
+     *                 invalidated.
+     *   - rangeslice: (string) Range slice. See js/viewport.js.
+     *   - requestid: (string) Request ID. See js/viewport.js.
+     *   - sortby: (integer) The Horde_Imap_Client sort constant.
+     *   - sortdir: (integer) 0 for ascending, 1 for descending.
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'ViewPort' - (object) See _viewPortData().
-     * </pre>
+     * @return boolean  True on success, false on failure.
      */
     public function viewPort()
     {
-        if (!$this->_vars->view) {
+        if (!$this->_mbox) {
             return false;
         }
 
+        $vp_vars = $this->_vars->viewport;
+
         /* Change sort preferences if necessary. */
-        if (isset($this->_vars->sortby) || isset($this->_vars->sortdir)) {
-            IMP_Mailbox::get($this->_vars->view)->setSort($this->_vars->sortby, $this->_vars->sortdir);
+        if (isset($vp_vars->sortby) || isset($vp_vars->sortdir)) {
+            $this->_mbox->setSort(
+                isset($vp_vars->sortby) ? $vp_vars->sortby : null,
+                isset($vp_vars->sortdir) ? $vp_vars->sortdir : null
+            );
         }
 
-        $changed = $this->_changed(false);
+        /* Toggle hide deleted preference if necessary. */
+        if (isset($vp_vars->delhide)) {
+            $this->_mbox->setHideDeletedMsgs($vp_vars->delhide);
+        }
+
+        $changed = $this->_changed(true);
 
         if (is_null($changed)) {
-            $list_msg = new IMP_Views_ListMessages();
-            $result = new stdClass;
-            $result->ViewPort = $list_msg->getBaseOb($this->_vars->view);
+            $vp = $GLOBALS['injector']->getInstance('IMP_Ajax_Application_ListMessages')->getBaseOb($this->_mbox);
 
-            $req_id = $this->_vars->requestid;
-            if (!is_null($req_id)) {
-                $result->ViewPort->requestid = intval($req_id);
+            if (isset($vp_vars->requestid)) {
+                $vp->requestid = intval($vp_vars->requestid);
             }
 
-            $result->ViewPort->metadata->noexist = 1;
-        } elseif ($changed ||
-                  $this->_vars->rangeslice ||
-                  !$this->_vars->checkcache) {
-            /* Ticket #7422: Listing messages may be a long-running operation,
-             * so close the session while we are doing it to prevent
-             * deadlocks. */
-            session_write_close();
-
-            $result = new stdClass;
-            $result->ViewPort = $this->_viewPortData($changed);
-
-            /* Reopen the session. */
-            session_start();
-        } else {
-            $result = false;
+            $this->addTask('viewport', $vp);
+            return true;
         }
 
-        return $result;
+        $this->_queue->poll($this->_mbox);
+
+        if ($changed || $vp_vars->rangeslice || !$vp_vars->checkcache) {
+            /* Ticket #7422: Listing messages may be a long-running operation
+             * so close the session while we are doing it to prevent
+             * deadlocks. */
+            $GLOBALS['session']->close();
+
+            $vp = $this->_viewPortData($changed);
+
+            /* Reopen the session. */
+            $GLOBALS['session']->start();
+
+            if (isset($vp_vars->delhide)) {
+                $vp->metadata_reset = 1;
+            }
+
+            $this->addTask('viewport', $vp);
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * AJAX action: Move messages.
      *
-     * See the list of variables needed for _changed(),
-     * _generateDeleteResult(), and _checkUidvalidity(). Additional variables
-     * used:
-     * <pre>
-     * 'mboxto' - (string) Mailbox to move the message to.
-     * 'uid' - (string) Indices of the messages to move (IMAP sequence
-     *         string).
-     * </pre>
+     * See the list of variables needed for _changed(), _deleteMsgs(),
+     * and _checkUidvalidity(). Additional variables used:
+     *   - mboxto: (string) Mailbox to move the message to (base64url
+     *             encoded).
+     *   - uid: (string) Indices of the messages to move (IMAP sequence
+     *          string; mailboxes are base64url encoded).
      *
-     * @return mixed  False on failure, or an object (see
-     *                _generateDeleteResult() for format).
+     * @return boolean  True on success, false on failure.
      */
     public function moveMessages()
     {
-        $indices = new IMP_Indices($this->_vars->uid);
-        if (!$this->_vars->mboxto || !count($indices)) {
+        $indices = new IMP_Indices_Form($this->_vars->uid);
+        if ((!$this->_vars->mboxto && !$this->_vars->newmbox) ||
+            !count($indices)) {
             return false;
         }
 
@@ -630,26 +694,27 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
             return false;
         }
 
-        $result = $GLOBALS['injector']->getInstance('IMP_Message')->copy($this->_vars->mboxto, 'move', $indices);
-
-        if ($result) {
-            $result = $this->_generateDeleteResult($indices, $change);
-            /* Need to manually set remove to true since we want to remove
-             * message from the list no matter the current pref
-             * settings. */
-            $result->deleted->remove = 1;
-
-            /* Update poll information for destination folder if necessary.
-             * Poll information for current folder will be added by
-             * _generateDeleteResult() call above. */
-            if ($poll = $this->pollEntry($this->_vars->mboxto)) {
-                $result->poll = array_merge(isset($result->poll) ? $result->poll : array(), $poll);
-            }
+        if ($this->_vars->newmbox) {
+            $mbox = IMP_Mailbox::prefFrom($this->_vars->newmbox);
+            $newMbox = true;
         } else {
-            $result = $this->_checkUidvalidity();
+            $mbox = IMP_Mailbox::formFrom($this->_vars->mboxto);
+            $newMbox = false;
         }
 
-        return $result;
+        $result = $GLOBALS['injector']
+            ->getInstance('IMP_Message')
+            ->copy($mbox, 'move', $indices, array('create' => $newMbox));
+
+        if ($result) {
+            $this->_deleteMsgs($indices, $change, true);
+            $this->_queue->poll($mbox);
+            return true;
+        }
+
+        $this->_checkUidvalidity();
+
+        return false;
     }
 
     /**
@@ -657,36 +722,41 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      *
      * See the list of variables needed for _checkUidvalidity(). Additional
      * variables used:
-     * <pre>
-     * 'mboxto' - (string) Mailbox to move the message to.
-     * 'uid' - (string) Indices of the messages to copy (IMAP sequence
-     *         string).
-     * </pre>
+     *   - mboxto: (string) Mailbox to copy the message to (base64url
+     *             encoded).
+     *   - uid: (string) Indices of the messages to copy (IMAP sequence
+     *          string; mailboxes are base64url encoded).
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'ViewPort' - (object) See _viewPortData().
-     * 'poll' - (array) Mailbox names as the keys, number of unseen messages
-     *          as the values.
-     * </pre>
+     * @return boolean  True on success, false on failure.
      */
     public function copyMessages()
     {
-        $indices = new IMP_Indices($this->_vars->uid);
-        if (!$this->_vars->mboxto || !count($indices)) {
+        $indices = new IMP_Indices_Form($this->_vars->uid);
+        if ((!$this->_vars->mboxto && !$this->_vars->newmbox) ||
+            !count($indices)) {
             return false;
         }
 
-        if ($result = $GLOBALS['injector']->getInstance('IMP_Message')->copy($this->_vars->mboxto, 'copy', $indices)) {
-            if ($poll = $this->pollEntry($this->_vars->mboxto)) {
-                $result->poll = array_merge(isset($result->poll) ? $result->poll : array(), $poll);
-            }
+        if ($this->_vars->newmbox) {
+            $mbox = IMP_Mailbox::prefFrom($this->_vars->newmbox);
+            $newMbox = true;
         } else {
-            $result = $this->_checkUidvalidity();
+            $mbox = IMP_Mailbox::formFrom($this->_vars->mboxto);
+            $newMbox = false;
         }
 
-        return $result;
+        $result = $GLOBALS['injector']
+            ->getInstance('IMP_Message')
+            ->copy($mbox, 'copy', $indices, array('create' => $newMbox));
+
+        if ($result) {
+            $this->_queue->poll($mbox);
+            return true;
+        }
+
+        $this->_checkUidvalidity();
+
+        return false;
     }
 
     /**
@@ -694,24 +764,16 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      *
      * See the list of variables needed for _changed() and
      * _checkUidvalidity().  Additional variables used:
-     * <pre>
-     * 'add' - (integer) Set the flag?
-     * 'flags' - (string) The flags to set (JSON serialized array).
-     * 'uid' - (string) Indices of the messages to flag (IMAP sequence
-     *         string).
-     * </pre>
+     *   - add: (integer) Set the flag?
+     *   - flags: (string) The flags to set (JSON serialized array).
+     *   - uid: (string) Indices of the messages to flag (IMAP sequence
+     *          string; mailboxes are base64url encoded).
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'flag' - (object) See flagEntry().
-     * 'poll' - (array) See pollEntry().
-     * 'ViewPort' - (object) See _viewPortData().
-     * </pre>
+     * @return boolean  True on success, false on failure.
      */
     public function flagMessages()
     {
-        $indices = new IMP_Indices($this->_vars->uid);
+        $indices = new IMP_Indices_Form($this->_vars->uid);
         if (!$this->_vars->flags || !count($indices)) {
             return false;
         }
@@ -725,45 +787,32 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
         $flags = Horde_Serialize::unserialize($this->_vars->flags, Horde_Serialize::JSON);
 
         if (!$GLOBALS['injector']->getInstance('IMP_Message')->flag($flags, $indices, $this->_vars->add)) {
-            return $this->_checkUidvalidity();
+            $this->_checkUidvalidity();
+            return false;
         }
 
-        $result = new stdClass;
-        $result->flag = $this->flagEntry($flags, $this->_vars->add, $indices);
-
-        list($mbox,) = $indices->getSingle();
-        if (in_array(Horde_Imap_Client::FLAG_SEEN, $flags) && ($poll = $this->pollEntry($mbox))) {
-            $result->poll = $poll;
+        if (in_array(Horde_Imap_Client::FLAG_SEEN, $flags)) {
+            $this->_queue->poll(array_keys($indices->indices()));
         }
 
-        if ($change) {
-            $result->ViewPort = $this->_viewPortData(true);
-        } else {
-            $result->ViewPort = new stdClass;
-            $result->ViewPort->updatecacheid = IMP_Mailbox::get($this->_vars->view)->cacheid;
-            $result->ViewPort->view = $this->_vars->view;
-        }
+        $this->addTask('viewport', $change ? $this->_viewPortData(true) : $this->_viewPortOb());
 
-        return $result;
+        return true;
     }
 
     /**
      * AJAX action: Delete messages.
      *
-     * See the list of variables needed for _changed(),
-     * _generateDeleteResult(), and _checkUidvalidity(). Additional variables
-     * used:
-     * <pre>
-     * 'uid' - (string) Indices of the messages to delete (IMAP sequence
-     *         string).
-     * </pre>
+     * See the list of variables needed for _changed(), _deleteMsgs(),
+     * and _checkUidvalidity(). Additional variables used:
+     *   - uid: (string) Indices of the messages to delete (IMAP sequence
+     *          string; mailboxes are base64url encoded).
      *
-     * @return mixed  False on failure, or an object (see
-     *                _generateDeleteResult() for format).
+     * @return boolean  True on success, false on failure.
      */
     public function deleteMessages()
     {
-        $indices = new IMP_Indices($this->_vars->uid);
+        $indices = new IMP_Indices_Form($this->_vars->uid);
         if (!count($indices)) {
             return false;
         }
@@ -771,35 +820,41 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
         $change = $this->_changed(true);
 
         if ($GLOBALS['injector']->getInstance('IMP_Message')->delete($indices)) {
-            return $this->_generateDeleteResult($indices, $change, !$GLOBALS['prefs']->getValue('hide_deleted') && !$GLOBALS['prefs']->getValue('use_trash'));
+            $this->_deleteMsgs($indices, $change);
+            return true;
         }
 
-        return is_null($change)
-            ? false
-            : $this->_checkUidvalidity();
+        if (!is_null($change)) {
+            $this->_checkUidvalidity();
+        }
+
+        return false;
     }
 
     /**
      * AJAX action: Add contact.
      *
      * Variables used:
-     * <pre>
-     * 'email' - (string) The email address to name.
-     * 'name' - (string) The name associated with the email address.
-     * </pre>
+     *   - addr: (string) [JSON array] Address list.
      *
      * @return boolean  True on success, false on failure.
      */
     public function addContact()
     {
-        // Allow name to be empty.
-        if (!$this->_vars->email) {
+        $addr_ob = IMP_Dimp::parseDimpAddressList($this->_vars->addr);
+
+        // TODO: Currently supports only a single, non-group contact.
+        $ob = $addr_ob[0];
+        if (!$ob) {
+            return false;
+        } elseif ($ob instanceof Horde_Mail_Rfc822_Group) {
+            $GLOBALS['notification']->push(_("Adding group lists not currently supported."), 'horde.warning');
             return false;
         }
 
         try {
-            IMP::addAddress($this->_vars->email, $this->_vars->name);
-            $GLOBALS['notification']->push(sprintf(_("%s was successfully added to your address book."), $this->_vars->name ? $this->_vars->name : $this->_vars->email), 'horde.success');
+            IMP::addAddress($ob->bare_address, $ob->personal);
+            $GLOBALS['notification']->push(sprintf(_("%s was successfully added to your address book."), $ob->label), 'horde.success');
             return true;
         } catch (Horde_Exception $e) {
             $GLOBALS['notification']->push($e);
@@ -810,208 +865,207 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
     /**
      * AJAX action: Report message as [not]spam.
      *
-     * See the list of variables needed for _changed(),
-     * _generateDeleteResult(), and _checkUidvalidity(). Additional variables
-     * used:
-     * <pre>
-     * 'spam' - (integer) 1 to mark as spam, 0 to mark as innocent.
-     * 'uid' - (string) Indices of the messages to report (IMAP sequence
-     *         string).
-     * </pre>
+     * See the list of variables needed for _changed(), _deleteMsgs(),
+     * and _checkUidvalidity(). Additional variables used:
+     *   - spam: (integer) 1 to mark as spam, 0 to mark as innocent.
+     *   - uid: (string) Indices of the messages to report (IMAP sequence
+     *          string; mailboxes are base64url encoded).
      *
-     * @return mixed  If messages were deleted, data as returned by
-     *                _generateDeleteResult(). Else, true.
+     * @return boolean  True on success.
      */
     public function reportSpam()
     {
-        $change = $this->_changed(false);
-        $indices = new IMP_Indices($this->_vars->uid);
-        $result = true;
+        $change = $this->_changed(true);
+        $indices = new IMP_Indices_Form($this->_vars->uid);
 
         if (IMP_Spam::reportSpam($indices, $this->_vars->spam ? 'spam' : 'notspam')) {
-            $result = $this->_generateDeleteResult($indices, $change);
-            /* If result of reportSpam() is non-zero, then we know the message
-             * has been removed from the current mailbox. */
-            $result->deleted->remove = 1;
-        } elseif (!is_null($change)) {
-            $result = $this->_checkUidvalidity(true);
+            $this->_deleteMsgs($indices, $change);
+            return true;
         }
 
-        return $result;
+        if (!is_null($change)) {
+            $this->_checkUidvalidity();
+        }
+
+        return false;
     }
 
     /**
      * AJAX action: Blacklist/whitelist addresses from messages.
      *
-     * See the list of variables needed for _changed(),
-     * _generateDeleteResult(), and _checkUidvalidity(). Additional variables
-     * used:
-     * <pre>
-     * 'blacklist' - (integer) 1 to blacklist, 0 to whitelist.
-     * 'uid' - (string) Indices of the messages to report (IMAP sequence
-     *         string).
-     * </pre>
+     * See the list of variables needed for _changed(), _deleteMsgs(),
+     * and _checkUidvalidity(). Additional variables used:
+     *   - blacklist: (integer) 1 to blacklist, 0 to whitelist.
+     *   - uid: (string) Indices of the messages to report (IMAP sequence
+     *          string; mailboxes are base64url encoded).
      *
-     * @return mixed  False on failure, or an object (see
-     *                _generateDeleteResult() for format).
+     * @return boolean  True on success.
      */
     public function blacklist()
     {
-        $indices = new IMP_Indices($this->_vars->uid);
+        $indices = new IMP_Indices_Form($this->_vars->uid);
         if (!count($indices)) {
             return false;
         }
-
-        $result = false;
 
         if ($this->_vars->blacklist) {
             $change = $this->_changed(false);
             if (!is_null($change)) {
                 try {
                     if ($GLOBALS['injector']->getInstance('IMP_Filter')->blacklistMessage($indices, false)) {
-                        $result = $this->_generateDeleteResult($indices, $change);
+                        $this->_deleteMsgs($indices, $change);
+                        return true;
                     }
                 } catch (Horde_Exception $e) {
-                    $result = $this->_checkUidvalidity();
+                    $this->_checkUidvalidity();
                 }
             }
         } else {
             try {
                 $GLOBALS['injector']->getInstance('IMP_Filter')->whitelistMessage($indices, false);
+                return true;
             } catch (Horde_Exception $e) {
-                $result = $this->_checkUidvalidity();
+                $this->_checkUidvalidity();
             }
         }
 
-        return $result;
+        return false;
     }
 
     /**
-     * AJAX action: Generate data necessary to display a complete message.
+     * AJAX action: Generate data necessary to display a message.
      *
      * See the list of variables needed for _changed() and
      * _checkUidvalidity().  Additional variables used:
-     * <pre>
-     * 'uid' - (string) Index of the messages to preview (IMAP sequence
-     *         string) - must be single index.
-     * </pre>
+     *   - peek: (integer) If set, don't set seen flag.
+     *   - preview: (integer) If set, return preview data. Otherwise, return
+     *              full data.
+     *   - uid: (string) Index of the message to display (IMAP sequence
+     *          string; mailbox is base64url encoded) - must be single index.
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'message' - (object) Return from IMP_View_ShowMessage::showMessage().
-     * </pre>
+     * @return object  Object with the following entries:
+     *   - error: (string) On error, the error string.
+     *   - errortype: (string) On error, the error type.
+     *   - mbox: (string) The message mailbox (base64url encoded).
+     *   - uid: (string) The message UID.
+     *   - view: (string) The view ID.
      */
     public function showMessage()
     {
-        $indices = new IMP_Indices($this->_vars->uid);
-        list($mbox, $idx) = $indices->getSingle();
-        if (!$idx) {
-            return false;
+        $indices = new IMP_Indices_Form($this->_vars->uid);
+        list($mbox, $uid) = $indices->getSingle();
+
+        if (!$uid) {
+            throw new IMP_Exception(_("Requested message not found."));
         }
 
-        $change = $this->_changed(false);
-        if (is_null($change)) {
-            return false;
-        }
-
-        $args = array(
-            'mailbox' => strval($mbox),
-            'uid' => $idx
-        );
         $result = new stdClass;
+        $result->mbox = $mbox->form_to;
+        $result->uid = $uid;
+        $result->view = $this->_vars->view;
 
         try {
-            $show_msg = new IMP_Views_ShowMessage();
-            $result->message = (object)$show_msg->showMessage($args);
-            if (isset($result->message->error)) {
-                $result = $this->_checkUidvalidity($result);
+            $change = $this->_changed(true);
+            if (is_null($change)) {
+                throw new IMP_Exception(_("Could not open mailbox."));
             }
-        } catch (Horde_Imap_Client_Exception $e) {
-            $result->message = new stdClass;
-            $result->message->error = $e->getMessage();
-            $result->message->errortype = 'horde.error';
-            $result->message->mailbox = $args['mailbox'];
-            $result->message->uid = $args['uid'];
+
+            /* Explicitly load the message here; non-existent messages are
+             * ignored when the Ajax queue is processed. */
+            $GLOBALS['injector']->getInstance('IMP_Factory_Contents')->create($indices);
+
+            $this->_queue->message($mbox, $uid, $this->_vars->preview, $this->_vars->peek);
+        } catch (Exception $e) {
+            $result->error = $e->getMessage();
+            $result->errortype = 'horde.error';
+
+            $change = true;
+        }
+
+        if ($this->_vars->preview) {
+            if ($change) {
+                $this->addTask('viewport', $this->_viewPortData(true));
+            } elseif ($this->_mbox->cacheid_date != $this->_vars->viewport->cacheid) {
+                /* Cache ID has changed due to viewing this message. So update
+                 * the cacheid in the ViewPort. */
+                $this->addTask('viewport', $this->_viewPortOb());
+            }
+
+            $this->_queue->poll($mbox);
         }
 
         return $result;
     }
 
     /**
-     * AJAX action: Generate data necessary to display preview message.
+     * AJAX action: Return the MIME tree representation of the message.
      *
      * See the list of variables needed for _changed() and
      * _checkUidvalidity().  Additional variables used:
-     * <pre>
-     * 'uid' - (string) Index of the messages to preview (IMAP sequence
-     *         string) - must be single index.
-     * </pre>
+     *   - preview: (integer) If set, return preview data. Otherwise, return
+     *              full data.
+     *   - uid: (string) Index of the messages to display (IMAP sequence
+     *          string; mailbox is base64url encoded) - must be single index.
      *
-     * @return mixed  False on failure, or an object with the following
-     *                entries:
-     * <pre>
-     * 'flag' - (object) See flagEntry().
-     * 'poll' - (array) Mailbox names as the keys, number of unseen messages
-     *          as the values.
-     * 'preview' - (object) Return from IMP_View_ShowMessage::showMessage().
-     * 'ViewPort' - (object) See _viewPortData(). (Only returns updatecacheid
-     *                       entry - don't do mailbox poll here).
-     * </pre>
+     * @return mixed  On error will return null.
+     *                Otherwise an object with the following entries:
+     *   - tree: (string) The MIME tree representation of the message.
+     *           If viewing preview, on error this object will contain error
+     *           and errortype properties.
      */
-    public function showPreview()
+    public function messageMimeTree()
     {
-        $indices = new IMP_Indices($this->_vars->uid);
-        list($mbox, $idx) = $indices->getSingle();
-        if (!$idx) {
-            return false;
-        }
-
-        $change = $this->_changed(false);
-        if (is_null($change)) {
-            return false;
-        }
-
-        $args = array(
-            'mailbox' => strval($mbox),
-            'preview' => true,
-            'uid' => $idx
-        );
         $result = new stdClass;
-        $result->preview = new stdClass;
 
         try {
-            $show_msg = new IMP_Views_ShowMessage();
-            $result->preview = (object)$show_msg->showMessage($args);
-            if (isset($result->preview->error)) {
-                $result = $this->_checkUidvalidity($result);
-            } else {
-                if ($change) {
-                    $result->ViewPort = $this->_viewPortData(true);
-                } else {
-                    /* Cache ID has changed due to viewing this message. So
-                     * update the cacheid in the ViewPort. */
-                    $cacheid = IMP_Mailbox::get($this->_vars->view)->cacheid;
-                    if ($cacheid != $this->_vars->cacheid) {
-                        $result->ViewPort = new stdClass;
-                        $result->ViewPort->updatecacheid = $cacheid;
-                        $result->ViewPort->view = $this->_vars->view;
-                    }
-                }
-
-                if ($poll = $this->pollEntry($this->_vars->view)) {
-                    $result->poll = $poll;
-                }
+            $imp_contents = $GLOBALS['injector']->getInstance('IMP_Factory_Contents')->create(new IMP_Indices_Form($this->_vars->uid));
+            $result->tree = $imp_contents->getTree()->getTree(true);
+        } catch (IMP_Exception $e) {
+            if (!$this->_vars->preview) {
+                throw $e;
             }
 
-            /* Add changed flag information. */
-            $result->flag = $this->flagEntry(array(Horde_Imap_Client::FLAG_SEEN), true, $indices);
-        } catch (Horde_Imap_Client_Exception $e) {
             $result->preview->error = $e->getMessage();
             $result->preview->errortype = 'horde.error';
-            $result->preview->mailbox = $args['mailbox'];
-            $result->preview->uid = $args['uid'];
+            $result->preview->mbox = $mbox->form_to;
+            $result->preview->uid = $idx;
+            $result->preview->view = $this->_vars->view;
         }
+
+        return $result;
+    }
+
+    /**
+     * AJAX action: Return a list of address objects used to build an address
+     * header for a message.
+     *
+     * See the list of variables needed for _changed() and
+     * _checkUidvalidity().  Additional variables used:
+     *   - header: (integer) If set, return preview data. Otherwise, return
+     *              full data.
+     *   - uid: (string) Index of the messages to display (IMAP sequence
+     *          string; mailbox is base64url encoded) - must be single index.
+     *
+     * @return object  An object with the following entries:
+     *   - hdr_data: (object) Contains header names as keys and lists of
+     *               address objects as values.
+     * @throws IMP_Exception
+     */
+    public function addressHeader()
+    {
+        $indices = new IMP_Indices_Form($this->_vars->uid);
+        list($mbox, $idx) = $indices->getSingle();
+
+        if (!$idx) {
+            throw new IMP_Exception(_("Requested message not found."));
+        }
+
+        $show_msg = new IMP_Ajax_Application_ShowMessage($mbox, $idx);
+
+        $hdr = $this->_vars->header;
+
+        $result = new stdClass;
+        $result->hdr_data->$hdr = (object)$show_msg->getAddressHeader($this->_vars->header, null);
 
         return $result;
     }
@@ -1020,42 +1074,34 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      * AJAX action: Convert HTML to text (compose data).
      *
      * Variables used:
-     * <pre>
-     * 'changed' - (integer) Has the text changed from the original?
-     * 'identity' - (integer) The current identity.
-     * 'imp_compose' - (string) The IMP_Compose cache identifier.
-     * 'text' - (string) The text to convert.
-     * </pre>
+     *   - changed: (integer) Has the text changed from the original?
+     *   - identity: (integer) The current identity.
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
+     *   - text: (string) The text to convert.
      *
      * @return object  An object with the following entries:
-     * <pre>
-     * 'text' - (string) The converted text.
-     * </pre>
+     *   - text: (string) The converted text.
      */
     public function html2Text()
     {
         $result = new stdClass;
 
         if (!$this->_vars->changed) {
-            list($imp_compose, $imp_contents) = $this->_initCompose();
+            $compose = $this->_initCompose();
 
-            switch ($imp_compose->getMetadata('reply_type')) {
-            case 'forward':
-                switch ($imp_compose->getMetadata('forward_type')) {
-                case 'forward_body':
-                case 'forward_both':
-                    $data = $imp_compose->forwardMessageText($imp_contents, array(
-                        'format' => 'text'
-                    ));
-                    $result->text = $data['body'];
-                    return $result;
-                }
-                break;
+            switch ($compose->compose->replyType()) {
+            case IMP_Compose::FORWARD_BODY:
+            case IMP_Compose::FORWARD_BOTH:
+                $data = $compose->compose->forwardMessageText($compose->contents, array(
+                    'format' => 'text'
+                ));
+                $result->text = $data['body'];
+                return $result;
 
-            case 'reply':
-            case 'reply_all':
-            case 'reply_list':
-                $data = $imp_compose->replyMessageText($imp_contents, array(
+            case IMP_Compose::REPLY_ALL:
+            case IMP_Compose::REPLY_LIST:
+            case IMP_Compose::REPLY_SENDER:
+                $data = $compose->compose->replyMessageText($compose->contents, array(
                     'format' => 'text'
                 ));
                 $result->text = $data['body'];
@@ -1072,42 +1118,34 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      * AJAX action: Convert text to HTML (compose data).
      *
      * Variables used:
-     * <pre>
-     * 'changed' - (integer) Has the text changed from the original?
-     * 'identity' - (integer) The current identity.
-     * 'imp_compose' - (string) The IMP_Compose cache identifier.
-     * 'text' - (string) The text to convert.
-     * </pre>
+     *   - changed: (integer) Has the text changed from the original?
+     *   - identity: (integer) The current identity.
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
+     *   - text: (string) The text to convert.
      *
      * @return object  An object with the following entries:
-     * <pre>
-     * 'text' - (string) The converted text.
-     * </pre>
+     *   - text: (string) The converted text.
      */
     public function text2Html()
     {
         $result = new stdClass;
 
         if (!$this->_vars->changed) {
-            list($imp_compose, $imp_contents) = $this->_initCompose();
+            $compose = $this->_initCompose();
 
-            switch ($imp_compose->getMetadata('reply_type')) {
-            case 'forward':
-                switch ($imp_compose->getMetadata('forward_type')) {
-                case 'forward_body':
-                case 'forward_both':
-                    $data = $imp_compose->forwardMessageText($imp_contents, array(
-                        'format' => 'html'
-                    ));
-                    $result->text = $data['body'];
-                    return $result;
-                }
-                break;
+            switch ($compose->compose->replyType()) {
+            case IMP_Compose::FORWARD_BODY:
+            case IMP_Compose::FORWARD_BOTH:
+                $data = $compose->compose->forwardMessageText($compose->contents, array(
+                    'format' => 'html'
+                ));
+                $result->text = $data['body'];
+                return $result;
 
-            case 'reply':
-            case 'reply_all':
-            case 'reply_list':
-                $data = $imp_compose->replyMessageText($imp_contents, array(
+            case IMP_Compose::REPLY_ALL:
+            case IMP_Compose::REPLY_LIST:
+            case IMP_Compose::REPLY_SENDER:
+                $data = $compose->compose->replyMessageText($compose->contents, array(
                     'format' => 'html'
                 ));
                 $result->text = $data['body'];
@@ -1125,56 +1163,43 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      *
      * See the list of variables needed for _checkUidvalidity(). Additional
      * variables used:
-     * <pre>
-     * 'dataonly' - (boolean) Only return data information (DEFAULT:
-     *              false).
-     * 'imp_compose' - (string) The IMP_Compose cache identifier.
-     * 'type' - (string) See IMP_Compose::forwardMessage().
-     * 'uid' - (string) Indices of the messages to forward (IMAP sequence
-     *         string).
-     * </pre>
+     *   - dataonly: (boolean) Only return data information (DEFAULT: false).
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
+     *   - type: (string) Forward type.
+     *   - uid: (string) Indices of the messages to forward (IMAP sequence
+     *          string; mailboxes are base64url encoded).
      *
      * @return mixed  False on failure, or an object with the following
      *                entries:
-     * <pre>
-     * 'body' - (string) The body text of the message.
-     * 'format' - (string) Either 'text' or 'html'.
-     * 'fwd_list' - (array) See IMP_Dimp::getAttachmentInfo().
-     * 'header' - (array) The headers of the message.
-     * 'identity' - (integer) The identity ID to use for this message.
-     * 'imp_compose' - (string) The IMP_Compose cache identifier.
-     * 'opts' - (array) Additional options needed for DimpCompose.fillForm().
-     * 'type' - (string) The input 'type' value.
-     * 'ViewPort' - (object) See _viewPortData().
-     * </pre>
+     *   - body: (string) The body text of the message.
+     *   - format: (string) Either 'text' or 'html'.
+     *   - header: (array) The headers of the message.
+     *   - identity: (integer) The identity ID to use for this message.
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
+     *   - opts: (array) Additional options needed for DimpCompose.fillForm().
+     *   - type: (string) The input 'type' value.
      */
     public function getForwardData()
     {
+        /* Can't open session read-only since we need to store the message
+         * cache id. */
+
         try {
-            list($imp_compose, $imp_contents) = $this->_initCompose();
+            $compose = $this->_initCompose();
 
-            $fwd_msg = $imp_compose->forwardMessage($this->_vars->type, $imp_contents);
+            $fwd_msg = $compose->compose->forwardMessage($compose->ajax->forward_map[$this->_vars->type], $compose->contents);
 
-            /* Can't open session read-only since we need to store the message
-             * cache id. */
-            $result = new stdClass;
-            $result->opts = new stdClass;
-            $result->opts->fwd_list = IMP_Dimp::getAttachmentInfo($imp_compose);
-            $result->body = $fwd_msg['body'];
-            $result->type = $this->_vars->type;
-            if (!$this->_vars->dataonly) {
-                $result->format = $fwd_msg['format'];
-                $fwd_msg['headers']['replytype'] = 'forward';
-                $result->header = $fwd_msg['headers'];
-                $result->identity = $fwd_msg['identity'];
-                $result->imp_compose = $imp_compose->getCacheId();
-                if ($this->_vars->type == 'forward_auto') {
-                    $result->opts->auto = $fwd_msg['type'];
-                }
+            if ($this->_vars->dataonly) {
+                $result = $compose->ajax->getBaseResponse();
+                $result->body = $fwd_msg['body'];
+                $result->opts->atc = $compose->ajax->getAttachmentInfo();
+            } else {
+                $result = $compose->ajax->getResponse($fwd_msg);
             }
         } catch (Horde_Exception $e) {
             $GLOBALS['notification']->push($e);
-            $result = $this->_checkUidvalidity();
+            $this->_checkUidvalidity();
+            $result = false;
         }
 
         return $result;
@@ -1185,53 +1210,47 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      *
      * See the list of variables needed for _checkUidvalidity(). Additional
      * variables used:
-     * <pre>
-     * 'headeronly' - (boolean) Only return header information (DEFAULT:
-     *                false).
-     * 'imp_compose' - (string) The IMP_Compose cache identifier.
-     * 'type' - (string) See IMP_Compose::replyMessage().
-     * 'uid' - (string) Indices of the messages to reply to (IMAP sequence
-     *         string).
-     * </pre>
+     *   - headeronly: (boolean) Only return header information (DEFAULT:
+     *                 false).
+     *   - format: (string) The format to force to ('text' or 'html')
+     *             (DEFAULT: Auto-determined).
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
+     *   - type: (string) See IMP_Compose::replyMessage().
+     *   - uid: (string) Indices of the messages to reply to (IMAP sequence
+     *          string; mailboxes are base64url encoded).
      *
      * @return mixed  False on failure, or an object with the following
      *                entries:
-     * <pre>
-     * 'body' - (string) The body text of the message.
-     * 'format' - (string) Either 'text' or 'html'.
-     * 'header' - (array) The headers of the message.
-     * 'identity' - (integer) The identity ID to use for this message.
-     * 'imp_compose' - (string) The IMP_Compose cache identifier.
-     * 'opts' - (array) Additional options needed for DimpCompose.fillForm().
-     * 'type' - (string) The input 'type' value.
-     * 'ViewPort' - (object) See _viewPortData().
-     * </pre>
+     *   - body: (string) The body text of the message.
+     *   - format: (string) Either 'text' or 'html'.
+     *   - header: (array) The headers of the message.
+     *   - identity: (integer) The identity ID to use for this message.
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
+     *   - opts: (array) Additional options needed for DimpCompose.fillForm().
+     *   - type: (string) The input 'type' value.
      */
     public function getReplyData()
     {
+        /* Can't open session read-only since we need to store the message
+         * cache id. */
+
         try {
-            list($imp_compose, $imp_contents) = $this->_initCompose();
+            $compose = $this->_initCompose();
 
-            $reply_msg = $imp_compose->replyMessage($this->_vars->type, $imp_contents);
-            $reply_msg['headers']['replytype'] = 'reply';
+            $reply_msg = $compose->compose->replyMessage($compose->ajax->reply_map[$this->_vars->type], $compose->contents, array(
+                'format' => $this->_vars->format
+            ));
 
-            /* Can't open session read-only since we need to store the message
-             * cache id. */
-            $result = new stdClass;
-            $result->header = $reply_msg['headers'];
-            $result->type = $this->_vars->type;
-            if (!$this->_vars->headeronly) {
-                $result->body = $reply_msg['body'];
-                $result->format = $reply_msg['format'];
-                $result->identity = $reply_msg['identity'];
-                $result->imp_compose = $imp_compose->getCacheId();
-                if ($this->_vars->type == 'reply_auto') {
-                    $result->opts = array('auto' => $reply_msg['type']);
-                }
+            if ($this->_vars->headeronly) {
+                $result = $compose->ajax->getBaseResponse();
+                $result->header = $reply_msg['headers'];
+            } else {
+                $result = $compose->ajax->getResponse($reply_msg);
             }
         } catch (Horde_Exception $e) {
             $GLOBALS['notification']->push($e);
-            $result = $this->_checkUidvalidity();
+            $this->_checkUidvalidity();
+            $result = false;
         }
 
         return $result;
@@ -1241,95 +1260,99 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      * AJAX action: Get compose redirect data.
      *
      * Variables used:
-     * <pre>
-     * 'uid' - (string) Index of the message to redirect (IMAP sequence
-     *         string).
-     * </pre>
+     *   - uid: (string) Index of the message to redirect (IMAP sequence
+     *          string; mailbox is base64url encoded).
      *
      * @return mixed  False on failure, or an object with the following
      *                entries:
-     * <pre>
-     * 'imp_compose' - (string) The IMP_Compose cache identifier.
-     * 'type' - (string) The input 'type' value.
-     * </pre>
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
+     *   - type: (string) The input 'type' value.
      */
     public function getRedirectData()
     {
-        list($imp_compose, $imp_contents) = $this->_initCompose();
+        $compose = $this->_initCompose();
 
-        $imp_compose->redirectMessage($imp_contents);
+        $compose->compose->redirectMessage(new IMP_Indices($compose->contents->getMailbox(), $compose->contents->getUid()));
 
         $ob = new stdClass;
-        $ob->imp_compose = $imp_compose->getCacheId();
+        $ob->imp_compose = $compose->compose->getCacheId();
         $ob->type = $this->_vars->type;
 
         return $ob;
     }
 
     /**
-     * AJAX action: Cancel compose.
+     * AJAX action: Get resume data.
      *
-     * Variables used:
-     * <pre>
-     * 'imp_compose' - (string) The IMP_Compose cache identifier.
-     * </pre>
+     * See the list of variables needed for _checkUidvalidity(). Additional
+     * variables used:
+     *   - format: (string) The format to force to ('text' or 'html')
+     *             (DEFAULT: Auto-determined).
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
+     *   - type: (string) Resume type: one of 'editasnew', 'resume',
+     *           'template', 'template_edit'.
+     *   - uid: (string) Indices of the messages to forward (IMAP sequence
+     *          string; mailboxes are base64url encoded).
      *
-     * @return boolean  True.
+     * @return mixed  False on failure, or an object with the following
+     *                entries:
+     *   - body: (string) The body text of the message.
+     *   - format: (string) Either 'text' or 'html'.
+     *   - header: (array) The headers of the message.
+     *   - identity: (integer) The identity ID to use for this message.
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
+     *   - opts: (array) Additional options (atc, priority, readreceipt).
+     *   - type: (string) The input 'type' value.
      */
-    public function cancelCompose()
+    public function getResumeData()
     {
-        $imp_compose = $GLOBALS['injector']->getInstance('IMP_Factory_Compose')->create($this->_vars->imp_compose);
-        $imp_compose->destroy('cancel');
+        try {
+            $compose = $this->_initCompose();
+            $indices_ob = new IMP_Indices($compose->contents->getMailbox(), $compose->contents->getUid());
 
-        return true;
-    }
+            switch ($this->_vars->type) {
+            case 'editasnew':
+                $resume = $compose->compose->editAsNew($indices_ob, array(
+                    'format' => $this->_vars->format
+                ));
+                break;
 
-    /**
-     * AJAX action: Load stationery.
-     *
-     * Variables used:
-     * <pre>
-     * 'html' - (integer) In HTML compose mode?
-     * 'id' - (integer) The stationery entry to use.
-     * 'identity' - (integer) The current identity.
-     * 'text' - (string) The message body text.
-     * </pre>
-     *
-     * @return object  An object with the following entries:
-     * <pre>
-     * 'text' - (string) The new message text.
-     * </pre>
-     */
-    public function stationery()
-    {
-        global $injector, $notification, $prefs;
+            case 'resume':
+                $resume = $compose->compose->resumeDraft($indices_ob, array(
+                    'format' => $this->_vars->format
+                ));
+                break;
 
-        $identity = $injector->getInstance('IMP_Identity');
-        if (isset($this->_vars->identity) &&
-            !$prefs->isLocked('default_identity')) {
-            $identity->setDefault($this->_vars->identity);
+            case 'template':
+                $resume = $compose->compose->useTemplate($indices_ob, array(
+                    'format' => $this->_vars->format
+                ));
+                break;
+
+            case 'template_edit':
+                $resume = $compose->compose->editTemplate($indices_ob);
+                break;
+            }
+
+            $result = $compose->ajax->getResponse($resume);
+        } catch (Horde_Exception $e) {
+            $GLOBALS['notification']->push($e);
+            $this->_checkUidvalidity();
+            $result = false;
         }
-        $stationery = $injector->getInstance('IMP_Compose_Stationery');
-
-        $result = new stdClass;
-        $result->text = $stationery->getContent($this->_vars->id, $identity, strval($this->_vars->text), $this->_vars->html);
-
-        $notification->push(sprintf(_("Loaded stationery \"%s\"."), $stationery[$this->_vars->id]['n']), 'horde.message');
 
         return $result;
     }
 
     /**
-     * AJAX action: Delete a draft.
+     * AJAX action: Cancel compose.
      *
      * Variables used:
-     * <pre>
-     * 'imp_compose' - (string) The IMP_Compose cache identifier.
-     * </pre>
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
      *
      * @return boolean  True.
      */
-    public function deleteDraft()
+    public function cancelCompose()
     {
         $GLOBALS['injector']->getInstance('IMP_Factory_Compose')->create($this->_vars->imp_compose)->destroy('cancel');
         return true;
@@ -1339,10 +1362,8 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      * AJAX action: Delete an attachment from compose data.
      *
      * Variables used:
-     * <pre>
-     * 'atc_indices' - (string) Attachment IDs to delete.
-     * 'imp_compose' - (string) The IMP_Compose cache identifier.
-     * </pre>
+     *   - atc_indices: (string) [JSON array] Attachment IDs to delete.
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
      *
      * @return boolean  True.
      */
@@ -1350,8 +1371,10 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
     {
         if (isset($this->_vars->atc_indices)) {
             $imp_compose = $GLOBALS['injector']->getInstance('IMP_Factory_Compose')->create($this->_vars->imp_compose);
-            foreach ($this->_vars->atc_indices as $val) {
-                $GLOBALS['notification']->push(sprintf(_("Deleted attachment \"%s\"."), Horde_Mime::decode($imp_compose[$val]['part']->getName(true))), 'horde.success');
+            foreach (Horde_Serialize::unserialize($this->_vars->atc_indices, Horde_Serialize::JSON) as $val) {
+                if ($part = $imp_compose[$val]['part']) {
+                    $GLOBALS['notification']->push(sprintf(_("Deleted attachment \"%s\"."), Horde_Mime::decode($part->getName(true))), 'horde.success');
+                }
                 unset($imp_compose[$val]);
             }
         }
@@ -1362,16 +1385,9 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
     /**
      * AJAX action: Purge deleted messages.
      *
-     * See the list of variables needed for _changed(), and
-     * _generateDeleteResult().  Additional variables used:
-     * <pre>
-     * 'uid' - (string) Indices of the messages to purge (IMAP sequence
-     *         string).
-     * 'view' - (string) The current full mailbox.
-     * </pre>
+     * See the list of variables needed for _changed() and _deleteMsgs().
      *
-     * @return mixed  False on failure, or an object (see
-     *                _generateDeleteResult() for format).
+     * @return boolean  True on success.
      */
     public function purgeDeleted()
     {
@@ -1382,78 +1398,56 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
             return false;
         }
 
-        $mbox = IMP_Mailbox::get($this->_vars->view);
-
         if (!$change) {
-            $sort = $mbox->getSort();
-            $change = ($sort['by'] == Horde_Imap_Client::SORT_THREAD);
+            $change = ($this->_mbox->getSort()->sortby == Horde_Imap_Client::SORT_THREAD);
         }
 
-        $expunged = $injector->getInstance('IMP_Message')->expungeMailbox(array($this->_vars->view => 1), array('list' => true));
+        $expunged = $injector->getInstance('IMP_Message')->expungeMailbox(array(strval($this->_mbox) => 1), array('list' => true));
 
         if (!($expunge_count = count($expunged))) {
             return false;
         }
 
-        if ($expunge_count == 1) {
-            $GLOBALS['notification']->push(sprintf(_("1 message was purged from \"%s\"."), $mbox->display), 'horde.success');
-        } else {
-            $GLOBALS['notification']->push(sprintf(_("%s messages were purged from \"%s\"."), $expunge_count, $mbox->display), 'horde.success');
-        }
-        $result = $this->_generateDeleteResult($expunged, $change);
+        $GLOBALS['notification']->push(sprintf(ngettext("%d message was purged from \"%s\".", "%d messages were purged from \"%s\".", $expunge_count), $expunge_count, $this->_mbox->display), 'horde.success');
 
-        /* Need to manually set remove to true since we want to remove message
-         * from the list no matter the current pref settings. */
-        $result->deleted->remove = 1;
+        $this->_deleteMsgs($expunged, $change, true);
 
-        return $result;
+        return true;
     }
 
     /**
      * AJAX action: Send a Message Disposition Notification (MDN).
      *
      * Variables used:
-     * <pre>
-     * 'uid' - (string) Index of the messages to preview (IMAP sequence
-     *         string) - must be single index.
-     * </pre>
+     *   - uid: (string) Index of the messages to send MDN for (IMAP sequence
+     *          string; mailbox is base64url encoded) - must be single index.
      *
      * @return mixed  False on failure, or an object with these properties:
-     * <pre>
-     * 'mbox' - (string) Mailbox of message.
-     * 'uid' - (integer) UID of message.
-     * </pre>
+     *   - mbox: (string) Mailbox of message (base64url encoded).
+     *   - uid: (integer) UID of message.
      */
     public function sendMDN()
     {
-        $indices = new IMP_Indices($this->_vars->uid);
+        $indices = new IMP_Indices_Form($this->_vars->uid);
         if (count($indices) != 1) {
             return false;
         }
 
-        list($mbox, $uid) = $indices->getSingle();
-
-        $query = new Horde_Imap_Client_Fetch_Query();
-        $query->headerText(array(
-            'peek' => false
-        ));
-
         try {
-            $fetch_ret = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->fetch($mbox, $query, array(
-                'ids' => new Horde_Imap_Client_Ids($uid)
-            ));
-        } catch (Horde_Imap_Client_Exception $e) {
-            $GLOBALS['notification']->push(_("The Message Disposition Notification was not sent. This is what the server said") . ': ' . $e->getMessage(), 'horde.error');
+            $contents = $GLOBALS['injector']->getInstance('IMP_Factory_Contents')->create($indices);
+        } catch (IMP_Imap_Exception $e) {
+            $e->notify(_("The Message Disposition Notification was not sent. This is what the server said") . ': ' . $e->getMessage());
             return false;
         }
 
+        list($mbox, $uid) = $indices->getSingle();
         $imp_ui = new IMP_Ui_Message();
-        $imp_ui->MDNCheck($mbox, $uid, $fetch_ret[$uid]->getHeaderText(0, Horde_Imap_Client_Data_Fetch::HEADER_PARSE), true);
+        $imp_ui->MDNCheck($mbox, $uid, $contents->getHeaderAndMarkAsSeen(), true);
 
         $GLOBALS['notification']->push(_("The Message Disposition Notification was sent successfully."), 'horde.success');
 
         $result = new stdClass;
-        $result->mbox = strval($mbox);
+        $result->mbox = $mbox->form_to;
         $result->uid = $uid;
 
         return $result;
@@ -1464,28 +1458,21 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      *
      * See the list of variables needed for _changed() and
      * _checkUidvalidity().  Additional variables used:
-     * <pre>
-     * 'uid' - (string) Index of the messages to preview (IMAP sequence
-     *         string) - must be single index.
-     * </pre>
+     *   - uid: (string) Index of the messages to preview (IMAP sequence
+     *          string; base64url encoded) - must be single index.
      *
-     * @return mixed  False on failure, the return from showPreview() on
-     *                success along with these properties:
-     * <pre>
-     * 'newuid' - (integer) UID of new message.
-     * 'oldmbox' - (string) Mailbox of old message.
-     * 'olduid' - (integer) UID of old message.
-     * 'ViewPort' - (object) See _viewPortData().
-     * </pre>
+     * @return mixed  False on failure, or an object with these properties:
+     *   - newmbox: (string) Mailbox of new message (base64url encoded).
+     *   - newuid: (integer) UID of new message.
      */
     public function stripAttachment()
     {
-        $indices = new IMP_Indices($this->_vars->uid);
+        $indices = new IMP_Indices_Form($this->_vars->uid);
         if (count($indices) != 1) {
             return false;
         }
 
-        $change = $this->_changed(false);
+        $change = $this->_changed(true);
         if (is_null($change)) {
             return false;
         }
@@ -1499,15 +1486,14 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
 
         $GLOBALS['notification']->push(_("Attachment successfully stripped."), 'horde.success');
 
-        $this->_vars->uid = strval($new_indices);
+        $tmp = $new_indices->getSingle();
 
-        $result = $this->showPreview();
-        $new_indices_list = $new_indices->getSingle();
-        $result->newuid = $new_indices_list[1];
-        $old_indices_list = $indices->getSingle();
-        $result->oldmbox = strval($old_indices_list[0]);
-        $result->olduid = $old_indices_list[1];
-        $result->ViewPort = $this->_viewPortData(true);
+        $result = new stdClass;
+        $result->newmbox = $tmp[0]->form_to;
+        $result->newuid = $tmp[1];
+
+        $this->_queue->message($tmp[0], $tmp[1], true);
+        $this->addTask('viewport', $this->_viewPortData(true));
 
         return $result;
     }
@@ -1516,17 +1502,15 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      * AJAX action: Add an attachment to a compose message.
      *
      * Variables used:
-     * <pre>
-     * 'composeCache' - (string) The IMP_Compose cache identifier.
-     * </pre>
+     *   - composeCache: (string) The IMP_Compose cache identifier.
      *
-     * @return object  An object with the following entries:
-     * <pre>
-     * 'atc' - TODO
-     * 'error' - (string) An error message.
-     * 'imp_compose' - TODO
-     * 'success' - (integer) 1 on success, 0 on failure.
-     * </pre>
+     * @return object  Returns response object to display JSON HTML-encoded.
+     *                 Embedded data: false on failure, or an object with the
+     *                 following properties:
+     *   - atc: (integer) The attachment ID.
+     *   - error: (string) An error message.
+     *   - imp_compose: (string) The IMP_Compose cache identifier.
+     *   - success: (integer) 1 on success, 0 on failure.
      */
     public function addAttachment()
     {
@@ -1538,12 +1522,13 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
 
         if ($GLOBALS['session']->get('imp', 'file_upload') &&
             $imp_compose->addFilesFromUpload('file_')) {
-            $result->atc = end(IMP_Dimp::getAttachmentInfo($imp_compose));
+            $ajax_compose = new IMP_Ajax_Application_Compose($imp_compose);
+            $result->atc = end($ajax_compose->getAttachmentInfo());
             $result->success = 1;
             $result->imp_compose = $imp_compose->getCacheId();
         }
 
-        return $result;
+        return new Horde_Core_Ajax_Response_HordeCore_JsonHtml($result);
     }
 
     /**
@@ -1567,57 +1552,65 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
     }
 
     /**
+     * AJAX action: Save a template message.
+     *
+     * @return object  See self::_dimpDraftAction().
+     */
+    public function saveTemplate()
+    {
+        return $this->_dimpDraftAction();
+    }
+
+    /**
      * AJAX action: Send a message.
      *
      * See the list of variables needed for _dimpComposeSetup(). Additional
      * variables used:
-     * <pre>
-     * 'encrypt' - (integer) The encryption method to use
-     *             (IMP ENCRYPT constants).
-     * 'html' - (integer) In HTML compose mode?
-     * 'message' - (string) The message text.
-     * 'priority' - TODO
-     * 'request_read_receipt' - (boolean) Add request read receipt header?
-     * 'save_attachments_select' - TODO
-     * 'save_sent_mail' - TODO
-     * 'save_sent_mail_folder' - (string) TODO
-     * </pre>
+     *   - encrypt: (integer) The encryption method to use (IMP ENCRYPT
+     *              constants).
+     *   - html: (integer) In HTML compose mode?
+     *   - message: (string) The message text.
+     *   - priority: (string) The priority of the message.
+     *   - request_read_receipt: (boolean) Add request read receipt header?
+     *   - save_attachments_select: (boolean) Whether to save attachments.
+     *   - save_sent_mail: (boolean) True if saving sent mail.
+     *   - save_sent_mail_mbox: (string) base64url encoded version of sent
+     *                          mail mailbox to use.
      *
      * @return object  An object with the following entries:
-     * <pre>
-     * 'action' - (string) The AJAX action string
-     * 'draft_delete' - (integer) TODO
-     * 'encryptjs' - (array) Javascript to run after encryption failure.
-     * 'flag' - (object) See flagEntry().
-     * 'identity' - (integer) If set, this is the identity that is tied to
-     *              the current recipient address.
-     * 'log' - (array) TODO
-     * 'mailbox' - (array) TODO
-     * 'mbox' - (string) Mailbox of original message.
-     * 'success' - (integer) 1 on success, 0 on failure.
-     * 'uid' - (integer) IMAP UID of original message.
-     * </pre>
+     *   - action: (string) The AJAX action string
+     *   - draft_delete: (integer) If set, remove auto-saved drafts.
+     *   - encryptjs: (array) Javascript to run after encryption failure.
+     *   - flag: (array) See IMP_Ajax_Queue::add().
+     *   - identity: (integer) If set, this is the identity that is tied to
+     *               the current recipient address.
+     *   - mbox: (string) Mailbox of original message (base64url encoded).
+     *   - success: (integer) 1 on success, 0 on failure.
+     *   - uid: (integer) IMAP UID of original message.
      */
     public function sendMessage()
     {
-        list($result, $imp_compose, $headers, $identity) = $this->_dimpComposeSetup();
-        if (!IMP::canCompose()) {
+        try {
+            list($result, $imp_compose, $headers, $identity) = $this->_dimpComposeSetup();
+            if (!IMP::canCompose()) {
+                $result->success = 0;
+                return $result;
+            }
+        } catch (Horde_Exception $e) {
+            $GLOBALS['notification']->push($e);
+
+            $result = new stdClass;
+            $result->action = $this->_action;
             $result->success = 0;
-        }
-        if (!$result->success) {
             return $result;
         }
 
         $headers['replyto'] = $identity->getValue('replyto_addr');
 
-        /* Use IMP_Tree to determine whether the sent mail folder was
-         * created. */
-        $imptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
-        $imptree->eltDiffStart();
-
         $sm_displayed = !empty($GLOBALS['conf']['user']['select_sentmail_folder']) && !$GLOBALS['prefs']->isLocked('sent_mail_folder');
 
         $options = array(
+            'add_signature' => $identity->getDefault(),
             'encrypt' => ($GLOBALS['prefs']->isLocked('default_encrypt') ? $GLOBALS['prefs']->getValue('default_encrypt') : $this->_vars->encrypt),
             'html' => $this->_vars->html,
             'identity' => $identity,
@@ -1627,13 +1620,14 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
             'save_sent' => ($sm_displayed
                             ? (bool)$this->_vars->save_sent_mail
                             : $identity->getValue('save_sent_mail')),
-            'sent_folder' => ($sm_displayed
-                              ? (isset($this->_vars->save_sent_mail_folder) ? $this->_vars->save_sent_mail_folder : $identity->getValue('sent_mail_folder'))
+            'sent_mail' => ($sm_displayed
+                              ? (isset($this->_vars->save_sent_mail_mbox) ? IMP_Mailbox::formFrom($this->_vars->save_sent_mail_mbox) : $identity->getValue('sent_mail_folder'))
                               : $identity->getValue('sent_mail_folder'))
         );
 
         try {
-            $sent = $imp_compose->buildAndSendMessage($this->_vars->message, $headers, $options);
+            $imp_compose->buildAndSendMessage($this->_vars->message, $headers, $options);
+            $GLOBALS['notification']->push(empty($headers['subject']) ? _("Message sent successfully.") : sprintf(_("Message \"%s\" sent successfully."), Horde_String::truncate($headers['subject'])), 'horde.success');
         } catch (IMP_Compose_Exception $e) {
             $result->success = 0;
 
@@ -1658,7 +1652,7 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
                 }
 
                 Horde::startBuffer();
-                Horde::outputInlineScript(true);
+                $GLOBALS['page_output']->outputInlineScript(true);
                 if ($js_inline = Horde::endBuffer()) {
                     $result->encryptjs = array($js_inline);
                 }
@@ -1676,37 +1670,15 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
             $result->draft_delete = 1;
         }
 
-        if ($sent && $GLOBALS['prefs']->getValue('compose_confirm')) {
-            $GLOBALS['notification']->push(empty($headers['subject']) ? _("Message sent successfully.") : sprintf(_("Message \"%s\" sent successfully."), Horde_String::truncate($headers['subject'])), 'horde.success');
-        }
+        if ($reply_mbox = $imp_compose->getMetadata('mailbox')) {
+            $result->mbox = $reply_mbox->form_to;
+            $result->uid = $imp_compose->getMetadata('uid');
 
-        /* Update maillog information. */
-        if (!empty($GLOBALS['conf']['maillog']['use_maillog'])) {
-            $in_reply_to = $imp_compose->getMetadata('in_reply_to');
-            if (!empty($in_reply_to) &&
-                ($tmp = IMP_Dimp::getMsgLogInfo($in_reply_to))) {
-                $result->log = $tmp;
-            }
-        }
-
-        $result->mbox = strval($imp_compose->getMetadata('mailbox'));
-        $result->uid = $imp_compose->getMetadata('uid');
-
-        switch ($imp_compose->getMetadata('reply_type')) {
-        case 'forward':
-            $result->flag = $this->flagEntry(array(Horde_Imap_Client::FLAG_FORWARDED), true, new IMP_Indices($result->mbox, $result->uid));
-            break;
-
-        case 'reply':
-        case 'reply_all':
-        case 'reply_list':
-            $result->flag = $this->flagEntry(array(Horde_Imap_Client::FLAG_ANSWERED), true, new IMP_Indices($result->mbox, $result->uid));
-            break;
+            /* Update maillog information. */
+            $this->_queue->maillog($reply_mbox, $result->uid, $imp_compose->getMetadata('in_reply_to'));
         }
 
         $imp_compose->destroy('send');
-
-        $result->mailbox = $this->_getMailboxResponse($imptree);
 
         return $result;
     }
@@ -1715,18 +1687,12 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      * Redirect the message.
      *
      * Variables used:
-     * <pre>
-     * 'composeCache' - (string) The IMP_Compose cache identifier.
-     * 'redirect_to' - (string) The address(es) to redirect to.
-     * </pre>
+     *   - composeCache: (string) The IMP_Compose cache identifier.
+     *   - redirect_to: (string) The address(es) to redirect to.
      *
      * @return object  An object with the following entries:
-     * <pre>
-     * 'log' - (array) TODO
-     * 'mbox' - (array) TODO
-     * 'success' - (integer) 1 on success, 0 on failure.
-     * 'uid' - (integer) TODO
-     * </pre>
+     *   - action: (string) 'redirectMessage'.
+     *   - success: (integer) 1 on success, 0 on failure.
      */
     public function redirectMessage()
     {
@@ -1736,22 +1702,13 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
 
         try {
             $imp_compose = $GLOBALS['injector']->getInstance('IMP_Factory_Compose')->create($this->_vars->composeCache);
-            $imp_compose->sendRedirectMessage($this->_vars->redirect_to);
+            $res = $imp_compose->sendRedirectMessage($this->_vars->redirect_to);
 
-            $result->mbox = strval($imp_compose->getMetadata('mailbox'));
-            $result->uid = $imp_compose->getMetadata('uid');
-
-            $contents = $imp_compose->getContentsOb();
-            $headers = $contents->getHeaderOb();
-
-            if ($GLOBALS['prefs']->getValue('compose_confirm')) {
-                $subject = $headers->getValue('subject');
+            foreach ($res as $val) {
+                $subject = $val->headers->getValue('subject');
                 $GLOBALS['notification']->push(empty($subject) ? _("Message redirected successfully.") : sprintf(_("Message \"%s\" redirected successfully."), Horde_String::truncate($subject)), 'horde.success');
-            }
 
-            if (!empty($GLOBALS['conf']['maillog']['use_maillog']) &&
-                ($tmp = IMP_Dimp::getMsgLogInfo($headers->getValue('message-id')))) {
-                $result->log = $tmp;
+                $this->_queue->maillog($val->mbox, $val->uid, $val->headers->getValue('message-id'));
             }
         } catch (Horde_Exception $e) {
             $GLOBALS['notification']->push($e);
@@ -1762,100 +1719,110 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
     }
 
     /**
-     * Generate flag updated entry.
+     * AJAX action: Create mailbox select list for advanced search page.
      *
-     * @param array $flags    List of flags that have changed.
-     * @param boolean $add    Were the flags added?
-     * @param mixed $indices  Either a mailbox string or an IMP_Indices
-     *                        object.
+     * Variables used:
+     *   - unsub: (integer) If set, includes unsubscribed mailboxes.
      *
-     * @return stdClass  Object with these properties:
-     * <pre>
-     * 'add' - (array) The list of flags that were added.
-     * 'mbox' - (string) The full mailbox name.
-     * 'remove' - (array) The list of flags that were removed.
-     * 'uids' - (string) Indices of the messages that have changed (IMAP
-     *          sequence string); if empty, all messages in mailbox have
-     *          changed.
-     * </pre>
+     * @return object  An object with the following entries:
+     *   - mbox_list: (array)
+     *   - tree: (string)
      */
-    static public function flagEntry($flags, $add, $indices)
+    public function searchMailboxList()
     {
-        $changed = $GLOBALS['injector']->getInstance('IMP_Flags')->changed($flags, $add);
+        $ob = $GLOBALS['injector']->getInstance('IMP_Ui_Search')->getSearchMboxList($this->_vars->unsub);
 
         $result = new stdClass;
-        if (!empty($changed['add'])) {
-            $result->add = array_map('strval', $changed['add']);
-        }
-        if (!empty($changed['remove'])) {
-            $result->remove = array_map('strval', $changed['remove']);
-        }
-
-        if ($indices instanceof IMP_Indices) {
-            list($mbox,) = $indices->getSingle();
-            $result->mbox = strval($mbox);
-            $result->uids = strval($indices);
-        } else {
-            $result->mbox = $indices;
-        }
+        $result->mbox_list = $ob->mbox_list;
+        $result->tree = $ob->tree->getTree();
 
         return $result;
     }
 
     /**
-     * Generate poll information for mailboxes.
+     * AJAX action: Check passphrase.
      *
-     * @param string $mbox  The full mailbox name.  If null, all polled
-     *                      mailboxes are returned.
+     * Variables required in form input:
+     *   - dialog_input: (string) Input from the dialog screen.
+     *   - reload: (mixed) If set, reloads page instead of returning data.
+     *   - symmetricid: (string) The symmetric ID to process.
+     *   - type: (string) The passphrase type.
      *
-     * @return array  Keys are mailbox names, values are the number of unseen
-     *                messages.
+     * @return boolean  True on success.
      */
-    static public function pollEntry($mbox = null)
+    public function checkPassphrase()
     {
-        $imaptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
+        global $injector, $notification;
 
-        if (is_null($mbox)) {
-            $result = array();
-            foreach ($GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->statusMultiple($imaptree->getPollList(), Horde_Imap_Client::STATUS_UNSEEN) as $key => $val) {
-                $result[$key] = intval($val['unseen']);
+        $result = false;
+
+        try {
+            Horde::requireSecureConnection();
+
+            switch ($this->_vars->type) {
+            case 'pgpPersonal':
+            case 'pgpSymmetric':
+                if ($this->_vars->dialog_input) {
+                    $imp_pgp = $injector->getInstance('IMP_Crypt_Pgp');
+                    if ((($this->_vars->type == 'pgpPersonal') &&
+                         $imp_pgp->storePassphrase('personal', $this->_vars->dialog_input)) ||
+                        (($this->_vars->type == 'pgpSymmetric') &&
+                         $imp_pgp->storePassphrase('symmetric', $this->_vars->dialog_input, $this->_vars->symmetricid))) {
+                        $result = true;
+                        $notification->push(_("PGP passhprase stored in session."), 'horde.success');
+                    } else {
+                        $notification->push(_("Invalid passphrase entered."), 'horde.error');
+                    }
+                } else {
+                    $notification->push(_("No passphrase entered."), 'horde.error');
+                }
+                break;
+
+            case 'smimePersonal':
+                if ($this->_vars->dialog_input) {
+                    $imp_smime = $injector->getInstance('IMP_Crypt_Smime');
+                    if ($imp_smime->storePassphrase($this->_vars->dialog_input)) {
+                        $result = true;
+                        $notification->push(_("S/MIME passphrase stored in session."), 'horde.success');
+                    } else {
+                        $notification->error(_("Invalid passphrase entered."), 'horde.error');
+                    }
+                } else {
+                    $notification->push(_("No passphrase entered."), 'horde.error');
+                }
+                break;
             }
-            return $result;
+        } catch (Horde_Exception $e) {
+            $notification->push($e, 'horde.error');
         }
 
-        $mbox = strval($mbox);
-
-        return $imaptree[$mbox]->polled
-            ? array($mbox => $imaptree[$mbox]->poll_info->unseen)
-            : array();
+        return ($result && $this->_vars->reload)
+            ? new Horde_Core_Ajax_Response_HordeCore_Reload($this->_vars->reload)
+            : $result;
     }
+
+    /* Protected methods. */
 
     /**
      * Setup environment for dimp compose actions.
      *
      * Variables used:
-     * <pre>
-     * 'composeCache' - (string) The IMP_Compose cache identifier.
-     * 'from' - (string) TODO
-     * 'identity' - (integer) The identity to use
-     * </pre>
+     *   - composeCache: (string) The IMP_Compose cache identifier.
+     *   - from: (string) From address to use.
+     *   - identity: (integer) The identity to use
      *
      * @return array  An array with the following values:
-     * <pre>
-     * [0] (object) AJAX base return object (with action and success
+     *   - (object) AJAX base return object (with action and success
      *     parameters defined).
-     * [1] (IMP_Compose) The IMP_Compose object for the message.
-     * [2] (array) The list of headers for the object.
-     * [3] (Horde_Prefs_Identity) The identity used for the composition.
-     * </pre>
+     *   - (IMP_Compose) The IMP_Compose object for the message.
+     *   - (array) The list of headers for the object.
+     *   - (Horde_Prefs_Identity) The identity used for the composition.
+     *
+     * @throws Horde_Exception
      */
     protected function _dimpComposeSetup()
     {
-        global $injector, $notification, $prefs;
-
-        $result = new stdClass;
-        $result->action = $this->_action;
-        $result->success = 1;
+        global $injector, $prefs;
 
         /* Set up identity. */
         $identity = $injector->getInstance('IMP_Identity');
@@ -1865,43 +1832,50 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
         }
 
         /* Set up the From address based on the identity. */
-        $headers = array();
-        try {
-            $headers['from'] = $identity->getFromLine(null, $this->_vars->from);
-        } catch (Horde_Exception $e) {
-            $notification->push($e);
-            $result->success = 0;
-            return array($result);
-        }
+        $headers = array(
+            'from' => strval($identity->getFromLine(null, $this->_vars->from))
+        );
 
-        $imp_ui = $injector->getInstance('IMP_Ui_Compose');
-        $headers['to'] = $imp_ui->getAddressList($this->_vars->to);
+        $headers['to'] = $this->_vars->to;
         if ($prefs->getValue('compose_cc')) {
-            $headers['cc'] = $imp_ui->getAddressList($this->_vars->cc);
+            $headers['cc'] = $this->_vars->cc;
         }
         if ($prefs->getValue('compose_bcc')) {
-            $headers['bcc'] = $imp_ui->getAddressList($this->_vars->bcc);
+            $headers['bcc'] = $this->_vars->bcc;
         }
         $headers['subject'] = $this->_vars->subject;
 
         $imp_compose = $injector->getInstance('IMP_Factory_Compose')->create($this->_vars->composeCache);
 
+        $result = new stdClass;
+        $result->action = $this->_action;
+        $result->success = 1;
+
         return array($result, $imp_compose, $headers, $identity);
     }
 
     /**
-     * TODO
+     * Initialize the objects needed to compose.
+     *
+     * @return object  Object with the following properties:
+     *   - ajax: IMP_Ajax_Application_Compose object
+     *   - compose: IMP_Compose object
+     *   - contents: IMP_Contents object
      */
     protected function _initCompose()
     {
-        $imp_compose = $GLOBALS['injector']->getInstance('IMP_Factory_Compose')->create($this->_vars->imp_compose);
-        if (!($imp_contents = $imp_compose->getContentsOb())) {
-            $imp_contents = $this->_vars->uid
-                ? $GLOBALS['injector']->getInstance('IMP_Factory_Contents')->create(new IMP_Indices($this->_vars->uid))
+        $ob = new stdClass;
+
+        $ob->compose = $GLOBALS['injector']->getInstance('IMP_Factory_Compose')->create($this->_vars->imp_compose);
+        $ob->ajax = new IMP_Ajax_Application_Compose($ob->compose, $this->_vars->type);
+
+        if (!($ob->contents = $ob->compose->getContentsOb())) {
+            $ob->contents = $this->_vars->uid
+                ? $GLOBALS['injector']->getInstance('IMP_Factory_Contents')->create(new IMP_Indices_Form($this->_vars->uid))
                 : null;
         }
 
-        return array($imp_compose, $imp_contents);
+        return $ob;
     }
 
     /**
@@ -1909,39 +1883,59 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      *
      * See the list of variables needed for _dimpComposeSetup(). Additional
      * variables used:
-     * <pre>
-     * 'html' - (integer) In HTML compose mode?
-     * 'message' - (string) The message text.
-     * 'priority' - (string) The priority of the message.
-     * 'request_read_receipt' - (boolean) Add request read receipt header?
-     * </pre>
+     *   - html: (integer) In HTML compose mode?
+     *   - message: (string) The message text.
+     *   - priority: (string) The priority of the message.
+     *   - request_read_receipt: (boolean) Add request read receipt header?
      *
      * @return object  An object with the following entries:
-     * <pre>
-     * 'action' - (string) The AJAX action string
-     * 'success' - (integer) 1 on success, 0 on failure.
-     * </pre>
+     *   - action: (string) The AJAX action string
+     *   - success: (integer) 1 on success, 0 on failure.
      */
     protected function _dimpDraftAction()
     {
-        list($result, $imp_compose, $headers, $identity) = $this->_dimpComposeSetup();
-        if (!$result->success) {
+        try {
+            list($result, $imp_compose, $headers, $identity) = $this->_dimpComposeSetup();
+        } catch (Horde_Exception $e) {
+            $GLOBALS['notification']->push($e);
+
+            $result = new stdClass;
+            $result->action = $this->_action;
+            $result->success = 0;
             return $result;
         }
 
+        $opts = array(
+            'html' => $this->_vars->html,
+            'priority' => $this->_vars->priority,
+            'readreceipt' => $this->_vars->request_read_receipt
+        );
+
         try {
-            $res = $imp_compose->saveDraft($headers, $this->_vars->message, array(
-                'html' => $this->_vars->html,
-                'priority' => $this->_vars->priority,
-                'readreceipt' => $this->_vars->request_read_receipt
-            ));
-            if ($this->_action == 'autoSaveDraft') {
+            switch ($this->_action) {
+            case 'saveTemplate':
+                $res = $imp_compose->saveTemplate($headers, $this->_vars->message, $opts);
+                break;
+
+            default:
+                $res = $imp_compose->saveDraft($headers, $this->_vars->message, $opts);
+                break;
+            }
+
+            switch ($this->_action) {
+            case 'autoSaveDraft':
                 $GLOBALS['notification']->push(_("Draft automatically saved."), 'horde.message');
-            } else {
-                $GLOBALS['notification']->push($res);
+                break;
+
+            case 'saveDraft':
                 if ($GLOBALS['prefs']->getValue('close_draft')) {
                     $imp_compose->destroy('save_draft');
                 }
+                // Fall-through
+
+            default:
+                $GLOBALS['notification']->push($res);
+                break;
             }
         } catch (IMP_Compose_Exception $e) {
             $result->success = 0;
@@ -1955,96 +1949,64 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
      * Check the UID validity of the mailbox.
      *
      * See the list of variables needed for _viewPortData().
-     *
-     * @return mixed  The JSON result, possibly with ViewPort information
-     *                added if UID validity has changed.
      */
-    protected function _checkUidvalidity($result = false)
+    protected function _checkUidvalidity()
     {
         try {
-            IMP_Mailbox::get($this->_vars->view)->uidvalid;
+            $this->_mbox->uidvalid;
         } catch (IMP_Exception $e) {
-            if (!is_object($result)) {
-                $result = new stdClass;
-            }
-            $result->ViewPort = $this->_viewPortData(true);
+            $this->addTask('viewport', $this->_viewPortData(true));
         }
-
-        return $result;
     }
 
     /**
-     * Generates the delete data needed for dimpbase.js.
+     * Processes delete message requests.
      *
      * See the list of variables needed for _viewPortData().
      *
      * @param IMP_Indices $indices  An indices object.
-     * @param boolean $changed      If true, add ViewPort information.
-     * @param boolean $nothread     If true, don't do thread sort check.
-     *
-     * @return object  An object with the following entries:
-     * <pre>
-     * 'deleted' - (object) Contains the following properties:
-     *   mbox - (string) The current mailbox.
-     *   remove - (integer) True if messages should be removed from the
-     *            viewport.
-     *   uids - (string) The list of messages to delete.
-     * 'flag' - (object) See flagEntry().
-     * 'poll' - (array) Mailbox names as the keys, number of unseen messages
-     *          as the values.
-     * 'ViewPort' - (object) See _viewPortData().
-     * </pre>
+     * @param boolean $changed      If true, add full ViewPort information.
+     * @param boolean $force        If true, forces addition of disappear
+     *                              information.
      */
-    protected function _generateDeleteResult($indices, $change,
-                                             $nothread = false)
+    protected function _deleteMsgs(IMP_Indices $indices, $changed,
+                                   $force = false)
     {
-        global $injector, $prefs;
-
-        $del = new stdClass;
-        $del->mbox = $this->_vars->view;
-        $del->uids = strval($indices);
-        $del->remove = intval($prefs->getValue('hide_deleted') ||
-                              $prefs->getValue('use_trash'));
-
-        $result = new stdClass;
-        $result->deleted = $del;
-
-        $mbox = IMP_Mailbox::get($this->_vars->view);
-
         /* Check if we need to update thread information. */
-        if (!$change && !$nothread) {
-            $sort = $mbox->getSort();
-            $change = ($sort['by'] == Horde_Imap_Client::SORT_THREAD);
+        if (!$changed) {
+            $changed = ($this->_mbox->getSort()->sortby == Horde_Imap_Client::SORT_THREAD);
         }
 
-        if ($change) {
-            $result->ViewPort = $this->_viewPortData(true);
+        if ($changed) {
+            $vp = $this->_viewPortData(true);
         } else {
-            $result->ViewPort = new stdClass;
-            $result->ViewPort->updatecacheid = $mbox->cacheid;
-            $result->ViewPort->view = $this->_vars->view;
+            $vp = $this->_viewPortOb();
+
+            if ($force || $this->_mbox->hideDeletedMsgs(true)) {
+                if ($this->_mbox->search) {
+                    $disappear = array();
+                    foreach ($indices as $val) {
+                        foreach ($val->uids as $val2) {
+                            $disappear[] = IMP_Ajax_Application_ListMessages::searchUid($val->mbox, $val2);
+                        }
+                    }
+                } else {
+                    $disappear = end($indices->getSingle(true));
+                }
+                $vp->disappear = $disappear;
+            }
         }
 
-        if (!$del->remove) {
-            $result->flag = $this->flagEntry(array(Horde_Imap_Client::FLAG_DELETED), true, $indices);
-        }
-
-        if ($poll = $this->pollEntry($this->_vars->view)) {
-            $result->poll = $poll;
-        }
-
-        return $result;
+        $this->addTask('viewport', $vp);
+        $this->_queue->poll(array_keys($indices->indices()));
     }
 
     /**
      * Determine if the cache information has changed.
      *
      * Variables used:
-     * <pre>
-     * 'cacheid' - (string) The browser (ViewPort) cache identifier.
-     * 'forceUpdate' - (integer) If 1, forces an update,
-     * 'view' - (string) The current ViewPort view (mailbox).
-     * </pre>
+     *   - cacheid: (string) The browser (ViewPort) cache identifier.
+     *   - forceUpdate: (integer) If 1, forces an update.
      *
      * @param boolean $rw  Open mailbox as READ+WRITE?
      *
@@ -2054,240 +2016,111 @@ class IMP_Ajax_Application extends Horde_Core_Ajax_Application
     protected function _changed($rw = null)
     {
         /* Only update search mailboxes on forced refreshes. */
-        if ($GLOBALS['injector']->getInstance('IMP_Search')->isSearchMbox($this->_vars->view)) {
-            return ($this->_action == 'viewPort') || $this->_vars->forceUpdate;
+        if ($this->_mbox->search) {
+            return !empty($this->_vars->viewport->forceUpdate);
         }
 
         /* We know we are going to be dealing with this mailbox, so select it
          * on the IMAP server (saves some STATUS calls). */
         if (!is_null($rw)) {
             try {
-                $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->openMailbox($this->_vars->view, $rw ? Horde_Imap_Client::OPEN_READWRITE : Horde_Imap_Client::OPEN_AUTO);
-            } catch (Horde_Imap_Client_Exception $e) {
-                if ($e->getCode() == Horde_Imap_Client_Exception::MAILBOX_NOOPEN) {
-                    $GLOBALS['notification']->push(sprintf(_("Could not open mailbox \"%s\"."), $this->_vars->view), 'horde.error');
-                } else {
-                    $GLOBALS['notification']->push($e, 'horde.error');
-                }
+                $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->openMailbox($this->_mbox, $rw ? Horde_Imap_Client::OPEN_READWRITE : Horde_Imap_Client::OPEN_AUTO);
+            } catch (IMP_Imap_Exception $e) {
+                $e->notify();
                 return null;
             }
         }
 
-        return (IMP_Mailbox::get($this->_vars->view)->cacheid != $this->_vars->cacheid);
+        return ($this->_mbox->cacheid_date != $this->_vars->viewport->cacheid);
     }
 
     /**
      * Generate the information necessary for a ViewPort request from/to the
      * browser.
      *
+     * Variables used (contained in 'viewport' object):
+     *   - applyfilter
+     *   - cache
+     *   - cacheid
+     *   - delhide
+     *   - initial
+     *   - qsearch
+     *   - qsearchfield
+     *   - qsearchfilter
+     *   - qsearchflag
+     *   - qsearchflagnot
+     *   - qsearchmbox
+     *   - rangeslice
+     *   - requestid
+     *   - sortby
+     *   - sortdir
+     *
      * @param boolean $change  True if cache information has changed.
      *
-     * @return array  See IMP_Views_ListMessages::listMessages().
+     * @return array  See IMP_Ajax_Application_ListMessages::listMessages().
      */
     protected function _viewPortData($change)
     {
         $args = array(
-            'applyfilter' => $this->_vars->applyfilter,
-            'cache' => $this->_vars->cache,
-            'cacheid' => $this->_vars->cacheid,
             'change' => $change,
-            'initial' => $this->_vars->initial,
-            'mbox' => $this->_vars->view,
-            'qsearch' => $this->_vars->qsearch,
-            'qsearchfilter' => $this->_vars->qsearchfilter,
-            'qsearchflag' => $this->_vars->qsearchflag,
-            'qsearchflagnot' => $this->_vars->qsearchflagnot,
-            'qsearchmbox' => $this->_vars->qsearchmbox,
-            'rangeslice' => $this->_vars->rangeslice,
-            'requestid' => $this->_vars->requestid,
-            'sortby' => $this->_vars->sortby,
-            'sortdir' => $this->_vars->sortdir
+            'mbox' => strval($this->_mbox)
         );
 
-        if (!$this->_vars->search || $args['initial']) {
+        $params = array(
+            'applyfilter', 'cache', 'cacheid', 'delhide', 'initial', 'qsearch',
+            'qsearchfield', 'qsearchfilter', 'qsearchflag', 'qsearchflagnot',
+            'qsearchmbox', 'rangeslice', 'requestid', 'sortby', 'sortdir'
+        );
+
+        $vp = $this->_vars->viewport;
+
+        foreach ($params as $val) {
+            $args[$val] = $vp->$val;
+        }
+
+        if ($vp->search || $args['initial']) {
             $args += array(
-                'after' => intval($this->_vars->after),
-                'before' => intval($this->_vars->before)
+                'after' => intval($vp->after),
+                'before' => intval($vp->before)
             );
         }
 
-        if (!$this->_vars->search) {
-            list($slice_start, $slice_end) = explode(':', $this->_vars->slice, 2);
+        if ($vp->search) {
+            $search = Horde_Serialize::unserialize($vp->search, Horde_Serialize::JSON);
+            $args += array(
+                'search_uid' => isset($search->uid) ? $search->uid : null,
+                'search_unseen' => isset($search->unseen) ? $search->unseen : null
+            );
+        } else {
+            list($slice_start, $slice_end) = explode(':', $vp->slice, 2);
             $args += array(
                 'slice_start' => intval($slice_start),
                 'slice_end' => intval($slice_end)
             );
-        } else {
-            $search = Horde_Serialize::unserialize($this->_vars->search, Horde_Serialize::JSON);
-            $args += array(
-                'search_uid' => isset($search->imapuid) ? $search->imapuid : null,
-                'search_unseen' => isset($search->unseen) ? $search->unseen : null
-            );
         }
 
-        $list_msg = new IMP_Views_ListMessages();
-        return $list_msg->listMessages($args);
+        return $GLOBALS['injector']->getInstance('IMP_Ajax_Application_ListMessages')->listMessages($args);
     }
 
     /**
-     * Generate quota information.
+     * Return a basic ViewPort object.
      *
-     * @return array  'p': Quota percentage; 'm': Quota message
+     * @param IMP_Mailbox $mbox  The mailbox view of the ViewPort request.
+     *                           Defaults to current view.
+     *
+     * @return object  The ViewPort data object.
      */
-    protected function _getQuota()
+    protected function _viewPortOb($mbox = null)
     {
-        if ($GLOBALS['session']->get('imp', 'imap_quota')) {
-            $quotadata = IMP::quotaData(false);
-            if (!empty($quotadata)) {
-                return array(
-                    'm' => $quotadata['message'],
-                    'p' => round($quotadata['percent'])
-                );
-            }
+        if (is_null($mbox)) {
+            $mbox = $this->_mbox;
         }
 
-        return null;
-    }
+        $vp = new stdClass;
+        $vp->cacheid = $mbox->cacheid_date;
+        $vp->view = $mbox->form_to;
 
-    /**
-     * Formats the response to send to javascript code when dealing with
-     * mailbox operations.
-     *
-     * @param IMP_Tree $imptree  An IMP_Tree object.
-     * @param array $changes     An array with three sub arrays - to be used
-     *                           instead of the return from
-     *                           $imptree->eltDiff():
-     *                           'a' - a list of mailboxes/objects to add
-     *                           'c' - a list of changed mailboxes
-     *                           'd' - a list of mailboxes to delete
-     *
-     * @return array  The object used by the JS code to update the folder
-     *                tree.
-     */
-    protected function _getMailboxResponse($imptree, $changes = null)
-    {
-        if (is_null($changes)) {
-            $changes = $imptree->eltDiff();
-        }
-        if (empty($changes)) {
-            return false;
-        }
-
-        $result = array();
-
-        if (!empty($changes['a'])) {
-            $result['a'] = array();
-            foreach ($changes['a'] as $val) {
-                $result['a'][] = $this->_createMailboxElt(is_object($val) ? $val : $imptree[$val]);
-            }
-        }
-
-        if (!empty($changes['c'])) {
-            $result['c'] = array();
-            foreach ($changes['c'] as $val) {
-                // Skip the base element, since any change there won't ever be
-                // updated on-screen.
-                if ($val != IMP_Imap_Tree::BASE_ELT) {
-                    $result['c'][] = $this->_createMailboxElt($imptree[$val]);
-                }
-            }
-        }
-
-        if (!empty($changes['d'])) {
-            $result['d'] = array_map('strval', array_reverse($changes['d']));
-        }
-
-        return $result;
-    }
-
-    /**
-     * Create an object used by DimpCore to generate the folder tree.
-     *
-     * @param IMP_Mailbox $elt  A mailbox object.
-     *
-     * @return stdClass  The element object. Contains the following items:
-     * <pre>
-     * 'ch' (children) = Does the mailbox contain children? [boolean]
-     *                   [DEFAULT: no]
-     * 'cl' (class) = The CSS class. [string] [DEFAULT: 'base']
-     * 'co' (container) = Is this mailbox a container element? [boolean]
-     *                    [DEFAULT: no]
-     * 'i' (icon) = A user defined icon to use. [string] [DEFAULT: none]
-     * 'l' (label) = The mailbox display label. [string] [DEFAULT: 'm' val]
-     * 'm' (mbox) = The mailbox value. [string]
-     * 'n' (non-imap) = A non-IMAP element? [boolean] [DEFAULT: no]
-     * 'pa' (parent) = The parent element. [string] [DEFAULT:
-     *                 DIMP.conf.base_mbox]
-     * 'po' (polled) = Is the element polled? [boolean] [DEFAULT: no]
-     * 's' (special) = Is this a "special" element? [boolean] [DEFAULT: no]
-     * 't' (title) = The title value. [string] [DEFAULT: 'm' val]
-     * 'u' (unseen) = The number of unseen messages. [integer]
-     * 'un' (unsubscribed) = Is this mailbox unsubscribed? [boolean]
-     *                       [DEFAULT: no]
-     * 'v' (virtual) = Virtual folder? 0 = not vfolder, 1 = system vfolder,
-     *                 2 = user vfolder [integer] [DEFAULT: 0]
-     * </pre>
-     */
-    protected function _createMailboxElt(IMP_Mailbox $elt)
-    {
-        $ob = new stdClass;
-
-        if ($elt->children) {
-            $ob->ch = 1;
-        }
-        $ob->m = $elt->value;
-
-        $label = $elt->label;
-        if ($ob->m != $label) {
-            $ob->t = $label;
-        }
-
-        $tmp = htmlspecialchars($elt->abbrev_label);
-        if ($ob->m != $tmp) {
-            $ob->l = $tmp;
-        }
-
-        if ($elt->parent != IMP_Imap_Tree::BASE_ELT) {
-            $ob->pa = $elt->parent;
-        }
-        if ($elt->polled) {
-            $ob->po = 1;
-        }
-        if ($elt->vfolder) {
-            $ob->v = $GLOBALS['injector']->getInstance('IMP_Search')->isVFolder($elt->value, true) ? 2 : 1;
-        }
-        if (!$elt->sub) {
-            $ob->un = 1;
-        }
-
-        if ($elt->container) {
-            $ob->cl = 'exp';
-            $ob->co = 1;
-            if ($elt->nonimap) {
-                $ob->n = 1;
-            }
-        } else {
-            if ($elt->polled) {
-                $poll_info = $elt->poll_info;
-                $ob->u = $poll_info->unseen;
-            }
-
-            if ($elt->special) {
-                $ob->s = 1;
-            } elseif (!$elt->vfolder && $elt->children) {
-                $ob->cl = 'exp';
-            }
-        }
-
-        $icon = $elt->icon;
-        if ($icon->user_icon) {
-            $ob->cl = 'customimg';
-            $ob->i = strval($icon->icon);
-        } else {
-            $ob->cl = $icon->class;
-        }
-
-        return $ob;
+        return $vp;
     }
 
 }

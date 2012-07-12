@@ -2,14 +2,14 @@
 /**
  * Create IMP base tables (as of IMP 4.3).
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class ImpBaseTables extends Horde_Db_Migration_Base
@@ -22,7 +22,7 @@ class ImpBaseTables extends Horde_Db_Migration_Base
         // Create: imp_sentmail
         $tableList = $this->tables();
         if (!in_array('imp_sentmail', $tableList)) {
-            $t = $this->createTable('imp_sentmail', array('primaryKey' => false));
+            $t = $this->createTable('imp_sentmail', array('autoincrementKey' => false));
             $t->column('sentmail_id', 'bigint', array('null' => false));
             $t->column('sentmail_who', 'string', array('limit' => 255, 'null' => false));
             $t->column('sentmail_ts', 'bigint', array('null' => false));

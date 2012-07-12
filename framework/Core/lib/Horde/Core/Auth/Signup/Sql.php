@@ -2,7 +2,7 @@
 /**
  * The SQL implementation of Horde_Core_Auth_Signup.
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you did
  * not receive this file, see http://opensource.org/licenses/lgpl-2.1.php
@@ -26,7 +26,6 @@ class Horde_Core_Auth_Signup_Sql extends Horde_Core_Auth_Signup_Base
      */
     public function __construct()
     {
-        parent::__construct();
         $this->_params = array_merge(
             $this->_params,
             array('table' => 'horde_signups'),
@@ -64,7 +63,7 @@ class Horde_Core_Auth_Signup_Sql extends Horde_Core_Auth_Signup_Base
      */
     public function exists($user)
     {
-        if (empty($GLOBALS['conf']['signup']['queue'])) {
+        if (empty($GLOBALS['conf']['signup']['approve'])) {
             return false;
         }
 
@@ -95,8 +94,8 @@ class Horde_Core_Auth_Signup_Sql extends Horde_Core_Auth_Signup_Base
         if (empty($result)) {
             throw new Horde_Exception(sprintf(Horde_Core_Translation::t("User \"%s\" does not exist."), $username));
         }
-        $object = new Horde_Core_Auth_Signup_SqlObject($data['user_name']);
-        $object->setData($data);
+        $object = new Horde_Core_Auth_Signup_SqlObject($result['user_name']);
+        $object->setData($result);
 
         return $object;
     }

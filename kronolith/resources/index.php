@@ -1,10 +1,10 @@
 <?php
 /**
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('kronolith');
 
 if (Kronolith::showAjaxView()) {
@@ -16,17 +16,20 @@ if (!$GLOBALS['registry']->getAuth()) {
     Horde::url($prefs->getValue('defaultview') . '.php')->redirect();
 }
 
-$menu = Horde::menu();
-$title = _("Edit resources");
-
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$menu = Kronolith::menu();
+$page_output->header(array(
+    'title' => _("Edit resources")
+));
 require KRONOLITH_TEMPLATES . '/javascript_defs.php';
 echo $menu;
 $notification->notify(array('listeners' => 'status'));
 
 $edit_url_base = Horde::url('resources/edit.php');
 $edit_img = Horde::img('edit.png', _("Edit"));
-$resources = Kronolith::getDriver('Resource')->listResources(Horde_Perms::READ, array('type' => Kronolith_Resource::TYPE_SINGLE));
+$resources = Kronolith::getDriver('Resource')->listResources(
+    Horde_Perms::READ,
+    array('type' => Kronolith_Resource::TYPE_SINGLE),
+    'name');
 $display_url_base = Horde::url('month.php', true, -1);
 $delete_url_base = Horde::url('resources/delete.php');
 $delete_img = Horde::img('delete.png', _("Delete"));
@@ -72,7 +75,7 @@ function performAction(action, rid)
   <td>&nbsp;</td>
   <?php endif;?>
   <td><?php echo htmlspecialchars($resource->get('name')) ?></td>
-  <td><?php $url = $display_url_base->add('display_cal', $resource->get('calendar'), false); echo $url->link(array('title' => _("Click or copy this URL to display this calendar"))) . htmlspecialchars(shorten_url($url)) . '</a>' ?></td>
+  <td><?php $url = $display_url_base->add('display_cal', 'resource_' . $resource->get('calendar'), false); echo $url->link(array('title' => _("Click or copy this URL to display this calendar"))) . htmlspecialchars(shorten_url($url)) . '</a>' ?></td>
  </tr>
 <?php endforeach; ?>
 </tbody>

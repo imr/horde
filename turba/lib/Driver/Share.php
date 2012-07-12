@@ -4,16 +4,16 @@
  * various directory search drivers.  It includes functions for searching,
  * adding, removing, and modifying directory entries.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you did
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @author   Jon Parise <jon@csh.rit.edu>
  * @author   Michael J. Rubinsky <mrubinsk@horde.org>
  * @category Horde
- * @license  http://www.horde.org/licenses/asl.php ASL
+ * @license  http://www.horde.org/licenses/apache ASL
  * @package  Turba
  */
 class Turba_Driver_Share extends Turba_Driver
@@ -46,6 +46,7 @@ class Turba_Driver_Share extends Turba_Driver
         $this->_share = $this->_params['config']['params']['share'];
         $this->_driver = $GLOBALS['injector']->getInstance('Turba_Factory_Driver')->create($this->_params['config']);
         $this->_driver->setContactOwner($this->_getContactOwner());
+        $this->_driver->setSourceName($name);
     }
 
     /**
@@ -58,6 +59,20 @@ class Turba_Driver_Share extends Turba_Driver
     public function hasCapability($capability)
     {
         return $this->_driver->hasCapability($capability);
+    }
+
+    /**
+     * Translates the keys of the first hash from the generalized Turba
+     * attributes to the driver-specific fields. The translation is based on
+     * the contents of $this->map.
+     *
+     * @param array $hash  Hash using Turba keys.
+     *
+     * @return array  Translated version of $hash.
+     */
+    public function toDriverKeys(array $hash)
+    {
+        return $this->_driver->toDriverKeys($hash);
     }
 
     /**
@@ -136,22 +151,21 @@ class Turba_Driver_Share extends Turba_Driver
     }
 
     /**
-     * Reads the given data from the address book and returns the
-     * results.
+     * Reads the given data from the address book and returns the results.
      *
-     * @param string $key    The primary key field to use.
-     * @param mixed $ids     The ids of the contacts to load.
-     * @param string $owner  Only return contacts owned by this user.
-     * @param array $fields  List of fields to return.
+     * @param string $key        The primary key field to use.
+     * @param mixed $ids         The ids of the contacts to load.
+     * @param string $owner      Only return contacts owned by this user.
+     * @param array $fields      List of fields to return.
      * @param array $blobFields  Array of fields containing binary data.
      *
      * @return array  Hash containing the search results.
      * @throws Turba_Exception
      */
     protected function _read($key, $ids, $owner, array $fields,
-                             array $blob_fields = array())
+                             array $blobFields = array())
     {
-        return $this->_driver->_read($key, $ids, $owner, $fields, $blob_fields);
+        return $this->_driver->_read($key, $ids, $owner, $fields, $blobFields);
     }
 
     /**
@@ -218,8 +232,14 @@ class Turba_Driver_Share extends Turba_Driver
      */
     public function removeUserData($user)
     {
+        // Make sure we are being called by an admin.
+        if (!$GLOBALS['registry']->isAdmin()) {
+            throw new Horde_Exception_PermissionDenied(_("Permission denied"));
+        }
         $this->_deleteAll();
-        $GLOBALS['turba_shares']->removeShare($this->_share);
+        $GLOBALS['injector']
+            ->getInstance('Turba_Shares')
+            ->removeShare($this->_share);
         unset($this->_share);
     }
 
@@ -240,7 +260,7 @@ class Turba_Driver_Share extends Turba_Driver
      *
      * @return array  The list of timeobjects
      */
-    public function getTimeObjectTurbaList($start, $end, $field)
+    public function getTimeObjectTurbaList(Horde_Date $start, Horde_Date $end, $field)
     {
         return $this->_driver->getTimeObjectTurbaList($start, $end, $field);
     }

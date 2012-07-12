@@ -8,14 +8,14 @@
  * @package    Itip
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Itip
  */
 
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/../Autoload.php';
+require_once __DIR__ . '/../Autoload.php';
 
 /**
  * Test the itip response handling.
@@ -24,13 +24,13 @@ require_once dirname(__FILE__) . '/../Autoload.php';
  *
  * See the enclosed file COPYING for license information (LGPL). If you did not
  * receive this file, see
- * http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+ * http://www.horde.org/licenses/lgpl21.
  *
  * @category   Horde
  * @package    Itip
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Itip
  */
 class Horde_Itip_Integration_ItipTest
@@ -39,6 +39,7 @@ extends PHPUnit_Framework_TestCase
     public function setUp()
     {
         $this->_transport = new Horde_Mail_Transport_Mock();
+        setlocale(LC_ALL, 'C');
     }
 
     public function testMinimalItipHandlingSteps()
@@ -321,8 +322,7 @@ extends PHPUnit_Framework_TestCase
             new Horde_Itip_Response_Options_Kolab(),
             $this->_transport
         );
-        $mail = '';
-        $mail .= $this->_transport->sentMessages[0]['header_text'] . "\n\n";
+        $mail = $this->_transport->sentMessages[0]['header_text'] . "\r\n\r\n";
         $mail .= $this->_transport->sentMessages[0]['body'];
         $part = Horde_Mime_Part::parseMessage($mail);
         $this->assertEquals(2, count($part->getParts()));

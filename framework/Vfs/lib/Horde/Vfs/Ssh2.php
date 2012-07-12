@@ -12,10 +12,10 @@
  * port - (integer) The port used to connect to the ssh2 server if other than
  *        22.</pre>
  *
- * Copyright 2006-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2006-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @editor  Cliff Green <green@umdnj.edu>
  * @package Vfs
@@ -34,7 +34,7 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
      *
      * @var array
      */
-    var $_permissions = array(
+    protected $_permissions = array(
         'owner' => array(
             'read' => true,
             'write' => true,
@@ -146,10 +146,9 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
 
         // Create a temporary file and register it for deletion at the
         // end of this request.
-        if (!($localFile = tempnam(null, 'vfs'))) {
+        if (!($localFile = Horde_Util::getTempFile('vfs'))) {
             throw new Horde_Vfs_Exception('Unable to create temporary file.');
         }
-        register_shutdown_function(create_function('', '@unlink(\'' . addslashes($localFile) . '\');'));
 
         if (!$this->_recv($this->_getPath($path, $name), $localFile)) {
             throw new Horde_Vfs_Exception(sprintf('Unable to open VFS file "%s".', $this->_getPath($path, $name)));
@@ -169,7 +168,11 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
      */
     public function readStream($path, $name)
     {
-        return fopen($this->readFile($path, $name), OS_WINDOWS ? 'rb' : 'r');
+        $stream = @fopen($this->_wrap($this->_getPath($path, $name)), 'r');
+        if (!is_resource($stream)) {
+            throw new Horde_Vfs_Exception('Unable to open VFS file.');
+        }
+        return $stream;
     }
 
     /**
@@ -188,7 +191,7 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
         $this->_connect();
         $this->_checkQuotaWrite('file', $tmpFile);
 
-        if (!$this->_send($tmpFile, $this->_getPath($path, $name)))  {
+        if (!$this->_send($tmpFile, $this->_getPath($path, $name))) {
             if ($autocreate) {
                 $this->autocreatePath($path);
                 if ($this->_send($tmpFile, $this->_getPath($path, $name))) {
@@ -212,18 +215,10 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
      */
     public function writeData($path, $name, $data, $autocreate = false)
     {
-        $this->_checkQuotaWrite('string', $data);
-
-        $tmpFile = tempnam(null, 'vfs');
+        $tmpFile = Horde_Util::getTempFile('vfs');
         file_put_contents($tmpFile, $data);
-
-        try {
-            $this->write($path, $name, $tmpFile, $autocreate);
-            unlink($tmpFile);
-        } catch (Horde_Vfs_Exception $e) {
-            unlink($tmpFile);
-            throw $e;
-        }
+        clearstatcache();
+        $this->write($path, $name, $tmpFile, $autocreate);
     }
 
     /**
@@ -288,15 +283,15 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
         }
 
         if ($isDir) {
-            $file_list = $this->listFolder($this->_getPath($path, $name));
+            $file_list = $this->listFolder($path . '/' . $name);
             if (count($file_list) && !$recursive) {
                 throw new Horde_Vfs_Exception(sprintf('Unable to delete "%s", the directory is not empty.', $this->_getPath($path, $name)));
             }
             foreach ($file_list as $file) {
                 if ($file['type'] == '**dir') {
-                    $this->deleteFolder($this->_getPath($path, $name), $file['name'], $recursive);
+                    $this->deleteFolder($path . '/' . $name, $file['name'], $recursive);
                 } else {
-                    $this->deleteFile($this->_getPath($path, $name), $file['name']);
+                    $this->deleteFile($path . '/' . $name, $file['name']);
                 }
             }
 
@@ -352,7 +347,7 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
      *
      * @param string $path        The parent folder of the item.
      * @param string $name        The name of the item.
-     * @param string $permission  The permission to set.
+     * @param string $permission  The permission to set in octal notation.
      *
      * @throws Horde_Vfs_Exception
      */
@@ -366,12 +361,13 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
     }
 
     /**
-     * Returns an an unsorted file list of the specified directory.
+     * Returns an unsorted file list of the specified directory.
      *
-     * @param string $path       The path of the directory.
-     * @param mixed $filter      String/hash to filter file/dirname on.
-     * @param boolean $dotfiles  Show dotfiles?
-     * @param boolean $dironly   Show only directories?
+     * @param string $path          The path of the directory.
+     * @param string|array $filter  Regular expression(s) to filter
+     *                              file/directory name on.
+     * @param boolean $dotfiles     Show dotfiles?
+     * @param boolean $dironly      Show only directories?
      *
      * @return array  File list.
      * @throws Horde_Vfs_Exception
@@ -391,6 +387,7 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
         $type = 'unix';
 
         $olddir = $this->getCurrentDirectory();
+        $path = $this->_getPath('', $path);
         if (strlen($path)) {
             $this->_setPath($path);
         }
@@ -412,12 +409,23 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
                 $dotfiles = true;
             }
 
-            $stream = @ssh2_exec($this->_stream, 'LC_TIME=C ls -' . $ls_args . ' ' . escapeshellarg($path));
+            $stream = @ssh2_exec(
+                $this->_stream,
+                'ls -' . $ls_args . ' ' . escapeshellarg($path),
+                null,
+                array('LC_TIME' => 'C'));
         } else {
             $stream = @ssh2_exec($this->_stream, '');
         }
-
         stream_set_blocking($stream, true);
+
+        $errstream = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR);
+        if ($error = stream_get_contents($errstream)) {
+            fclose($errstream);
+            fclose($stream);
+            throw new Horde_Vfs_Exception($error);
+        }
+
         unset($list);
         while (!feof($stream)) {
             $line = fgets($stream);
@@ -426,6 +434,7 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
             }
             $list[] = trim($line);
         }
+        fclose($errstream);
         fclose($stream);
 
         if (!is_array($list)) {
@@ -463,7 +472,13 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
                     $file['owner'] = $item[2];
                     $file['group'] = $item[3];
                 }
-                $file['name'] = substr($line, strpos($line, sprintf("%s %2s %5s", $item[5], $item[6], $item[7])) + 13);
+
+                // /dev file systems may have an additional column.
+                $addcol = 0;
+                if (substr($item[4], -1) == ',') {
+                    $addcol = 1;
+                }
+                $file['name'] = substr($line, strpos($line, sprintf("%s %2s %5s", $item[5 + $addcol], $item[6 + $addcol], $item[7 + $addcol])) + 13);
 
                 // Filter out '.' and '..' entries.
                 if (preg_match('/^\.\.?\/?$/', $file['name'])) {
@@ -481,18 +496,18 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
                     $file['name'] = substr($file['name'], 0, strpos($file['name'], '->') - 1);
                     $file['type'] = '**sym';
 
-                   if ($this->isFolder('', $file['link'])) {
-                       $file['linktype'] = '**dir';
-                   } else {
-                       $parts = explode('/', $file['link']);
-                       $name = explode('.', array_pop($parts));
-                       if ((count($name) == 1) ||
-                           (($name[0] === '') && (count($name) == 2))) {
-                           $file['linktype'] = '**none';
-                       } else {
-                           $file['linktype'] = Horde_String::lower(array_pop($name));
-                       }
-                   }
+                    if ($this->isFolder('', $file['link'])) {
+                        $file['linktype'] = '**dir';
+                    } else {
+                        $parts = explode('/', $file['link']);
+                        $name = explode('.', array_pop($parts));
+                        if ((count($name) == 1) ||
+                            (($name[0] === '') && (count($name) == 2))) {
+                            $file['linktype'] = '**none';
+                        } else {
+                            $file['linktype'] = Horde_String::lower(array_pop($name));
+                        }
+                    }
                 } elseif ($p1 === 'd') {
                     $file['type'] = '**dir';
                 } else {
@@ -508,10 +523,10 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
                 if ($file['type'] == '**dir') {
                     $file['size'] = -1;
                 } else {
-                    $file['size'] = $item[4];
+                    $file['size'] = $item[4 + $addcol];
                 }
-                if (strpos($item[7], ':') !== false) {
-                    $file['date'] = strtotime($item[7] . ':00' . $item[5] . ' ' . $item[6] . ' ' . date('Y', $currtime));
+                if (strpos($item[7 + $addcol], ':') !== false) {
+                    $file['date'] = strtotime($item[7 + $addcol] . ':00' . $item[5 + $addcol] . ' ' . $item[6 + $addcol] . ' ' . date('Y', $currtime));
                     // If the ssh2 server reports a file modification date more
                     // less than one day in the future, don't try to subtract
                     // a year from the date.  There is no way to know, for
@@ -519,13 +534,13 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
                     // in different timezones.  We should simply report to the
                     //  user what the SSH2 server is returning.
                     if ($file['date'] > ($currtime + 86400)) {
-                        $file['date'] = strtotime($item[7] . ':00' . $item[5] . ' ' . $item[6] . ' ' . (date('Y', $currtime) - 1));
+                        $file['date'] = strtotime($item[7 + $addcol] . ':00' . $item[5 + $addcol] . ' ' . $item[6 + $addcol] . ' ' . (date('Y', $currtime) - 1));
                     }
                 } else {
-                    $file['date'] = strtotime('00:00:00' . $item[5] . ' ' . $item[6] . ' ' . $item[7]);
+                    $file['date'] = strtotime('00:00:00' . $item[5 + $addcol] . ' ' . $item[6 + $addcol] . ' ' . $item[7 + $addcol]);
                 }
             } elseif ($type == 'netware') {
-                $file = Array();
+                $file = array();
                 $file['perms'] = $item[1];
                 $file['owner'] = $item[2];
                 if ($item[0] == 'd') {
@@ -535,10 +550,8 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
                 }
                 $file['size'] = $item[3];
                 $file['name'] = $item[7];
-                $index = 8;
-                while ($index < count($item)) {
+                for ($index = 8, $c = count($item); $index < $c; $index++) {
                     $file['name'] .= ' ' . $item[$index];
-                    $index++;
                 }
             } else {
                 /* Handle Windows SSH2 servers returning DOS-style file
@@ -547,10 +560,8 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
                 $file['owner'] = '';
                 $file['group'] = '';
                 $file['name'] = $item[3];
-                $index = 4;
-                while ($index < count($item)) {
+                for ($index = 4, $c = count($item); $index < $c; $index++) {
                     $file['name'] .= ' ' . $item[$index];
-                    $index++;
                 }
                 $file['date'] = strtotime($item[0] . ' ' . $item[1]);
                 if ($item[2] == '<DIR>') {
@@ -584,10 +595,7 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
         }
 
         if (isset($olddir)) {
-            $res = $this->_setPath($olddir);
-            if (is_a($res, 'PEAR_Error')) {
-                return $res;
-            }
+            $this->_setPath($olddir);
         }
 
         return $files;
@@ -601,49 +609,10 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
      *
      * @return boolean  True if it exists, false otherwise.
      */
-    function exists($path, $name)
-    {
-        $conn = $this->_connect();
-        if (is_a($conn, 'PEAR_Error')) {
-            return $conn;
-        }
-
-        return !(ssh2_sftp_stat($this->_sftp, ssh2_sftp_realpath($this->_sftp, $path) . '/' . $name) === false);
-    }
-
-    /**
-     * Returns a sorted list of folders in the specified directory.
-     *
-     * @param string $path         The path of the directory to get the
-     *                             directory list for.
-     * @param mixed $filter        Hash of items to filter based on folderlist.
-     * @param boolean $dotfolders  Include dotfolders?
-     *
-     * @return array  Folder list.
-     * @throws Horde_Vfs_Exception
-     */
-    public function listFolders($path = '', $filter = null, $dotfolders = true)
+    public function exists($path, $name)
     {
         $this->_connect();
-
-        $folder = array(
-            'abbrev' => '..',
-            'val' => $this->_parentDir($path),
-            'label' => '..'
-        );
-        $folders[$folder['val']] = $folder;
-
-        $folderList = $this->listFolder($path, null, $dotfolders, true);
-        foreach ($folderList as $files) {
-            $folders[$folder['val']] = array(
-                'val' => $this->_getPath($path, $files['name']),
-                'abbrev' => $files['name'],
-                'label' => $folder['val']
-            );
-        }
-
-        ksort($folders);
-        return $folders;
+        return @ssh2_sftp_stat($this->_sftp, $this->_getPath($path, $name)) !== false;
     }
 
     /**
@@ -679,20 +648,17 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
         if ($this->isFolder($path, $name)) {
             $this->_copyRecursive($path, $name, $dest);
         } else {
-            $tmpFile = tempnam(null, 'vfs');
+            $tmpFile = Horde_Util::getTempFile('vfs');
             if (!$this->_recv($orig, $tmpFile)) {
-                unlink($tmpFile);
                 throw new Horde_Vfs_Exception(sprintf('Failed to copy from "%s".', $orig));
             }
 
+            clearstatcache();
             $this->_checkQuotaWrite('file', $tmpFile);
 
             if (!$this->_send($tmpFile, $this->_getPath($dest, $name))) {
-                unlink($tmpFile);
                 throw new Horde_Vfs_Exception(sprintf('Failed to copy to "%s".', $this->_getPath($dest, $name)));
             }
-
-            unlink($tmpFile);
         }
     }
 
@@ -779,9 +745,14 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
      */
     protected function _getPath($path, $name)
     {
-        return ($path !== '')
-            ? ($path . '/' . $name)
-            : $name;
+        if (strlen($this->_params['vfsroot'])) {
+            if (strlen($path)) {
+                $path = $this->_params['vfsroot'] . '/' . $path;
+            } else {
+                $path = $this->_params['vfsroot'];
+            }
+        }
+        return parent::_getPath($path, $name);
     }
 
     /**
@@ -845,11 +816,18 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
 
         /* Create sftp resource. */
         $this->_sftp = @ssh2_sftp($this->_stream);
+
+        if (!empty($this->_params['vfsroot']) &&
+            !@ssh2_sftp_stat($this->_sftp, $this->_params['vfsroot']) &&
+            !@ssh2_sftp_mkdir($this->_sftp, $this->_params['vfsroot'])) {
+            throw new Horde_Vfs_Exception(sprintf('Unable to create VFS root directory "%s".', $this->_params['vfsroot']));
+        }
     }
 
     /**
      * Sends local file to remote host.
-     * This function exists because the php_scp_* functions doesn't seem to
+     *
+     * This function exists because the ssh2_scp_send function doesn't seem to
      * work on some hosts.
      *
      * @param string $local   Full path to the local file.
@@ -864,7 +842,8 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
 
     /**
      * Receives file from remote host.
-     * This function exists because the php_scp_* functions doesn't seem to
+     *
+     * This function exists because the ssh2_scp_recv function doesn't seem to
      * work on some hosts.
      *
      * @param string $local   Full path to the local file.
@@ -886,10 +865,11 @@ class Horde_Vfs_Ssh2 extends Horde_Vfs_Base
      */
     protected function _wrap($remote)
     {
-        return 'ssh2.sftp://' . $this->_params['username'] . ':' .
-            $this->_params['password'] . '@' . $this->_params['hostspec'] .
-            ':' . $this->_params['port'] .
-            ssh2_sftp_realpath($this->_sftp, $remote);
+        $wrapper = 'ssh2.sftp://' . $this->_params['username'] . ':'
+            . $this->_params['password'] . '@' . $this->_params['hostspec'];
+        if (!empty($this->_params['port'])) {
+            $wrapper .= ':' . $this->_params['port'];
+        }
+        return $wrapper . $remote;
     }
-
 }

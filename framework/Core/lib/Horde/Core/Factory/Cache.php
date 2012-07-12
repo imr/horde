@@ -7,22 +7,22 @@
  * @category Horde
  * @package  Core
  * @author   Michael Slusarz <slusarz@horde.org>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Core
  */
 
 /**
  * A Horde_Injector:: based Horde_Cache:: factory.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Core
  * @author   Michael Slusarz <slusarz@horde.org>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Core
  */
 class Horde_Core_Factory_Cache extends Horde_Core_Factory_Injector
@@ -42,6 +42,13 @@ class Horde_Core_Factory_Cache extends Horde_Core_Factory_Injector
             $driver = 'Null';
         }
 
+        $lc_driver = Horde_String::lower($driver);
+
+        if (Horde_Cli::runningFromCLI() && $lc_driver == 'xcache') {
+            $driver = 'Null';
+            $lc_driver = 'null';
+        }
+
         $params = Horde::getDriverConfig('cache', $driver);
         if (isset($GLOBALS['conf']['cache']['default_lifetime'])) {
             $params['lifetime'] = $GLOBALS['conf']['cache']['default_lifetime'];
@@ -49,7 +56,6 @@ class Horde_Core_Factory_Cache extends Horde_Core_Factory_Injector
         $params['compress'] = !empty($GLOBALS['conf']['cache']['compress']);
         $params['logger'] = $injector->getInstance('Horde_Log_Logger');
 
-        $lc_driver = Horde_String::lower($driver);
         switch ($lc_driver) {
         case 'memcache':
             $params['memcache'] = $injector->getInstance('Horde_Memcache');
@@ -80,17 +86,22 @@ class Horde_Core_Factory_Cache extends Horde_Core_Factory_Injector
     }
 
     /**
+     * Create the Cache storage backend.
+     *
+     * @param string $driver  The storage driver name.
+     * @param array  $params  The storage backend parameters.
+     *
+     * @return Horde_Cache_Storage_Base A cache storage backend.
      */
     protected function _getStorage($driver, $params)
     {
-        $driver = ucfirst(basename($driver));
-        $classname = 'Horde_Cache_Storage_' . $driver;
-
-        if (!class_exists($classname)) {
-            $classname = 'Horde_Cache_Storage_Null';
+        try {
+            $class = $this->_getDriverName($driver, 'Horde_Cache_Storage');
+        } catch (Horde_Exception $e) {
+            $class = 'Horde_Cache_Storage_Null';
         }
 
-        return new $classname($params);
+        return new $class($params);
     }
 
 }

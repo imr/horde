@@ -3,7 +3,7 @@
  * Horde_Form for creating resource groups.
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @package Kronolith
  */
@@ -23,7 +23,7 @@ class Kronolith_Form_CreateResourceGroup extends Horde_Form
      */
     public function __construct($vars)
     {
-        parent::__construct($vars, _("Create Resource"));
+        parent::__construct($vars, _("Create Resource Group"));
 
         $resources = Kronolith::getDriver('Resource')->listResources(Horde_Perms::READ, array('type' => Kronolith_Resource::TYPE_SINGLE));
         $enum = array();

@@ -1,16 +1,16 @@
 <?php
 /**
- * The IMP_Mime_Viewer_Alternative class renders out messages from
- * multipart/alternative content types (RFC 2046 [5.1.4]).
+ * This class renders out messages from multipart/alternative content types
+ * (RFC 2046 [5.1.4]).
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Mime_Viewer_Alternative extends Horde_Mime_Viewer_Base
@@ -25,17 +25,6 @@ class IMP_Mime_Viewer_Alternative extends Horde_Mime_Viewer_Base
         'info' => false,
         'inline' => true,
         'raw' => false
-    );
-
-    /**
-     * Metadata for the current viewer/data.
-     *
-     * @var array
-     */
-    protected $_metadata = array(
-        'compressed' => false,
-        'embedded' => false,
-        'forceinline' => false
     );
 
     /**
@@ -61,22 +50,19 @@ class IMP_Mime_Viewer_Alternative extends Horde_Mime_Viewer_Base
     /**
      * Render out the currently set contents.
      *
-     * @param boolean $inline        Are we viewing inline?
-     * @param boolean $prefer_plain  Prefer text/plain part over all others.
+     * @param boolean $inline  Are we viewing inline?
      *
      * @return array  See parent::render().
      */
-    protected function _IMPrender($inline, $prefer_plain = null)
+    protected function _IMPrender($inline)
     {
         $base_id = $this->_mimepart->getMimeId();
         $subparts = $this->_mimepart->contentTypeMap();
 
         $base_ids = $display_ids = $ret = array();
 
-        if (is_null($prefer_plain) &&
-            ($GLOBALS['prefs']->getValue('alternative_display') == 'text')) {
-            $prefer_plain = true;
-        }
+        $prefer_plain = (($GLOBALS['registry']->getView() == Horde_Registry::VIEW_MINIMAL) ||
+                         ($GLOBALS['prefs']->getValue('alternative_display') == 'text'));
 
         /* Look for a displayable part. RFC: show the LAST choice that can be
          * displayed inline. If an alternative is itself a multipart, the user
@@ -84,10 +70,11 @@ class IMP_Mime_Viewer_Alternative extends Horde_Mime_Viewer_Base
          * or both. If we find a multipart alternative that contains at least
          * one viewable part, we will display all viewable subparts of that
          * alternative. */
+        $imp_contents = $this->getConfigParam('imp_contents');
         foreach ($subparts as $mime_id => $type) {
             $ret[$mime_id] = null;
             if ((strcmp($base_id, $mime_id) !== 0) &&
-                $this->getConfigParam('imp_contents')->canDisplay($mime_id, $inline ? IMP_Contents::RENDER_INLINE : IMP_Contents::RENDER_FULL) &&
+                $imp_contents->canDisplay($mime_id, $inline ? IMP_Contents::RENDER_INLINE : IMP_Contents::RENDER_FULL) &&
                 /* Show HTML if $prefer_plain is false-y or if
                  * alternative_display is not 'html'. */
                 (!$prefer_plain ||
@@ -99,17 +86,10 @@ class IMP_Mime_Viewer_Alternative extends Horde_Mime_Viewer_Base
 
         /* If we found no IDs, return now. */
         if (empty($display_ids)) {
-            if ($prefer_plain && (IMP::getViewMode() == 'mimp')) {
-                return $this->_IMPRender($inline, false);
-            }
-
             $ret[$base_id] = array(
                 'data' => '',
-                'status' => array(
-                    array(
-                        'text' => array(_("There are no alternative parts that can be displayed inline.")),
-                        'type' => 'info'
-                    )
+                'status' => new IMP_Mime_Status(
+                    _("There are no alternative parts that can be displayed inline.")
                 ),
                 'type' => 'text/html; charset=' . $this->getConfigParam('charset')
             );
@@ -131,13 +111,13 @@ class IMP_Mime_Viewer_Alternative extends Horde_Mime_Viewer_Base
         /* At this point, $ret contains stubs for all parts living in the base
          * alternative part.
          * Go through all subparts of displayable part and make sure all parts
-         * are rendered.  Parts not rendered will be markes as not being
+         * are rendered.  Parts not rendered will be marked as not being
          * handled by this viewer (Bug #9365). */
         $render_part = $this->_mimepart->getPart($disp_id);
         $need_render = $subparts = $render_part->contentTypeMap();
 
         foreach (array_keys($subparts) as $val) {
-            if (isset($need_render[$val])) {
+            if (isset($display_ids[$val]) && isset($need_render[$val])) {
                 $render = $this->getConfigParam('imp_contents')->renderMIMEPart($val, $inline ? IMP_Contents::RENDER_INLINE : IMP_Contents::RENDER_FULL);
 
                 foreach (array_keys($render) as $id) {

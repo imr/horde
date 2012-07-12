@@ -6,38 +6,44 @@
  <summary>Horde User Groups System</summary>
  <description>Package for managing and accessing the Horde groups system.</description>
  <lead>
-  <name>Chuck Hagenbuch</name>
-  <user>chuck</user>
-  <email>chuck@horde.org</email>
-  <active>yes</active>
- </lead>
- <lead>
   <name>Jan Schneider</name>
   <user>jan</user>
   <email>jan@horde.org</email>
   <active>yes</active>
  </lead>
- <date>2011-03-16</date>
- <time>18:12:39</time>
+ <lead>
+  <name>Chuck Hagenbuch</name>
+  <user>chuck</user>
+  <email>chuck@horde.org</email>
+  <active>yes</active>
+ </lead>
+ <date>2012-07-05</date>
+ <time>23:48:15</time>
  <version>
-  <release>1.0.0RC1</release>
+  <release>2.0.0beta1</release>
   <api>1.0.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+ <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
  <notes>
-* First release candidate for Horde 4.
+*
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
+   <dir name="doc">
+    <dir name="Horde">
+     <dir name="Group">
+      <file name="COPYING" role="doc" />
+     </dir> <!-- /doc/Horde/Group -->
+    </dir> <!-- /doc/Horde -->
+   </dir> <!-- /doc -->
    <dir name="lib">
     <dir name="Horde">
      <dir name="Group">
       <file name="Base.php" role="php" />
-      <file name="Contactlists.php" role="php" />
       <file name="Exception.php" role="php" />
       <file name="Kolab.php" role="php" />
       <file name="Ldap.php" role="php" />
@@ -47,11 +53,13 @@
     </dir> <!-- /lib/Horde -->
    </dir> <!-- /lib -->
    <dir name="migration">
-    <dir name="Horde_Group">
-     <file name="1_horde_group_base_tables.php" role="data" />
-     <file name="2_horde_group_upgrade_autoincrement.php" role="data" />
-    </dir> <!-- /migration/Horde_Group -->
-   </dir> <!-- /migration -->
+    <dir name="Horde">
+     <dir name="Group">
+      <file name="1_horde_group_base_tables.php" role="data" />
+      <file name="2_horde_group_upgrade_autoincrement.php" role="data" />
+     </dir> <!-- /migration/Horde/Group -->
+    </dir> <!-- /migration/Horde -->
+    </dir> <!-- /migration -->
    <dir name="test">
     <dir name="Horde">
      <dir name="Group">
@@ -72,7 +80,6 @@
       <file name="Autoload.php" role="test" />
       <file name="Base.php" role="test" />
       <file name="conf.php.dist" role="test" />
-      <file name="ContactlistTest.php" role="test" />
       <file name="LdapTest.php" role="test" />
       <file name="MockTest.php" role="test" />
      </dir> <!-- /test/Horde/Group -->
@@ -83,7 +90,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -91,51 +98,50 @@
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Util</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
   <optional>
    <package>
     <name>Horde_Db</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Ldap</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </optional>
  </dependencies>
  <phprelease>
   <filelist>
+   <install as="COPYING" name="doc/Horde/Group/COPYING" />
    <install as="Horde/Group/Base.php" name="lib/Horde/Group/Base.php" />
-   <install as="Horde/Group/Contactlists.php" name="lib/Horde/Group/Contactlists.php" />
    <install as="Horde/Group/Exception.php" name="lib/Horde/Group/Exception.php" />
    <install as="Horde/Group/Kolab.php" name="lib/Horde/Group/Kolab.php" />
    <install as="Horde/Group/Ldap.php" name="lib/Horde/Group/Ldap.php" />
    <install as="Horde/Group/Mock.php" name="lib/Horde/Group/Mock.php" />
    <install as="Horde/Group/Sql.php" name="lib/Horde/Group/Sql.php" />
-   <install as="migration/1_horde_group_base_tables.php" name="migration/Horde_Group/1_horde_group_base_tables.php" />
-   <install as="migration/2_horde_group_upgrade_autoincrement.php" name="migration/Horde_Group/2_horde_group_upgrade_autoincrement.php" />
+   <install as="migration/1_horde_group_base_tables.php" name="migration/Horde/Group/1_horde_group_base_tables.php" />
+   <install as="migration/2_horde_group_upgrade_autoincrement.php" name="migration/Horde/Group/2_horde_group_upgrade_autoincrement.php" />
    <install as="Horde/Group/AllTests.php" name="test/Horde/Group/AllTests.php" />
    <install as="Horde/Group/Autoload.php" name="test/Horde/Group/Autoload.php" />
    <install as="Horde/Group/Base.php" name="test/Horde/Group/Base.php" />
    <install as="Horde/Group/conf.php.dist" name="test/Horde/Group/conf.php.dist" />
-   <install as="Horde/Group/ContactlistTest.php" name="test/Horde/Group/ContactlistTest.php" />
    <install as="Horde/Group/LdapTest.php" name="test/Horde/Group/LdapTest.php" />
    <install as="Horde/Group/MockTest.php" name="test/Horde/Group/MockTest.php" />
    <install as="Horde/Group/Sql/Base.php" name="test/Horde/Group/Sql/Base.php" />
@@ -158,7 +164,7 @@
     <api>alpha</api>
    </stability>
    <date>2003-07-05</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 Initial release as a PEAR package
    </notes>
@@ -174,7 +180,7 @@ Initial release as a PEAR package
    </stability>
    <date>2006-05-08</date>
    <time>21:51:02</time>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * Added ldap driver.
 * Converted to package.xml 2.0 for pear.horde.org.
@@ -190,7 +196,7 @@ Initial release as a PEAR package
     <release>beta</release>
     <api>beta</api>
    </stability>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * Added a mock driver for installations that don&apos;t need groups (Request #6157).
 * Added a beta SQL Group driver (Request #6175).
@@ -218,7 +224,7 @@ Initial release as a PEAR package
     <api>alpha</api>
    </stability>
    <date>2011-03-08</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First alpha release for Horde 4.
 * Throw exceptions, not PEAR_Errors.
@@ -234,9 +240,149 @@ Initial release as a PEAR package
     <api>beta</api>
    </stability>
    <date>2011-03-16</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * Fix error in Mock driver when listing groups (Bug #9642).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-22</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* Second release candidate for Horde 4.
+* [jan] Fix incorrect lowercasing of objectClasses in LDAP driver.
+* [jan] Fix building LDAP filter from configuration (Bug #9739).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First stable release for Horde 4.
+* [jan] Add parameter to listAll() to only return groups that a user is member of.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Add support for the attrisdn configuration setting (Bug #9762).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.2</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-07-27</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Fix undefined method when using attrisdn in LDAP driver.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.3</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-08-30</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Fix bind for modifying existing LDAP groups.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.4</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-08</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Allow to run unit tests from installed package.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.5</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2012-02-22</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Use configured filter when listing groups (Jesse Sandberg &lt;jesse.sandberg@verkkokauppa.com&gt;, Bug #10975).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First alpha release for Horde 5.
+* [mms] Remove Contactlists driver.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+*
    </notes>
   </release>
  </changelog>

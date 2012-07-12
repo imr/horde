@@ -2,15 +2,15 @@
 /**
  * This class provides an LDAP driver for the Horde group system.
  *
- * Copyright 2005-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2005-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Ben Chavet <ben@horde.org>
  * @author   Jan Schneider <jan@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Group
  */
 class Horde_Group_Ldap extends Horde_Group_Base
@@ -65,14 +65,18 @@ class Horde_Group_Ldap extends Horde_Group_Base
         unset($params['ldap']);
 
         /* Lowercase attribute names. */
-        $params['gid']                  = Horde_String::lower($params['gid']);
-        $params['memberuid']            = Horde_String::lower($params['memberuid']);
-        $params['newgroup_objectclass'] = Horde_String::lower($params['newgroup_objectclass']);
+        $params['gid']       = Horde_String::lower($params['gid']);
+        $params['memberuid'] = Horde_String::lower($params['memberuid']);
+        if (!is_array($params['newgroup_objectclass'])) {
+            $params['newgroup_objectclass'] = array($params['newgroup_objectclass']);
+        }
+        foreach ($params['newgroup_objectclass'] as &$objectClass) {
+            $objectClass = Horde_String::lower($objectClass);
+        }
 
         /* Generate LDAP search filter. */
         try {
-            $this->_filter = Horde_Ldap_Filter::build(
-                isset($params['filter']) ? $params['filter'] : $params);
+            $this->_filter = Horde_Ldap_Filter::build($params['search']);
         } catch (Horde_Ldap_Exception $e) {
             throw new Horde_Group_Exception($e);
         }
@@ -267,6 +271,10 @@ class Horde_Group_Ldap extends Horde_Group_Base
      */
     public function setData($gid, $attribute, $value = null)
     {
+        if ($this->readOnly()) {
+            throw new Horde_Group_Exception('This group backend is read-only.');
+        }
+
         $attributes = is_array($attribute)
             ? $attribute
             : array($attribute => $value);
@@ -283,20 +291,29 @@ class Horde_Group_Ldap extends Horde_Group_Base
                 }
                 $entry->replace(array($attribute => $value));
             }
+            $this->_rebind(true);
             $entry->update();
+            $this->_rebind(false);
         } catch (Horde_Ldap_Exception $e) {
             throw new Horde_Group_Exception($e);
         }
     }
 
     /**
-     * Returns a list of all groups, with IDs as keys and names as values.
+     * Returns a list of all groups a user may see, with IDs as keys and names
+     * as values.
+     *
+     * @param string $member  Only return groups that this user is a member of.
      *
      * @return array  All existing groups.
      * @throws Horde_Group_Exception
      */
-    public function listAll()
+    public function listAll($member = null)
     {
+        if (!is_null($member)) {
+            return $this->listGroups($member);
+        }
+
         $attr = $this->_params['gid'];
         try {
             $search = $this->_ldap->search($this->_params['basedn'],
@@ -327,9 +344,28 @@ class Horde_Group_Ldap extends Horde_Group_Base
         $attr = $this->_params['memberuid'];
         try {
             $entry = $this->_ldap->getEntry($gid, array($attr));
-            return $entry->exists($attr)
-                ? $entry->getValue($attr, 'all')
-                : array();
+            if (!$entry->exists($attr)) {
+                return array();
+            }
+
+            if (empty($this->_params['attrisdn'])) {
+                return $entry->getValue($attr, 'all');
+            }
+
+            $users = array();
+            foreach ($entry->getValue($attr, 'all') as $user) {
+                $dn = Horde_Ldap_Util::explodeDN($user,
+                                                 array('onlyvalues' => true));
+                // Very simplified approach: assume the first element of the DN
+                // contains the user ID.
+                $user = $dn[0];
+                // Check for multi-value RDNs.
+                if (is_array($element)) {
+                    $user = $element[0];
+                }
+                $users[] = $user;
+            }
+            return $users;
         } catch (Horde_Ldap_Exception $e) {
             throw new Horde_Group_Exception($e);
         }
@@ -347,8 +383,12 @@ class Horde_Group_Ldap extends Horde_Group_Base
     {
         $attr = $this->_params['gid'];
         try {
+            if (!empty($this->_params['attrisdn'])) {
+                $user =  $this->_ldap->findUserDN($user);
+            }
             $filter = Horde_Ldap_Filter::create($this->_params['memberuid'],
                                                 'equals', $user);
+            $filter = Horde_Ldap_Filter::combine('and', array($this->_filter, $filter));
             $search = $this->_ldap->search($this->_params['basedn'], $filter,
                                            array($attr));
         } catch (Horde_Ldap_Exception $e) {
@@ -378,6 +418,9 @@ class Horde_Group_Ldap extends Horde_Group_Base
 
         $attr = $this->_params['memberuid'];
         try {
+            if (!empty($this->_params['attrisdn'])) {
+                $user =  $this->_ldap->findUserDN($user);
+            }
             $entry = $this->_ldap->getEntry($gid, array($attr));
             $entry->add(array($attr => $user));
             $this->_rebind(true);
@@ -401,6 +444,9 @@ class Horde_Group_Ldap extends Horde_Group_Base
     {
         $attr = $this->_params['memberuid'];
         try {
+            if (!empty($this->_params['attrisdn'])) {
+                $user =  $this->_ldap->findUserDN($user);
+            }
             $entry = $this->_ldap->getEntry($gid, array($attr));
             $entry->delete(array($attr => $user));
             $this->_rebind(true);

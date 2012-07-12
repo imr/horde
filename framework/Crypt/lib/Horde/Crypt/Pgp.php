@@ -9,14 +9,14 @@
  * This class has been developed with, and is only guaranteed to work with,
  * Version 1.21 or above of GnuPG.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Crypt
  */
 class Horde_Crypt_Pgp extends Horde_Crypt
@@ -171,6 +171,8 @@ class Horde_Crypt_Pgp extends Horde_Crypt
      * @param string $passphrase  The passphrase to use for the key.
      * @param string $comment     The comment to use for the key.
      * @param integer $keylength  The keylength to use for the key.
+     * @param integer $expire     The expiration date (UNIX timestamp). No
+     *                            expiration if empty (since 1.1.0).
      *
      * @return array  An array consisting of:
      * <pre>
@@ -182,11 +184,15 @@ class Horde_Crypt_Pgp extends Horde_Crypt
      * @throws Horde_Crypt_Exception
      */
     public function generateKey($realname, $email, $passphrase, $comment = '',
-                                $keylength = 1024)
+                                $keylength = 1024, $expire = null)
     {
         /* Create temp files to hold the generated keys. */
         $pub_file = $this->_createTempFile('horde-pgp');
         $secret_file = $this->_createTempFile('horde-pgp');
+
+        $expire = empty($expire)
+            ? 0
+            : date('Y-m-d', $expire);
 
         /* Create the config file necessary for GnuPG to run in batch mode. */
         /* TODO: Sanitize input, More user customizable? */
@@ -199,7 +205,7 @@ class Horde_Crypt_Pgp extends Horde_Crypt
             'Subkey-Length: ' . $keylength,
             'Name-Real: ' . $realname,
             'Name-Email: ' . $email,
-            'Expire-Date: 0',
+            'Expire-Date: ' . $expire,
             'Passphrase: ' . $passphrase
         );
         if (!empty($comment)) {
@@ -421,37 +427,45 @@ class Horde_Crypt_Pgp extends Horde_Crypt
         if (!empty($packet_info['signature'])) {
             /* Making the property names the same width for all
              * localizations .*/
-            $leftrow = array(Horde_Crypt_Translation::t("Name"), Horde_Crypt_Translation::t("Key Type"), Horde_Crypt_Translation::t("Key Creation"),
-                             Horde_Crypt_Translation::t("Expiration Date"), Horde_Crypt_Translation::t("Key Length"),
-                             Horde_Crypt_Translation::t("Comment"), Horde_Crypt_Translation::t("E-Mail"), Horde_Crypt_Translation::t("Hash-Algorithm"),
-                             Horde_Crypt_Translation::t("Key ID"), Horde_Crypt_Translation::t("Key Fingerprint"));
+            $leftrow = array(
+                Horde_Crypt_Translation::t("Name"),
+                Horde_Crypt_Translation::t("Key Type"),
+                Horde_Crypt_Translation::t("Key Creation"),
+                Horde_Crypt_Translation::t("Expiration Date"),
+                Horde_Crypt_Translation::t("Key Length"),
+                Horde_Crypt_Translation::t("Comment"),
+                Horde_Crypt_Translation::t("E-Mail"),
+                Horde_Crypt_Translation::t("Hash-Algorithm"),
+                Horde_Crypt_Translation::t("Key ID"),
+                Horde_Crypt_Translation::t("Key Fingerprint")
+            );
             $leftwidth = array_map('strlen', $leftrow);
             $maxwidth  = max($leftwidth) + 2;
             array_walk($leftrow, array($this, '_pgpPrettyKeyFormatter'), $maxwidth);
 
-            foreach (array_keys($packet_info['signature']) as $uid_idx) {
+            foreach ($packet_info['signature'] as $uid_idx => $val) {
                 if ($uid_idx == '_SIGNATURE') {
                     continue;
                 }
                 $key_info = $this->pgpPacketSignatureByUidIndex($pgpdata, $uid_idx);
 
-                if (!empty($key_info['keyid'])) {
-                    $key_info['keyid'] = $this->_getKeyIDString($key_info['keyid']);
-                } else {
-                    $key_info['keyid'] = null;
-                }
-
-                $fingerprint = isset($fingerprints[$key_info['keyid']]) ? $fingerprints[$key_info['keyid']] : null;
+                $keyid = empty($key_info['keyid'])
+                    ? null
+                    : $this->_getKeyIDString($key_info['keyid']);
+                $fingerprint = isset($fingerprints[$keyid])
+                    ? $fingerprints[$keyid]
+                    : null;
+                $sig_key = 'sig_' . $key_info['keyid'];
 
                 $msg .= $leftrow[0] . (isset($key_info['name']) ? stripcslashes($key_info['name']) : '') . "\n"
                     . $leftrow[1] . (($key_info['key_type'] == 'public_key') ? Horde_Crypt_Translation::t("Public Key") : Horde_Crypt_Translation::t("Private Key")) . "\n"
-                    . $leftrow[2] . strftime("%D", $key_info['key_created']) . "\n"
-                    . $leftrow[3] . (empty($key_info['key_expires']) ? '[' . Horde_Crypt_Translation::t("Never") . ']' : strftime("%D", $key_info['key_expires'])) . "\n"
+                    . $leftrow[2] . strftime("%D", $val[$sig_key]['created']) . "\n"
+                    . $leftrow[3] . (empty($val[$sig_key]['expires']) ? '[' . Horde_Crypt_Translation::t("Never") . ']' : strftime("%D", $val[$sig_key]['expires'])) . "\n"
                     . $leftrow[4] . $key_info['key_size'] . " Bytes\n"
                     . $leftrow[5] . (empty($key_info['comment']) ? '[' . Horde_Crypt_Translation::t("None") . ']' : $key_info['comment']) . "\n"
                     . $leftrow[6] . (empty($key_info['email']) ? '[' . Horde_Crypt_Translation::t("None") . ']' : $key_info['email']) . "\n"
                     . $leftrow[7] . (empty($key_info['micalg']) ? '[' . Horde_Crypt_Translation::t("Unknown") . ']' : $key_info['micalg']) . "\n"
-                    . $leftrow[8] . (empty($key_info['keyid']) ? '[' . Horde_Crypt_Translation::t("Unknown") . ']' : $key_info['keyid']) . "\n"
+                    . $leftrow[8] . (empty($keyid) ? '[' . Horde_Crypt_Translation::t("Unknown") . ']' : $keyid) . "\n"
                     . $leftrow[9] . (empty($fingerprint) ? '[' . Horde_Crypt_Translation::t("Unknown") . ']' : $fingerprint) . "\n\n";
             }
         }
@@ -703,7 +717,7 @@ class Horde_Crypt_Pgp extends Horde_Crypt
                 if (isset($temp['data'])) {
                     $data[] = $temp;
                 }
-                $temp= array();
+                $temp = array();
 
                 if ($matches[1] == 'BEGIN') {
                     $temp['type'] = $this->_armor[$matches[2]];
@@ -1263,11 +1277,14 @@ class Horde_Crypt_Pgp extends Horde_Crypt
         $cmdline[] = $input;
 
         /* Decrypt the document now. */
+        $language = setlocale(LC_MESSAGES, 0);
+        setlocale(LC_MESSAGES, 'C');
         if (empty($params['no_passphrase'])) {
             $result = $this->_callGpg($cmdline, 'w', $params['passphrase'], true, true);
         } else {
             $result = $this->_callGpg($cmdline, 'r', null, true, true);
         }
+        setlocale(LC_MESSAGES, $language);
         if (empty($result->output)) {
             $error = preg_replace('/\n.*/', '', $result->stderr);
             throw new Horde_Crypt_Exception(Horde_Crypt_Translation::t("Could not decrypt PGP data: ") . $error);
@@ -1288,6 +1305,7 @@ class Horde_Crypt_Pgp extends Horde_Crypt
      * 'type'       =>  'signature' or 'detached-signature' (REQUIRED)
      * 'pubkey'     =>  PGP public key. (REQUIRED)
      * 'signature'  =>  PGP signature block. (REQUIRED for detached signature)
+     * 'charset'    =>  charset of the message body (OPTIONAL)
      * </pre>
      *
      * @return stdClass  An object with the following properties:
@@ -1322,7 +1340,7 @@ class Horde_Crypt_Pgp extends Horde_Crypt
             '--armor',
             '--always-trust',
             '--batch',
-            '--charset UTF-8',
+            '--charset ' . (isset($params['charset']) ? $params['charset'] : 'UTF-8'),
             $keyring,
             '--verify'
         );
@@ -1338,7 +1356,10 @@ class Horde_Crypt_Pgp extends Horde_Crypt
 
         /* Verify the signature.  We need to catch standard error output,
          * since this is where the signature information is sent. */
+        $language = setlocale(LC_MESSAGES, 0);
+        setlocale(LC_MESSAGES, 'C');
         $result = $this->_callGpg($cmdline, 'r', null, true, true);
+        setlocale(LC_MESSAGES, $language);
         return $this->_checkSignatureResult($result->stderr, $result->stderr);
     }
 
@@ -1349,10 +1370,9 @@ class Horde_Crypt_Pgp extends Horde_Crypt
      * @param string $message  The decrypted message data.
      *
      * @return stdClass  An object with the following properties:
-     * <pre>
-     * 'message' - (string) The signature result text.
-     * 'result' - (boolean) The result of the signature test.
-     * </pre>
+     *   - message: (string) The signature result text.
+     *   - result: (string) The result of the signature test.
+     *
      * @throws Horde_Crypt_Exception
      */
     protected function _checkSignatureResult($result, $message = null)
@@ -1367,7 +1387,7 @@ class Horde_Crypt_Pgp extends Horde_Crypt
 
         $ob = new stdClass;
         $ob->message = $message;
-        $ob->result = (strpos($result, 'gpg: Good signature') !== false);
+        $ob->result = $result;
 
         return $ob;
     }
@@ -1396,9 +1416,9 @@ class Horde_Crypt_Pgp extends Horde_Crypt
         /* Add the PGP signature. */
         $pgp_sign = new Horde_Mime_Part();
         $pgp_sign->setType('application/pgp-signature');
-        $pgp_sign->setCharset($this->_params['email_charset']);
+        $pgp_sign->setHeaderCharset('UTF-8');
         $pgp_sign->setDisposition('inline');
-        $pgp_sign->setDescription(Horde_String::convertCharset(Horde_Crypt_Translation::t("PGP Digital Signature"), 'UTF-8', $this->_params['email_charset']));
+        $pgp_sign->setDescription(Horde_Crypt_Translation::t("PGP Digital Signature"));
         $pgp_sign->setContents($msg_sign, array('encoding' => '7bit'));
 
         /* Get the algorithim information from the signature. Since we are
@@ -1440,9 +1460,9 @@ class Horde_Crypt_Pgp extends Horde_Crypt
         /* Set up MIME Structure according to RFC 3156. */
         $part = new Horde_Mime_Part();
         $part->setType('multipart/encrypted');
-        $part->setCharset($this->_params['email_charset']);
+        $part->setHeaderCharset('UTF-8');
         $part->setContentTypeParameter('protocol', 'application/pgp-encrypted');
-        $part->setDescription(Horde_String::convertCharset(Horde_Crypt_Translation::t("PGP Encrypted Data"), 'UTF-8', $this->_params['email_charset']));
+        $part->setDescription(Horde_Crypt_Translation::t("PGP Encrypted Data"));
         $part->setContents("This message is in MIME format and has been PGP encrypted.\n");
 
         $part1 = new Horde_Mime_Part();
@@ -1502,8 +1522,8 @@ class Horde_Crypt_Pgp extends Horde_Crypt
     {
         $part = new Horde_Mime_Part();
         $part->setType('application/pgp-keys');
-        $part->setCharset($this->_params['email_charset']);
-        $part->setDescription(Horde_String::convertCharset(Horde_Crypt_Translation::t("PGP Public Key"), 'UTF-8', $this->_params['email_charset']));
+        $part->setHeaderCharset('UTF-8');
+        $part->setDescription(Horde_Crypt_Translation::t("PGP Public Key"));
         $part->setContents($key, array('encoding' => '7bit'));
 
         return $part;

@@ -9,26 +9,33 @@
         <?php foreach ($menu->getSiteLinks() as $key => $menu_item): ?>
         <?php if ($menu_item == 'separator'): ?>
       </ul>
-      <span class="hermesSeparator">|</span>
       <ul>
         <?php else: ?>
         <li><a href="<?php echo $menu_item['url'] ?>" title="<?php echo $menu_item['text'] ?>" id="hermesMenu-<?php echo $key ?>"><img src="<?php echo $menu_item['icon_path'] . '/' . $menu_item['icon'] ?>" alt="<?php echo $menu_item['text'] ?>" /> <?php echo $menu_item['text'] ?></a></li>
         <?php endif; ?>
         <?php endforeach; ?>
         <?php foreach ($GLOBALS['conf']['menu']['apps'] as $app): ?>
-        <?php if (empty($GLOBALS['conf']['menu']['apps_iframe']) || $GLOBALS['registry']->hasAjaxView($app)): ?>
-        <li><a href="<?php echo $GLOBALS['registry']->get('webroot', $app) ?>" id="hermesApplication-<?php echo $app ?>" title="<?php echo $GLOBALS['registry']->get('name', $app) ?>"><img src="<?php echo $GLOBALS['registry']->get('icon', $app) ?>" /> <?php echo $GLOBALS['registry']->get('name', $app) ?></a></li>
+        <?php if ($app == 'horde'): ?>
+          <li><a href="<?php echo $GLOBALS['registry']->getServiceLink('portal');?>" id="hermesApplication-<?php echo $app ?>" title="<?php echo $GLOBALS['registry']->get('name', $app) ?>"><img src="<?php echo $GLOBALS['registry']->get('icon', $app) ?>" /> <?php echo $GLOBALS['registry']->get('name', $app) ?></a></li>
+        <?php elseif ($GLOBALS['registry']->hasView(Hore_Registry::VIEW_DYNAMIC, $app)): ?>
+          <li><a href="<?php echo $GLOBALS['registry']->get('webroot', $app) ?>" id="hermesApplication-<?php echo $app ?>" title="<?php echo $GLOBALS['registry']->get('name', $app) ?>"><img src="<?php echo $GLOBALS['registry']->get('icon', $app) ?>" /> <?php echo $GLOBALS['registry']->get('name', $app) ?></a></li>
         <?php else: ?>
-        <li><a href="#" onclick="HermesCore.go('app:<?php echo $app ?>')" id="hermesApplication-<?php echo $app ?>" title="<?php echo $GLOBALS['registry']->get('name', $app) ?>"><img src="<?php echo $GLOBALS['registry']->get('icon', $app) ?>" /> <?php echo $GLOBALS['registry']->get('name', $app) ?></a></li>
+          <li><a href="#" onclick="HermesCore.go('app:<?php echo $app ?>')" id="hermesApplication-<?php echo $app ?>" title="<?php echo $GLOBALS['registry']->get('name', $app) ?>"><img src="<?php echo $GLOBALS['registry']->get('icon', $app) ?>" /> <?php echo $GLOBALS['registry']->get('name', $app) ?></a></li>
         <?php endif; ?>
         <?php endforeach; ?>
       </ul>
     </div>
     <?php endif; ?>
-    <a href="#" id="hermesNotifications" class="hermesNotifications" title="<?php echo ("0 notifications") ?>"></a>
-    <span class="hermesSeparator">|</span>
-    <a href="#" id="hermesOptions"><?php echo _("Options") ?></a><?php if ($help_link) echo ' <span class="hermesSeparator">|</span> ' . $help_link; if (Horde_Menu::showService('logout')) { $ak = Horde::getAccessKey(_("_Logout")); echo ' <span class="hermesSeparator">|</span> <a href="#" accesskey="' . $ak . '" id="hermesLogout">' . Horde::highlightAccessKey(_("_Logout"), $ak) . '</a>'; } ?>
-  </div>
+    <ul>
+      <li><a href="#" id="hermesNotifications" class="hermesNotifications" title="<?php echo ("0 notifications") ?>"></a></li>
+      <li><a href="#" id="hermesOptions"><?php echo _("Options") ?></a></li>
+      <?php if ($help_link): ?>
+      <li><?php echo $help_link ?></li>
+      <?php endif ?>
+      <?php if (Horde_Menu::showService('logout')): $ak = Horde::getAccessKey(_("_Logout")); ?>
+      <li><a href="#" accesskey="<?php echo $ak ?>" id="hermesLogout"><?php echo Horde::highlightAccessKey(_("_Logout"), $ak) ?></a></li>
+      <?php endif ?>
+    </ul>  </div>
   <!-- end services -->
  <!-- begin top bar -->
  <div id="hermesBar">
@@ -86,39 +93,35 @@
           <div id="hermesSummaryTotalNonBillable" class="hermesSummaryItem"><span class="hermesHours"></span> <?php echo _("Non-Billable")?></div>
         </div>
     </div>
-      <a href="#" class="hermesAdd">+</a>
-      <h3>Timers</h3>
-      <span class="hermesTimerStop">x</span>
-      <div class="hermesMenuItem hermesTimerOn rounded">
-         Big Project Timer
-         <div class="hermesTimerTime">2:32</div>
+      <h3>
+        <span>Timers</span>
+        <a href="#" class="hermesAdd">+</a>
+      </h3>
+      <div id="hermesMenuTimers">
       </div>
-      <span class="hermesTimerStop">x</span>
-      <div class="hermesMenuItem hermesTimerOn rounded">
-         Big Project Timer
-         <div class="hermesTimerTime">2:32</div>
-      </div>
-        <div id="hermesMenuRecent">
-          <h3>Recent Projects</h3>
-          <div class="hermesMenuRecent rounded">
-             Big Project:
-             <div class="hermesTimerTime">20 Hours (30%)</div>
-          </div>
-          <div class="hermesMenuRecent rounded">
-             Big Project Timer
-             <div class="hermesTimerTime">30 HOurs (20%)</div>
-          </div>
+      <div id="hermesMenuRecent">
+        <h3>Recent Projects</h3>
+        <!--<div class="hermesMenuRecent rounded">
+           Big Project:
+           <div class="hermesTimerTime">20 Hours (30%)</div>
         </div>
+        <div class="hermesMenuRecent rounded">
+           Big Project Timer
+           <div class="hermesTimerTime">30 HOurs (20%)</div>
+        </div>-->
+      </div>
     </div>
 </div>
 <!-- end left menu -->
 
+<?php require __DIR__ . '/timer.inc'; ?>
+
 <!-- begin body -->
 <div id="hermesBody">
 <?php
-require dirname(__FILE__) . '/timeedit.inc';
+require __DIR__ . '/timeedit.inc';
+require __DIR__ . '/search.inc';
 ?>
-<div id="hermesViewIframe" style="display:none"></div>
 </div>
 <!-- end body -->
 

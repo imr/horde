@@ -2,14 +2,17 @@
  Components TODO List
 ======================
 
- - Add a release helper module.
-   - Update package.xml to bump version and empty notes after the release.
-   - Allow to configure the mail transport for sending announcements.
-   - Validate that the release does not exist before releasing.
-   - Error handling.
+ - Installation:
+    - Ensure that PEAR gets all required dependencies installed (probably a package.xml v1 problem).
+    - Ensure Horde_Role gets installed.
 
- - Add a commit module that automatically adds a changelog entry in
-   the notes section of the package.xml
+ - Allow updating Jonah during the release.
+
+ - Add a horde-web update task during release.
+
+ - Allow to configure the mail transport for sending announcements.
+
+ - commit 698b6e94db5dd8d8d6b49578f75 (system() vs exec())
 
  - Bootstrapping script
    - must be able to update the bootstrapped environment (probably
@@ -19,16 +22,11 @@
    - Allow to specify the target location of the environment (default
      horde/lib)
 
- - Allow channel dependency detection with external/local package
-   dependencies.
-
  - Add validations (+ before release)
    - COPYING
    - Tests
    - phpDocumentor
    - Code style
-
- - Support a configuration file.
 
  - Document usage
 
@@ -66,13 +64,32 @@
    - CI link / stats
    - Horde backlink
 
- - Allow downloading documentation from the wiki.
+ - Documentation quirks:
+
+   - <tt> not working
+   - style highlighter
+   - better linkage in DOCS_ORIGIN
+   - template for DOCS_ORIGIN
+   - ignore examples
 
  - WWW frontend
-
- - Fix dependency listing with the --optional=yes/no flag
 
  - Allow absolute/relative paths as arguments
 
  - Allow preparing a PHAR install package
 
+ - Debian packaging: 
+
+   Links:
+
+   - http://anonscm.debian.org/gitweb/?p=pkg-horde/pkg-php-tools.git;a=summary
+   - http://lists.alioth.debian.org/pipermail/pkg-php-pear/2011-June/000129.html
+
+ - General ideas / links:
+
+   - http://blog.stuartherbert.com/php/2011/04/09/gathering-requirements-for-a-pear-channel-aggregator/
+   - https://github.com/naderman/composer/blob/master/src/Composer/Composer.php
+   - http://symfony2bundles.org/api
+   - http://blog.astrumfutura.com/2011/06/how-would-you-engineer-a-pear2pyrus-distribution-architecture/
+   - http://blog.webspecies.co.uk/2011-09-09/dependencies-management-in-php-projects.html
+   - http://www.slideshare.net/naderman/composer-9206307

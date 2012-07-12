@@ -3,7 +3,7 @@
  <name>Horde_Compress</name>
  <channel>pear.horde.org</channel>
  <summary>Horde Compression API</summary>
- <description>This package provides an API for various compression techniques.</description>
+ <description>An API for various compression techniques.</description>
  <lead>
   <name>Chuck Hagenbuch</name>
   <user>chuck</user>
@@ -22,26 +22,35 @@
   <email>slusarz@horde.org</email>
   <active>yes</active>
  </lead>
- <date>2011-03-16</date>
- <time>18:10:26</time>
+ <date>2012-07-05</date>
+ <time>23:43:09</time>
  <version>
-  <release>1.0.0RC1</release>
+  <release>2.0.0beta1</release>
   <api>1.0.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+ <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
  <notes>
-* First release candidate for Horde 4.
+*
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
+   <dir name="doc">
+    <dir name="Horde">
+     <dir name="Compress">
+      <file name="COPYING" role="doc" />
+     </dir> <!-- /doc/Horde/Compress -->
+    </dir> <!-- /doc/Horde -->
+   </dir> <!-- /doc -->
    <dir name="lib">
     <dir name="Horde">
      <dir name="Compress">
+      <file name="Base.php" role="php" />
       <file name="Dbx.php" role="php" />
+      <file name="Exception.php" role="php" />
       <file name="Gzip.php" role="php" />
       <file name="Rar.php" role="php" />
       <file name="Tar.php" role="php" />
@@ -315,12 +324,21 @@
     </dir> <!-- /locale/zh_TW -->
     <file name="Horde_Compress.pot" role="data" />
    </dir> <!-- /locale -->
+   <dir name="test">
+    <dir name="Horde">
+     <dir name="Compress">
+      <file name="AllTests.php" role="test" />
+      <file name="RarTest.php" role="test" />
+      <file name="ZipTest.php" role="test" />
+     </dir> <!-- /test/Horde/Compress -->
+    </dir> <!-- /test/Horde -->
+   </dir> <!-- /test -->
   </dir> <!-- / -->
  </contents>
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -328,26 +346,33 @@
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Translation</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Util</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
   <optional>
+   <package>
+    <name>Horde_Stream_Filter</name>
+    <channel>pear.horde.org</channel>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
+   </package>
    <extension>
     <name>zlib</name>
    </extension>
@@ -355,8 +380,11 @@
  </dependencies>
  <phprelease>
   <filelist>
+   <install as="COPYING" name="doc/Horde/Compress/COPYING" />
    <install as="Horde/Compress.php" name="lib/Horde/Compress.php" />
+   <install as="Horde/Compress/Base.php" name="lib/Horde/Compress/Base.php" />
    <install as="Horde/Compress/Dbx.php" name="lib/Horde/Compress/Dbx.php" />
+   <install as="Horde/Compress/Exception.php" name="lib/Horde/Compress/Exception.php" />
    <install as="Horde/Compress/Gzip.php" name="lib/Horde/Compress/Gzip.php" />
    <install as="Horde/Compress/Rar.php" name="lib/Horde/Compress/Rar.php" />
    <install as="Horde/Compress/Tar.php" name="lib/Horde/Compress/Tar.php" />
@@ -450,6 +478,9 @@
    <install as="locale/zh_CN/LC_MESSAGES/Horde_Compress.po" name="locale/zh_CN/LC_MESSAGES/Horde_Compress.po" />
    <install as="locale/zh_TW/LC_MESSAGES/Horde_Compress.mo" name="locale/zh_TW/LC_MESSAGES/Horde_Compress.mo" />
    <install as="locale/zh_TW/LC_MESSAGES/Horde_Compress.po" name="locale/zh_TW/LC_MESSAGES/Horde_Compress.po" />
+   <install as="Horde/Compress/AllTests.php" name="test/Horde/Compress/AllTests.php" />
+   <install as="Horde/Compress/RarTest.php" name="test/Horde/Compress/RarTest.php" />
+   <install as="Horde/Compress/ZipTest.php" name="test/Horde/Compress/ZipTest.php" />
   </filelist>
  </phprelease>
  <changelog>
@@ -463,7 +494,7 @@
     <api>alpha</api>
    </stability>
    <date>2003-07-03</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 Initial release as a PEAR package
    </notes>
@@ -479,7 +510,7 @@ Initial release as a PEAR package
     <release>alpha</release>
     <api>alpha</api>
    </stability>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * Added rar driver.
   * Converted to package.xml 2.0 for pear.horde.org
@@ -495,7 +526,7 @@ Initial release as a PEAR package
     <api>alpha</api>
    </stability>
    <date>2011-03-08</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First alpha release for Horde 4.
    </notes>
@@ -510,9 +541,177 @@ Initial release as a PEAR package
     <api>beta</api>
    </stability>
    <date>2011-03-16</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First beta release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-22</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* Second release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First stable release for Horde 4.
+* [mms] Add $canCompress and $canDecompress properties to Horde_Compress_Base.
+* [mms] Drivers now extend Horde_Compress_Base.
+* [mms] Add Horde_Compress_Exception.
+* [mms] Do all zip compression on stream data in streams.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-05-18</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Updated Spanish translation.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.2</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-06-01</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Updated Slovak translation.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.3</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Update Lithuanian translation.
+* [jan] Update Brazilian Portuguese translation.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.4</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-07-27</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Update Latvian translation.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.5</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-08-17</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Detect broken RAR data so it does not cause an infinite loop.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.6</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-22</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [jan] Update Croatian translation (Valentin Vidic &lt;Valentin.Vidic@CARNet.hr&gt;).
+* [jan] Update Estonian translation (Alar Sing &lt;alar.sing@err.ee&gt;).
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.7</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2012-05-01</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* [mms] Check for damaged ZIP data.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+* First alpha release for Horde 5.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
+   <notes>
+*
    </notes>
   </release>
  </changelog>

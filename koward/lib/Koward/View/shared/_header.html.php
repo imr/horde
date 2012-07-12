@@ -11,9 +11,9 @@ Koward - The Kolab warden
 Copyright
 
 2004 - 2009 Klarälvdalens Datakonsult AB
-2009        The Horde Project
+2009        Horde LLC
 
-Koward is under the GPL. GNU Public License: http://www.fsf.org/copyleft/gpl.html -->
+Koward is under the GPL. GNU Public License: http://www.horde.org/licenses/gpl -->
 
 <?php echo !empty($language) ? '<html lang="' . strtr($language, '_', '-') . '">' : '<html>' ?>
 <head>
@@ -24,9 +24,10 @@ global $registry;
 $page_title = $registry->get('name');
 $page_title .= !empty($this->title) ? ' :: ' . $this->title : '';
 
-Horde::includeFavicon();
-Horde::includeStylesheetFiles();
-Horde::includeScriptFiles();
+$page_output = $injector->getInstance('Horde_PageOutput');
+$page_output->includeFavicon();
+$page_output->includeStylesheetFiles();
+$page_output->includeScriptFiles();
 
 ?>
 <title><?php echo htmlspecialchars($page_title) ?></title>

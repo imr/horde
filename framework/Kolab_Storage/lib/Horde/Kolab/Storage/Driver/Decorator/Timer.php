@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * A stop watch decorator for outgoing requests from the Kolab storage drivers.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Driver_Decorator_Timer
@@ -48,13 +48,12 @@ extends Horde_Kolab_Storage_Driver_Decorator_Base
      * @param Horde_Kolab_Storage_Driver $driver The decorated driver.
      * @param Horde_Support_Timer        $timer  A stop watch.
      * @param mixed                      $logger The log handler. This instance
-     *                                           must provide the info() method.
+     *                                           must provide the debug() method.
      */
-    public function __construct(
-        Horde_Kolab_Storage_Driver $driver,
-        Horde_Support_Timer $timer,
-        $logger
-    ) {
+    public function __construct(Horde_Kolab_Storage_Driver $driver,
+                                Horde_Support_Timer $timer,
+                                $logger)
+    {
         $this->_logger = $logger;
         $this->_timer = $timer;
         parent::__construct($driver);
@@ -69,7 +68,7 @@ extends Horde_Kolab_Storage_Driver_Decorator_Base
     {
         $this->_timer->push();
         $result = parent::createBackend();
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'REQUEST OUT IMAP: %s ms [construct]',
                 floor($this->_timer->pop() * 1000)
@@ -87,7 +86,7 @@ extends Horde_Kolab_Storage_Driver_Decorator_Base
     {
         $this->_timer->push();
         $result = parent::listFolders();
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'REQUEST OUT IMAP: %s ms [listFolders]',
                 floor($this->_timer->pop() * 1000)
@@ -108,7 +107,7 @@ extends Horde_Kolab_Storage_Driver_Decorator_Base
     {
         $this->_timer->push();
         $result = parent::listAnnotation($annotation);
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'REQUEST OUT IMAP: %s ms [listAnnotation]',
                 floor($this->_timer->pop() * 1000)
@@ -126,7 +125,7 @@ extends Horde_Kolab_Storage_Driver_Decorator_Base
     {
         $this->_timer->push();
         $result = parent::getNamespace();
-        $this->_logger->info(
+        $this->_logger->debug(
             sprintf(
                 'REQUEST OUT IMAP: %s ms [getNamespace]',
                 floor($this->_timer->pop() * 1000)

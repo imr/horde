@@ -1,19 +1,19 @@
 <?php
 /**
- * A class allowing easy access to threaded sort results from
+ * Object allowing easy access to threaded sort results from
  * Horde_Imap_Client_Base::thread().
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Imap_Client
  */
-class Horde_Imap_Client_Data_Thread implements Countable
+class Horde_Imap_Client_Data_Thread implements Countable, Serializable
 {
     /**
      * Internal thread data structure.
@@ -99,15 +99,11 @@ class Horde_Imap_Client_Data_Thread implements Countable
     /**
      * Return the sorted list of messages indices.
      *
-     * @param boolean $new  True for newest first, false for oldest first.
-     *
      * @return array  The sorted list of messages.
      */
-    public function messageList($new)
+    public function messageList()
     {
-        return $new
-            ? array_reverse(array_keys($this->_thread))
-            : array_keys($this->_thread);
+        return array_keys($this->_thread);
     }
 
     /**
@@ -151,6 +147,25 @@ class Horde_Imap_Client_Data_Thread implements Countable
     public function count()
     {
         return count($this->_thread);
+    }
+
+    /* Serializable methods. */
+
+    /**
+     */
+    public function serialize()
+    {
+        return json_encode(array(
+            $this->_thread,
+            $this->_type
+        ));
+    }
+
+    /**
+     */
+    public function unserialize($data)
+    {
+        list($this->_thread, $this->_type) = json_decode($data, true);
     }
 
 }

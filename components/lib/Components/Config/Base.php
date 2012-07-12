@@ -8,7 +8,7 @@
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 
@@ -16,15 +16,15 @@
  * Components_Configs_Base:: provides common utilities for the configuration
  * handlers.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 abstract class Components_Config_Base
@@ -45,11 +45,18 @@ implements Components_Config
     protected $_arguments = array();
 
     /**
-     * Path to the selected component.
+     * The selected component.
+     *
+     * @var Components_Component
+     */
+    private $_component;
+
+    /**
+     * The path to component in case the selected one is a source component.
      *
      * @var string
      */
-    private $_component;
+    private $_path;
 
     /**
      * Set an additional option value.
@@ -65,13 +72,28 @@ implements Components_Config
     }
 
     /**
-     * Return the options parsed from the command line.
+     * Return all options.
      *
      * @return Horde_Argv_Values The option values.
      */
     public function getOptions()
     {
         return $this->_options;
+    }
+
+    /**
+     * Return the specified option.
+     *
+     * @param string $option The name of the option.
+     *
+     * @return mixed The option value or NULL if it is not defined.
+     */
+    public function getOption($option)
+    {
+        $options = $this->getOptions();
+        if (isset($options[$option])) {
+            return $options[$option];
+        }
     }
 
     /**
@@ -109,26 +131,20 @@ implements Components_Config
     /**
      * Set the path to the component directory.
      *
-     * @param string  $path  The path to the component directory.
-     * @param boolean $shift Was the first argument used to indicate the
-     *                       component path and should be shifted away?
-     *
+     * @param Components_Component $component The path to the component directory.
      * @return NULL
      */
-    public function setComponentDirectory($path, $shift = false)
+    public function setComponent(Components_Component $component)
     {
-        $this->_component = realpath($path);
-        if ($shift) {
-            $this->shiftArgument();
-        }
+        $this->_component = $component;
     }
 
     /**
-     * Return the path to the selected component directory.
+     * Return the selected component.
      *
-     * @return string The component directory.
+     * @return Components_Component The selected component.
      */
-    public function getComponentDirectory()
+    public function getComponent()
     {
         if ($this->_component === null) {
             throw new Components_Exception(
@@ -139,12 +155,25 @@ implements Components_Config
     }
 
     /**
-     * Return the path to the package.xml of the selected component directory.
+     * Set the path to the directory of the selected source component.
      *
-     * @return string The path to the package.xml.
+     * @param string $path The path to the component directory.
+     *
+     * @return NULL
      */
-    public function getComponentPackageXml()
+    public function setPath($path)
     {
-        return $this->getComponentDirectory() . '/package.xml';
+        $this->_path = $path;
+    }
+
+    /**
+     * Get the path to the directory of the selected component (in case it was a
+     * source component).
+     *
+     * @return string The path to the component directory.
+     */
+    public function getPath()
+    {
+        return $this->_path;
     }
 }

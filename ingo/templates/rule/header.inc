@@ -2,7 +2,6 @@
 <?php Horde_Util::pformInput() ?>
 <input type="hidden" name="actionID" value="rule_update" />
 <input type="hidden" name="conditionnumber" value="-1" />
-<input type="hidden" name="new_folder_name" value="" />
 <?php if (isset($vars->edit)): ?>
 <input type="hidden" name="edit" value="<?php echo $vars->edit ?>" />
 <?php endif; if (isset($rule['id'])): ?>
@@ -25,7 +24,7 @@
     </td>
   </tr>
 
-  <tr class="item0">
+  <tr class="rowEven">
     <td>
       <em><?php echo _("For an incoming message that matches:") ?></em>
       <br />
@@ -37,6 +36,6 @@
     </td>
   </tr>
 
-  <tr class="item0">
+  <tr class="rowEven">
     <td>
       <table width="100%" cellspacing="0">

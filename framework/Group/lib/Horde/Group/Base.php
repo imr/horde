@@ -3,14 +3,14 @@
  * Horde_Group_Base is the base class for all drivers of the Horde group
  * system.
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Jan Schneider <jan@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Group
  */
 abstract class Horde_Group_Base
@@ -125,12 +125,15 @@ abstract class Horde_Group_Base
     }
 
     /**
-     * Returns a list of all groups, with IDs as keys and names as values.
+     * Returns a list of all groups a user may see, with IDs as keys and names
+     * as values.
+     *
+     * @param string $member  Only return groups that this user is a member of.
      *
      * @return array  All existing groups.
      * @throws Horde_Group_Exception
      */
-    abstract public function listAll();
+    abstract public function listAll($member = null);
 
     /**
      * Returns a list of users in a group.

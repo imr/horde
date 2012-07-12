@@ -3,18 +3,25 @@
  * The IMP_Indices class provides functions to handle lists of message
  * indices.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Indices implements ArrayAccess, Countable, Iterator
 {
+    /**
+     * Default mailbox name.
+     *
+     * @var array
+     */
+    protected $_default = 'INBOX';
+
     /**
      * The indices list.
      *
@@ -82,10 +89,14 @@ class IMP_Indices implements ArrayAccess, Countable, Iterator
                     }
                 }
             } elseif (is_string($data)) {
-                $indices = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->getUtils()->fromSequenceString($data);
+                $imp_imap = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create();
+                $indices = $imp_imap->getUtils()->fromSequenceString($data);
+                if ($imp_imap->pop3) {
+                    $indices = array($this->_default => $indices);
+                }
             } elseif ($data instanceof IMP_Compose) {
                 $indices = array(
-                    $data->getMetadata('mailbox') => array($data->getMetadata('uid'))
+                    strval($data->getMetadata('mailbox')) => array($data->getMetadata('uid'))
                 );
             } elseif ($data instanceof IMP_Contents) {
                 $indices = array(
@@ -150,7 +161,7 @@ class IMP_Indices implements ArrayAccess, Countable, Iterator
         $val = reset($this->_indices);
         return array(
             IMP_Mailbox::get(key($this->_indices)),
-            $all ? $val : reset($val)
+            $all ? $val : (is_array($val) ? reset($val) : null)
         );
     }
 
@@ -163,6 +174,23 @@ class IMP_Indices implements ArrayAccess, Countable, Iterator
     public function indices()
     {
         return $this->_indices;
+    }
+
+    /**
+     * Converts an indices object string to a string form representation.
+     * Needed because null characters (used for various internal non-IMAP
+     * mailbox representations) will not work in form elements.
+     *
+     * @return string  String representation (IMAP sequence string).
+     */
+    public function formTo()
+    {
+        $converted = array();
+        foreach ($this->_indices as $key => $val) {
+            $converted[IMP_Mailbox::formTo($key)] = $val;
+        }
+
+        return $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->getUtils()->toSequenceString($converted, array('mailbox' => true));
     }
 
     /* ArrayAccess methods. */

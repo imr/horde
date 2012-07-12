@@ -1,12 +1,12 @@
 <?php
 /**
  * Copyright 2007 Maintainable Software, LLC
- * Copyright 2006-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2006-2012 Horde LLC (http://www.horde.org/)
  *
  * @author     Mike Naberezny <mike@maintainable.com>
  * @author     Derek DeVries <derek@maintainable.com>
  * @author     Chuck Hagenbuch <chuck@horde.org>
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  * @category   Horde
  * @package    Db
  * @subpackage Adapter
@@ -18,7 +18,7 @@
  * @author     Mike Naberezny <mike@maintainable.com>
  * @author     Derek DeVries <derek@maintainable.com>
  * @author     Chuck Hagenbuch <chuck@horde.org>
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  * @category   Horde
  * @package    Db
  * @subpackage Adapter
@@ -122,7 +122,7 @@ class Horde_Db_Adapter_Mysql extends Horde_Db_Adapter_Base
      */
     public function isActive()
     {
-        return isset($this->_connection) && mysql_ping($this->_connection);
+        return isset($this->_connection) && @mysql_ping($this->_connection);
     }
 
 
@@ -182,15 +182,16 @@ class Horde_Db_Adapter_Mysql extends Horde_Db_Adapter_Base
     }
 
     /**
-     * Returns a record hash with the column names as keys and column values
-     * as values.
+     * Returns a record hash with the column names as keys and column values as
+     * values.
      *
-     * @param   string  $sql
-     * @param   mixed   $arg1  Either an array of bound parameters or a query name.
-     * @param   string  $arg2  If $arg1 contains bound parameters, the query name.
-     * @return  array
+     * @param string $sql   A query.
+     * @param mixed  $arg1  Either an array of bound parameters or a query name.
+     * @param string $arg2  If $arg1 contains bound parameters, the query name.
+     *
+     * @return array|boolean  A record hash or false if no record found.
      */
-    public function selectOne($sql, $arg1=null, $arg2=null)
+    public function selectOne($sql, $arg1 = null, $arg2 = null)
     {
         $result = $this->execute($sql, $arg1, $arg2);
         return $result ? mysql_fetch_array($result, MYSQL_ASSOC) : array();
@@ -249,7 +250,7 @@ class Horde_Db_Adapter_Mysql extends Horde_Db_Adapter_Base
         $t = new Horde_Support_Timer();
         $t->push();
 
-        $this->last_query = $sql;
+        $this->_lastQuery = $sql;
         $stmt = mysql_query($sql, $this->_connection);
         if (!$stmt) {
             $this->_logInfo($sql, 'QUERY FAILED: ' . mysql_error($this->_connection));
@@ -287,7 +288,7 @@ class Horde_Db_Adapter_Mysql extends Horde_Db_Adapter_Base
     public function beginDbTransaction()
     {
         $this->_transactionStarted = true;
-        $this->last_query = 'SET AUTOCOMMIT=0; BEGIN';
+        $this->_lastQuery = 'SET AUTOCOMMIT=0; BEGIN';
         @mysql_query('SET AUTOCOMMIT=0', $this->_connection) && @mysql_query('BEGIN', $this->_connection);
     }
 
@@ -296,7 +297,7 @@ class Horde_Db_Adapter_Mysql extends Horde_Db_Adapter_Base
      */
     public function commitDbTransaction()
     {
-        $this->last_query = 'COMMIT; SET AUTOCOMMIT=1';
+        $this->_lastQuery = 'COMMIT; SET AUTOCOMMIT=1';
         @mysql_query('COMMIT', $this->_connection) && @mysql_query('SET AUTOCOMMIT=1', $this->_connection);
         $this->_transactionStarted = false;
     }
@@ -311,7 +312,7 @@ class Horde_Db_Adapter_Mysql extends Horde_Db_Adapter_Base
             return;
         }
 
-        $this->last_query = 'ROLLBACK; SET AUTOCOMMIT=1';
+        $this->_lastQuery = 'ROLLBACK; SET AUTOCOMMIT=1';
         @mysql_query('ROLLBACK', $this->_connection) && @mysql_query('SET AUTOCOMMIT=1', $this->_connection);
         $this->_transactionStarted = false;
     }
@@ -342,13 +343,7 @@ class Horde_Db_Adapter_Mysql extends Horde_Db_Adapter_Base
      */
     protected function _parseConfig()
     {
-        // check required config keys are present
-        $required = array('username');
-        $diff = array_diff_key(array_flip($required), $this->_config);
-        if (! empty($diff)) {
-            $msg = 'Required config missing: ' . implode(', ', array_keys($diff));
-            throw new Horde_Db_Exception($msg);
-        }
+        $this->_checkRequiredConfig(array('username'));
 
         $rails2mysqli = array('database' => 'dbname');
         foreach ($rails2mysqli as $from => $to) {
@@ -358,19 +353,22 @@ class Horde_Db_Adapter_Mysql extends Horde_Db_Adapter_Base
             }
         }
 
+        if (!empty($this->_config['host']) &&
+            $this->_config['host'] == 'localhost') {
+            $this->_config['host'] = '127.0.0.1';
+        }
+
         if (isset($this->_config['port'])) {
             if (empty($this->_config['host'])) {
-                $msg = 'host is required if port is specified';
-                throw new Horde_Db_Exception($msg);
+                throw new Horde_Db_Exception('Host is required if port is specified');
             }
             $this->_config['host'] .= ':' . $this->_config['port'];
             unset($this->_config['port']);
         }
 
         if (!empty($this->_config['socket'])) {
-            if (!empty($this->_config['host']) && $this->_config['host'] != 'localhost') {
-                $msg = 'can only specify host or socket, not both';
-                throw new Horde_Db_Exception($msg);
+            if (!empty($this->_config['host'])) {
+                throw new Horde_Db_Exception('Can only specify host or socket, not both');
             }
             $this->_config['host'] = ':' . $this->_config['socket'];
             unset($this->_config['socket']);
@@ -378,10 +376,10 @@ class Horde_Db_Adapter_Mysql extends Horde_Db_Adapter_Base
 
         $config = $this->_config;
 
-        if (!isset($config['host']))      $config['host'] = null;
-        if (!isset($config['username']))  $config['username'] = null;
-        if (!isset($config['password']))  $config['password'] = null;
-        if (!isset($config['dbname']))    $config['dbname'] = null;
+        if (!isset($config['host']))     $config['host'] = null;
+        if (!isset($config['username'])) $config['username'] = null;
+        if (!isset($config['password'])) $config['password'] = null;
+        if (!isset($config['dbname']))   $config['dbname'] = null;
 
         return $config;
     }

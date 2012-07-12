@@ -2,20 +2,20 @@
 /**
  * Turba directory driver implementation for an IMSP server.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you did
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author   Michael Rubinsky <mrubinsk@horde.org>
  * @category Horde
- * @license  http://www.horde.org/licenses/asl.php ASL
+ * @license  http://www.horde.org/licenses/apache ASL
  * @package  Turba
  */
 class Turba_Driver_Imsp extends Turba_Driver
 {
     /**
-     * Handle for the IMSP connection.
+     * Horde_Imsp object
      *
      * @var Horde_Imsp
      */
@@ -85,8 +85,10 @@ class Turba_Driver_Imsp extends Turba_Driver
         $this->_bookName = $this->getContactOwner();
 
         try {
-            $this->_imsp = Horde_Imsp::singleton('Book', $this->params);
-        } catch (Horde_Imsp_Exception $e) {
+            $this->_imsp = $GLOBALS['injector']
+                ->getInstance('Horde_Core_Factory_Imsp')
+                ->create('Book', $this->params);
+        } catch (Horde_Exception $e) {
             $this->_authenticated = false;
             throw new Turba_Exception($e);
         }
@@ -130,19 +132,20 @@ class Turba_Driver_Imsp extends Turba_Driver
     }
 
     /**
-     * Reads the given data from the IMSP server and returns the
-     * results.
+     * Reads the given data from the address book and returns the results.
      *
-     * @param string $key    The primary key field to use (always 'name' for
-     *                       IMSP).
-     * @param mixed $ids     The ids of the contacts to load.
-     * @param string $owner  Only return contacts owned by this user.
-     * @param array $fields  List of fields to return.
+     * @param string $key        The primary key field to use (always 'name'
+                                 for IMSP).
+     * @param mixed $ids         The ids of the contacts to load.
+     * @param string $owner      Only return contacts owned by this user.
+     * @param array $fields      List of fields to return.
+     * @param array $blobFields  Array of fields containing binary data.
      *
      * @return array  Hash containing the search results.
      * @throws Turba_Exception
      */
-    protected function _read($key, $ids, $owner, $fields)
+    protected function _read($key, $ids, $owner, array $fields,
+                             array $blobFields = array())
     {
         $results = array();
 
@@ -251,9 +254,14 @@ class Turba_Driver_Imsp extends Turba_Driver
     }
 
     /**
-     * Adds the specified object to the IMSP server.
+     * Adds the specified contact to the addressbook.
+     *
+     * @param array $attributes  The attribute values of the contact.
+     * @param array $blob_fields TODO
+     *
+     * @throws Turba_Exception
      */
-    protected function _add($attributes)
+    protected function _add(array $attributes, array $blob_fields = array())
     {
         /* We need to map out Turba_Object_Groups back to IMSP groups before
          * writing out to the server. We need to array_values() it in
@@ -642,7 +650,7 @@ class Turba_Driver_Imsp extends Turba_Driver
 
         $result = Turba::createShare($share_id, $params);
         try {
-            $imsp_result = Horde_Imsp_Utils::createBook($GLOBALS['cfgSources']['imsp'], $params['params']['name']);
+            $imsp_result = Horde_Core_Imsp_Utils::createBook($GLOBALS['cfgSources']['imsp'], $params['params']['name']);
         } catch (Horde_Imsp_Exception $e) {
             throw new Turba_Exception($e);
         }

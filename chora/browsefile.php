@@ -2,17 +2,19 @@
 /**
  * Browse view (for files).
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
- * @author  Anil Madhavapeddy <anil@recoil.org>
- * @author  Chuck Hagenbuch <chuck@horde.org>
- * @package Chora
+ * @author   Anil Madhavapeddy <anil@recoil.org>
+ * @author   Chuck Hagenbuch <chuck@horde.org>
+ * @category Horde
+ * @license  http://www.horde.org/licenses/gpl GPL
+ * @package  Chora
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('chora');
 
 if ($atdir) {
@@ -20,9 +22,10 @@ if ($atdir) {
     exit;
 }
 
-$onb = Horde_Util::getFormData('onb', $VC->getDefaultBranch());
+$onb = Horde_Util::getFormData('onb');
 try {
-    $fl = $VC->getFileObject($where, array('branch' => $onb));
+    $fl = $VC->getFile($where, array('branch' => $onb));
+    $fl->applySort(Horde_Vcs::SORT_AGE);
 } catch (Horde_Vcs_Exception $e) {
     Chora::fatal($e);
 }
@@ -30,40 +33,42 @@ try {
 $title = $where;
 
 $extraLink = Chora::getFileViews($where, 'browsefile');
-$logs = $fl->queryLogs();
+$logs = $fl->getLog();
 $first = end($logs);
-$diffValueLeft = $first->queryRevision();
-$diffValueRight = $fl->queryRevision();
+$diffValueLeft = $first->getRevision();
+$diffValueRight = $fl->getRevision();
 
 $sel = '';
-foreach ($fl->querySymbolicRevisions() as $sm => $rv) {
+foreach ($fl->getTags() as $sm => $rv) {
     $sel .= '<option value="' . $rv . '">' . $sm . '</option>';
 }
 
-$selAllBranches = '';
+$branches = array();
 if ($VC->hasFeature('branches')) {
-    foreach (array_keys($fl->queryBranches()) as $sym) {
-        $selAllBranches .= '<option value="' . $sym . '"' . (($sym === $onb) ? ' selected="selected"' : '' ) . '>' . $sym . '</option>';
-    }
+    $branches = $fl->getBranches();
 }
 
-Horde::addScriptFile('revlog.js', 'chora');
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->addScriptFile('revlog.js');
+$page_output->header(array(
+    'title' => $title
+));
 require CHORA_TEMPLATES . '/menu.inc';
 require CHORA_TEMPLATES . '/headerbar.inc';
 require CHORA_TEMPLATES . '/log/header.inc';
 
-reset($logs);
 $view = $injector->createInstance('Horde_View');
 $currentDay = null;
 echo '<div class="commit-list">';
+
+reset($logs);
 foreach ($logs as $log) {
-    $day = date('Y-m-d', $log->queryDate());
+    $day = date('Y-m-d', $log->getDate());
     if ($day != $currentDay) {
         echo '<h3>' . $day . '</h3>';
         $currentDay = $day;
     }
-    echo $view->renderPartial('app/views/logMessage', array('object' => $log));
+    echo $view->renderPartial('app/views/logMessage', array('object' => $log->toHash()));
 }
+
 echo '</div>';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

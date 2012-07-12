@@ -2,14 +2,14 @@
 /**
  * The IMP_Test:: class provides the IMP configuration for the test script.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Test extends Horde_Test
@@ -19,7 +19,12 @@ class IMP_Test extends Horde_Test
      *
      * @var array
      */
-    protected $_moduleList = array();
+    protected $_moduleList = array(
+        'zip' => array(
+            'descrip' => 'Zip Support',
+            'error' => 'The zip extension is used when importing compress mailboxes. IMP will fallback to using the zlib extension (if available) to read this data which should be sufficient for most installations. If zip support is desired, compile PHP with <code>--with-zip</code> to activate.'
+        )
+    );
 
     /**
      * PHP settings list.
@@ -38,11 +43,7 @@ class IMP_Test extends Horde_Test
      *
      * @var array
      */
-    protected $_pearList = array(
-        'Auth_SASL' => array(
-            'error' => 'If your IMAP server uses CRAM-MD5 or DIGEST-MD5 authentication, this module is required.'
-        )
-    );
+    protected $_pearList = array();
 
     /**
      * Required configuration files.
@@ -86,8 +87,9 @@ class IMP_Test extends Horde_Test
     {
         $ret = '<h1>Mail Server Support Test</h1>';
 
-        if (Horde_Util::getPost('user') && Horde_Util::getPost('passwd')) {
-            $ret .= $this->_doConnectionTest();
+        $vars = Horde_Variables::getDefaultVariables();
+        if ($vars->user && $vars->passwd) {
+            $ret .= $this->_doConnectionTest($vars);
         }
 
         $self_url = Horde::selfUrl()->add('app', 'imp');
@@ -101,24 +103,26 @@ class IMP_Test extends Horde_Test
     /**
      * Perform mail server support test.
      *
+     * @param Horde_Variables $vars  Variables object.
+     *
      * @return string  HTML output.
      */
-    protected function _doConnectionTest()
+    protected function _doConnectionTest($vars)
     {
         $imap_config = array(
-            'username' => Horde_Util::getPost('user'),
-            'password' => Horde_Util::getPost('passwd'),
-            'hostspec' => Horde_Util::getPost('server'),
-            'port' => Horde_Util::getPost('port'),
-            'secure' => Horde_Util::getPost('encrypt')
+            'username' => $vars->user,
+            'password' => $vars->passwd,
+            'hostspec' => $vars->server,
+            'port' => $vars->port,
+            'secure' => $vars->encrypt
         );
 
-        $driver = (Horde_Util::getPost('server_type') == 'imap')
-            ? 'Socket'
-            : 'Socket_Pop3';
+        $driver = ($vars->server_type == 'imap')
+            ? 'Horde_Imap_Client_Socket'
+            : 'Horde_Imap_Client_Socket_Pop3';
 
         try {
-            $imap_client = Horde_Imap_Client::factory($driver, $imap_config);
+            $imap_client = new $driver($imap_config);
         } catch (Horde_Imap_Client_Exception $e) {
             return $this->_errorMsg($e);
         }
@@ -133,8 +137,8 @@ class IMP_Test extends Horde_Test
 
         $ret .= '<span style="color:green">SUCCESS</span><p />';
 
-        if ($driver == 'Socket') {
-            $ret .= '<strong>The following IMAP server information was discovered from the remote server:</strong>' .
+        if ($driver == 'Horde_Imap_Client_Socket') {
+            $ret .= '<strong>The following IMAP server information was discovered from the server:</strong>' .
                 '<blockquote><em>Namespace Information</em><blockquote><pre>';
 
             try {
@@ -179,7 +183,16 @@ class IMP_Test extends Horde_Test
                 $this->_errorMsg($e);
             }
 
-            $ret .= '</pre></blockquote></blockquote>';
+            $ret .= '</pre></blockquote></blockquote>' .
+                '<blockquote><em>Does IMAP server support UTF-8 in search queries?</em> ';
+
+            if ($imap_client->validSearchCharset('UTF-8')) {
+                $ret .= '<span style="color:green">YES</span>';
+            } else {
+                $ret .= '<span style="color:red">NO</span>';
+            }
+
+            $ret .= '</blockquote>';
 
             try {
                 $id_info = $imap_client->getID();
@@ -191,10 +204,18 @@ class IMP_Test extends Horde_Test
                     $ret .= '</pre></blockquote></blockquote>';
                 }
             } catch (Horde_Imap_Client_Exception $e) {
-                // Ignore a lack of the ID capability.
+                // Ignore lack of ID capability.
             }
 
             // @todo IMAP Charset Search Support
+        } else {
+            $ret .= '<strong>Checking for the UIDL capability:</strong> ';
+
+            if ($imap_client->queryCapability('UIDL')) {
+                $ret .= '<span style="color:green">SUCCESS</span><p />';
+            } else {
+                return $this->_errorMsg(new Exception('The POP3 server does not support the *REQUIRED* UIDL capability.'));
+            }
         }
 
         return $ret;
@@ -207,7 +228,7 @@ class IMP_Test extends Horde_Test
      */
     protected function _errorMsg($e)
     {
-        return '<span style=\"color:red\">ERROR</span> - The server returned the following error message:' .
+        return '<span style="color:red">ERROR</span> - The server returned the following error message:' .
             '<pre>' . $e->getMessage() . '</pre><p />';
     }
 

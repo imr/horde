@@ -7,17 +7,17 @@
  * USE:
  *  php ./export_config.php --type=TYPE --username=USR --password=PASS --rpc=URL > hosts
  *
- * Copyright 2008 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Duck <duck@obala.net>
  * @package Beatnik
  */
 
 define('AUTH_HANDLER', true);
-define('HORDE_BASE', dirname(__FILE__) . '/../../');
+define('HORDE_BASE', __DIR__ . '/../../');
 define('BEATNIK_BASE', HORDE_BASE . '/beatnik');
 
 // Do CLI checks and environment setup first.

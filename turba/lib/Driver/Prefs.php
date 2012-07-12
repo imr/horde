@@ -3,14 +3,14 @@
  * Turba directory driver implementation for Horde Preferences - very simple,
  * lightweight container.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you did
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @category Horde
- * @license  http://www.horde.org/licenses/asl.php ASL
+ * @license  http://www.horde.org/licenses/apache ASL
  * @package  Turba
  */
 class Turba_Driver_Prefs extends Turba_Driver
@@ -33,20 +33,17 @@ class Turba_Driver_Prefs extends Turba_Driver
     /**
      * Reads the given data from the preferences and returns the result's
      * fields.
-     *
-     * @param array $criteria  Search criteria.
-     * @param mixed $ids       Data identifier(s).
-     * @param array $fields    List of fields to return.
-     *
-     * @return  Hash containing the search results.
      */
-    protected function _read(array $criteria, $ids, array $fields)
+    protected function _read($key, $ids, $owner, array $fields,
+                             array $blobFields = array())
     {
         $book = $this->_getAddressBook();
+
         $results = array();
         if (!is_array($ids)) {
             $ids = array($ids);
         }
+
         foreach ($ids as $id) {
             if (isset($book[$id])) {
                 $results[] = $book[$id];
@@ -57,11 +54,14 @@ class Turba_Driver_Prefs extends Turba_Driver
     }
 
     /**
-     * Adds the specified object to the preferences.
+     * Adds the specified contact to the addressbook.
      *
-     * @param array $attributes  TODO
+     * @param array $attributes  The attribute values of the contact.
+     * @param array $blob_fields TODO
+     *
+     * @throws Turba_Exception
      */
-    protected function _add(array $attributes)
+    protected function _add(array $attributes, array $blob_fields = array())
     {
         $book = $this->_getAddressBook();
         $book[$attributes['id']] = $attributes;

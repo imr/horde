@@ -2,17 +2,17 @@
 /**
  * The Agora script to display a list of threads in a forum.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Jan Schneider <jan@horde.org>
  * @author Marko Djukic <marko@oblo.com>
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
-Horde_Registry::appInit('agora', array('cli' => true));
+require_once __DIR__ . '/lib/Application.php';
+Horde_Registry::appInit('agora');
 
 /* Make sure we have a forum id. */
 list($forum_id, , $scope) = Agora::getAgoraId();
@@ -21,7 +21,7 @@ if (empty($forum_id)) {
 }
 
 /* Check if this is a valid thread, otherwise show the forum list. */
-$threads = &Agora_Messages::singleton($scope, $forum_id);
+$threads = $injector->getInstance('Agora_Factory_Driver')->create($scope, $forum_id);
 if ($threads instanceof PEAR_Error) {
     $notification->push(sprintf(_("Could not list threads. %s"), $threads->getMessage()), 'horde.warning');
     Horde::url('forums.php', true)->redirect();
@@ -59,7 +59,7 @@ $view = new Agora_View();
 $view->col_headers = $col_headers;
 $view->threads = $threads_list;
 $view->forum_name = sprintf(_("Threads in %s"), $forum_array['forum_name']);
-$view->forum_description =  Agora_Messages::formatBody($forum_array['forum_description']);
+$view->forum_description =  Agora_Driver::formatBody($forum_array['forum_description']);
 $view->actions = $threads->getThreadActions();
 $view->menu = Horde::menu();
 
@@ -75,7 +75,8 @@ $pager_ob = new Horde_Core_Ui_Pager('thread_page', $vars, array('num' => $thread
 $pager_ob->preserve('agora', Horde_Util::getFormData('agora'));
 $view->pager_link = $pager_ob->render();
 
-$title = sprintf(_("Threads in %s"), $forum_array['forum_name']);
-require $registry->get('templates', 'horde') . '/common-header.inc';
-echo $view->render('threads.html.php');
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->header(array(
+    'title' => sprintf(_("Threads in %s"), $forum_array['forum_name'])
+));
+echo $view->render('threads');
+$page_output->footer();

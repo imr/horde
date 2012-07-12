@@ -2,14 +2,16 @@
 /**
  * This class handles date-related search queries.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * @deprecated  Use IMP_Search_Element_Daterange instead.
+ *
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Search_Element_Date extends IMP_Search_Element
@@ -24,11 +26,9 @@ class IMP_Search_Element_Date extends IMP_Search_Element
      *
      * @param DateTime $date  Date object.
      * @param integer $type   Either:
-     * <pre>
-     * IMP_Search_Element_Date::DATE_ON
-     * IMP_Search_Element_Date::DATE_BEFORE
-     * IMP_Search_Element_Date::DATE_SINCE
-     * </pre>
+     *   - IMP_Search_Element_Date::DATE_ON
+     *   - IMP_Search_Element_Date::DATE_BEFORE
+     *   - IMP_Search_Element_Date::DATE_SINCE
      */
     public function __construct(DateTime $date, $type)
     {
@@ -57,19 +57,19 @@ class IMP_Search_Element_Date extends IMP_Search_Element
     {
         switch ($this->_data->t) {
         case self::DATE_ON:
-            $label = _("Date Equals (=)");
+            $label = _("Date Equals");
             break;
 
         case self::DATE_BEFORE:
-            $label = _("Date Until (<)");
+            $label = _("Date Until");
             break;
 
         case self::DATE_SINCE:
-            $label = _("Date Since (>=)");
+            $label = _("Date Since");
             break;
         }
 
-        return sprintf("%s '%s'", $label, strftime('%x', $this->_data->d));
+        return sprintf("%s '%s'", $label, gmstrftime('%x', $this->_data->d));
     }
 
 }

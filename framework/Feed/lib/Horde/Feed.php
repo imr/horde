@@ -1,17 +1,17 @@
 <?php
 /**
  * Portions Copyright 2005-2007 Zend Technologies USA Inc. (http://www.zend.com)
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
- * @license  http://opensource.org/licenses/bsd-license.php BSD
+ * @license  http://www.horde.org/licenses/bsd BSD
  * @category Horde
  * @package  Feed
  */
 
 /**
  * @author   Chuck Hagenbuch <chuck@horde.org>
- * @license  http://opensource.org/licenses/bsd-license.php BSD
+ * @license  http://www.horde.org/licenses/bsd BSD
  * @category Horde
  * @package  Feed
  */
@@ -81,7 +81,7 @@ class Horde_Feed
         if (!$loaded) {
             $loaded = $doc->loadHTML($string);
             if (!$loaded) {
-                throw new Horde_Feed_Exception('DOMDocument cannot parse XML: ', libxml_get_last_error());
+                self::_exception('DOMDocument cannot parse XML', libxml_get_last_error());
             }
         }
 
@@ -131,14 +131,35 @@ class Horde_Feed
         libxml_use_internal_errors(true);
         $doc = new DOMDocument;
         $doc->recover = true;
+        $filename = urlencode($filename);
         $loaded = $doc->load($filename);
         if (!$loaded) {
             $loaded = $doc->loadHTMLFile($filename);
             if (!$loaded) {
-                throw new Horde_Feed_Exception('File could not be read or parsed: ' . libxml_get_last_error());
+                self::_exception('File could not be read or parsed', libxml_get_last_error());
             }
         }
 
         return self::create($doc);
+    }
+
+    /**
+     * Builds an exception message from a libXMLError object.
+     *
+     * @param string $msg         An error message.
+     * @param libXMLError $error  An error object.
+     *
+     * @throws Horde_Feed_Exception
+     */
+    protected static function _exception($msg, $error)
+    {
+        if ($error) {
+            $msg .= ': ' . $error->message;
+            if ($error->file) {
+                $msg .= sprintf(' in file %s, line %d, column %d',
+                                $error->file, $error->line, $error->column);
+            }
+        }
+        throw new Horde_Feed_Exception($msg);
     }
 }

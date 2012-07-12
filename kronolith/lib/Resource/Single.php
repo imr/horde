@@ -2,10 +2,10 @@
 /**
  * Kronolith_Resource implementation to represent a single resource.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Michael J. Rubinsky <mrubinsk@horde.org>
  * @package Kronolith
@@ -33,8 +33,9 @@ class Kronolith_Resource_Single extends Kronolith_Resource_Base
             $end = $event->end;
         }
 
-        /* Fetch events. */
-        $busy = Kronolith::listEvents($start, $end, array($this->get('calendar')));
+        /* Fetch Events */
+        $busy = Kronolith::getDriver('Resource', $this->get('calendar'))
+            ->listEvents($start, $end, array('show_recurrence' => true));
 
         /* No events at all during time period for requested event */
         if (!count($busy)) {
@@ -114,13 +115,20 @@ class Kronolith_Resource_Single extends Kronolith_Resource_Base
     /**
      * Obtain the freebusy information for this resource.
      *
-     * @return unknown_type
+     * @return mixed string|Horde_Icalendar_Vfreebusy  The Freebusy object or
+     *                                                 the iCalendar text.
      */
-    public function getFreeBusy($startstamp = null, $endstamp = null, $asObject = false)
+    public function getFreeBusy($startstamp = null, $endstamp = null, $asObject = false, $json = false)
     {
-        $vfb = Kronolith_Freebusy::generate('resource_' . $this->get('calendar'), $startstamp, $endstamp, $asObject);
+        $vfb = Kronolith_Freebusy::generate($this->get('calendar'), $startstamp, $endstamp, true);
         $vfb->removeAttribute('ORGANIZER');
         $vfb->setAttribute('ORGANIZER', $this->get('name'));
+
+        if ($json) {
+            return Kronolith_Freebusy::toJson($vfb);
+        } elseif (!$asObject) {
+            return $vfb->exportvCalendar();
+        }
 
         return $vfb;
     }

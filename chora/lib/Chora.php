@@ -2,10 +2,10 @@
 /**
  * Chora Base Class.
  *
- * Copyright 2000-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2000-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Anil Madhavapeddy <avsm@horde.org>
  * @author  Michael Slusarz <slusarz@horde.org>
@@ -90,9 +90,10 @@ class Chora
         $registry->pushApp('chora');
 
         $notification->push($message, 'horde.error');
-        require $registry->get('templates', 'horde') . '/common-header.inc';
+
+        $page_output->header();
         require CHORA_TEMPLATES . '/menu.inc';
-        require $registry->get('templates', 'horde') . '/common-footer.inc';
+        $page_output->footer();
         exit;
     }
 
@@ -357,11 +358,11 @@ class Chora
     {
         $tags = array();
 
-        foreach ($lg->querySymbolicBranches() as $symb => $bra) {
+        foreach ($lg->getSymbolicBranches() as $symb => $bra) {
             $tags[] = self::url('browsefile', $where, array('onb' => $bra))->link() . htmlspecialchars($symb) . '</a>';
         }
 
-        foreach ($lg->queryTags() as $tag) {
+        foreach ($lg->getTags() as $tag) {
             $tags[] = htmlspecialchars($tag);
         }
 
@@ -456,9 +457,9 @@ class Chora
 
         try {
             $parser = new Horde_Mail_Rfc822();
-            $results = $parser->parseAddressList($name);
-            if (count($results)) {
-                return $results[0]->mailbox . '@' . $results[0]->host;
+            $res = $parser->parseAddressList($name);
+            if ($tmp = $res[0]) {
+                return $tmp->bare_address;
             }
         } catch (Horde_Mail_Exception $e) {
             try {

@@ -5,10 +5,10 @@
  * This file defines Mnemo's external API interface.  Other applications can
  * interact with Mnemo through this API.
  *
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL). If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @category Horde
  * @package  Mnemo
@@ -19,50 +19,18 @@ class Mnemo_Api extends Horde_Registry_Api
     /**
      * Removes user data.
      *
+     * @deprecated  Use Horde's removeUserData API call instead.
+     *
      * @param string $user  Name of user to remove data for.
      *
      * @throws Mnemo_Exception
      */
     public function removeUserData($user)
     {
-        // Get the share object for later deletion
         try {
-            $share = $GLOBALS['mnemo_shares']->getShare($user);
-        } catch (Horde_Share_Exception $e) {
-            Horde::logMessage($e, 'ERR');
-        }
-
-        $GLOBALS['display_notepads'] = array($user);
-        $memos = Mnemo::listMemos();
-        $uids = array();
-        foreach ($memos as $memo) {
-            $uids[] = $memo['uid'];
-        }
-
-        // ... and delete them.
-        foreach ($uids as $uid) {
-            $this->delete($uid);
-        }
-
-        /* Remove the share itself */
-        if (!empty($share)) {
-            try {
-                $GLOBALS['mnemo_shares']->removeShare($share);
-            } catch (Horde_Share_Exception $e) {
-                Horde::logMessage($e, 'ERR');
-                throw new Mnemo_Exception(sprintf(_("There was an error removing notes for %s. Details have been logged."), $user));
-            }
-        }
-
-        // Get a list of all shares this user has perms to and remove the perms.
-        try {
-            $shares = $GLOBALS['mnemo_shares']->listShares($user);
-            foreach ($shares as $share) {
-                $share->removeUser($user);
-            }
-        } catch (Horde_Share_Exception $e) {
-            Horde::logMessage($e, 'ERR');
-            throw new Mnemo_Exception(sprintf(_("There was an error removing notes for %s. Details have been logged."), $user));
+            $GLOBALS['registry']->removeUserData($user, 'mnemo');
+        } catch (Horde_Exception $e) {
+            throw new Mnemo_Exception($e);
         }
     }
 
@@ -114,6 +82,24 @@ class Mnemo_Api extends Horde_Registry_Api
         }
 
         return $uids;
+    }
+
+    /**
+     * Method for obtaining all server changes between two timestamps. Basically
+     * a wrapper around listBy(), but returns an array containing all adds,
+     * edits and deletions.
+     *
+     * @param integer $start             The starting timestamp
+     * @param integer $end               The ending timestamp.
+     *
+     * @return array  An hash with 'add', 'modify' and 'delete' arrays.
+     * @since 3.0.5
+     */
+    public function getChanges($start, $end)
+    {
+        return array('add' => $this->listBy('add', $start, null, $end),
+                     'modify' => $this->listBy('modify', $start, null, $end),
+                     'delete' => $this->listBy('delete', $start, null, $end));
     }
 
     /**
@@ -263,12 +249,14 @@ class Mnemo_Api extends Horde_Registry_Api
      *                               'text/plain'
      *                               'text/x-vnote'
      *                             </pre>
+     * @param array $options       Any additional options to be passed to the
+     *                             exporter.
      *
      * @return string  The requested data
      * @throws Mnemo_Exception
      * @throws Horde_Exception_PermissionDenied
      */
-    public function export($uid, $contentType)
+    public function export($uid, $contentType, array $options = array())
     {
         $storage = $GLOBALS['injector']->getInstance('Mnemo_Factory_Driver')->create();
         try {

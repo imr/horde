@@ -93,7 +93,7 @@ class Turba_Object
         if (isset($this->attributes[$attribute]) &&
             Horde::hookExists('decode_attribute', 'turba')) {
             try {
-                return Horde::callHook('decode_attribute', array($attribute, $this->attributes[$attribute]), 'turba');
+                return Horde::callHook('decode_attribute', array($attribute, $this->attributes[$attribute], $this), 'turba');
             } catch (Turba_Exception $e) {}
         }
         if (isset($this->driver->map[$attribute]) &&
@@ -102,7 +102,7 @@ class Turba_Object
             foreach ($this->driver->map[$attribute]['fields'] as $field) {
                 $args[] = $this->getValue($field);
             }
-            return trim(vsprintf($this->driver->map[$attribute]['format'], $args), " \t\n\r\0\x0B,");
+            return Turba::formatCompositeField($this->driver->map[$attribute]['format'], $args);
         } elseif (!isset($this->attributes[$attribute])) {
             return null;
         } elseif (isset($GLOBALS['attributes'][$attribute]) &&
@@ -112,7 +112,7 @@ class Turba_Object
                 : array(
                       'load' => array(
                           'data' => $this->attributes[$attribute],
-                          'file' => basename(tempnam(Horde::getTempDir(), 'horde_form_'))
+                          'file' => basename(Horde::getTempFile('horde_form_', false, '', false, true))
                       )
                   );
         }
@@ -316,6 +316,9 @@ class Turba_Object
      */
     public function addFile(array $info)
     {
+        if (!$this->getValue('__uid')) {
+            throw new Turba_Exception('VFS not supported for this object.');
+        }
         $this->_vfsInit();
         $dir = Turba::VFS_PATH . '/' . $this->getValue('__uid');
         $file = $info['name'];
@@ -346,6 +349,9 @@ class Turba_Object
      */
     public function deleteFile($file)
     {
+        if (!$this->getValue('__uid')) {
+            throw new Turba_Exception('VFS not supported for this object.');
+        }
         $this->_vfsInit();
         try {
             $this->_vfs->deleteFile(Turba::VFS_PATH . '/' . $this->getValue('__uid'), $file);
@@ -361,6 +367,9 @@ class Turba_Object
      */
     public function deleteFiles()
     {
+        if (!$this->getValue('__uid')) {
+            throw new Turba_Exception('VFS not supported for this object.');
+        }
         $this->_vfsInit();
         if ($this->_vfs->exists(Turba::VFS_PATH, $this->getValue('__uid'))) {
             try {
@@ -378,6 +387,9 @@ class Turba_Object
      */
     public function listFiles()
     {
+        if (!$this->getValue('__uid')) {
+            return array();
+        }
         try {
             $this->_vfsInit();
             if ($this->_vfs->exists(Turba::VFS_PATH, $this->getValue('__uid'))) {
@@ -398,19 +410,21 @@ class Turba_Object
      */
     public function vfsDisplayUrl($file)
     {
-        global $registry, $mime_drivers_map, $mime_drivers;
+        global $registry;
 
         $mime_part = new Horde_Mime_Part();
         $mime_part->setType(Horde_Mime_Magic::extToMime($file['type']));
         $viewer = $GLOBALS['injector']->getInstance('Horde_Core_Factory_MimeViewer')->create($mime_part);
 
         // We can always download files.
-        $url_params = array('actionID' => 'download_file',
-                            'file' => $file['name'],
-                            'type' => $file['type'],
-                            'source' => $this->driver->getName(),
-                            'key' => $this->getValue('__key'));
-        $dl = Horde::link(Horde::downloadUrl($file['name'], $url_params), $file['name']) . Horde::img('download.png', _("Download")) . '</a>';
+        $url_params = array(
+            'actionID' => 'download_file',
+            'file' => $file['name'],
+            'type' => $file['type'],
+            'source' => $this->driver->getName(),
+            'key' => $this->getValue('__key')
+        );
+        $dl = Horde::link($registry->downloadUrl($file['name'], $url_params), $file['name']) . Horde::img('download.png', _("Download")) . '</a>';
 
         // Let's see if we can view this one, too.
         if ($viewer && !($viewer instanceof Horde_Mime_Viewer_Default)) {

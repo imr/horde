@@ -2,15 +2,15 @@
 /**
  * Turba contact.php.
  *
- * Copyright 2000-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2000-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('turba');
 
 $vars = Horde_Variables::getDefaultVariables();
@@ -99,10 +99,19 @@ if ($own_source == $source && $own_id == $contact->getValue('__key')) {
         . _("Mark this as your own contact") . '</a></span>';
 }
 
-$title = $view->getTitle();
-Horde::addScriptFile('contact_tabs.js', 'turba');
-require $registry->get('templates', 'horde') . '/common-header.inc';
+Horde::startBuffer();
+$view->html();
+$viewHtml = Horde::endBuffer();
+
+Horde::startBuffer();
 require TURBA_TEMPLATES . '/menu.inc';
+$menuHtml = Horde::endBuffer();
+
+$page_output->addScriptFile('contact_tabs.js');
+$page_output->header(array(
+    'title' => $view->getTitle()
+));
+echo $menuHtml;
 echo '<div id="page">';
 echo $tabs->render($viewName);
 echo '<h1 class="header">' . $own_link
@@ -110,6 +119,6 @@ echo '<h1 class="header">' . $own_link
        ? htmlspecialchars($contact->getValue('name'))
        : '<em>' . _("Blank name") . '</em>')
     . $own_icon . '</h1>';
-$view->html();
+echo $viewHtml;
 echo '</div>';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

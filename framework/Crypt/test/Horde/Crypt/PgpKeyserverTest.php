@@ -4,7 +4,7 @@
  *
  * @author     Michael Slusarz <slusarz@horde.org>
  * @category   Horde
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package    Crypt
  * @subpackage UnitTests
  */
@@ -23,7 +23,7 @@ class Horde_Crypt_PgpKeyserverTest extends PHPUnit_Framework_TestCase
 
         $this->_pgp = Horde_Crypt::factory('Pgp', array(
             'program' => '/usr/bin/gpg',
-            'temp' => Horde_Util::getTempDir()
+            'temp' => sys_get_temp_dir()
         ));
     }
 

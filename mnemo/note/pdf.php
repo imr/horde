@@ -1,13 +1,13 @@
 <?php
 /**
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL). If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @package Mnemo
  */
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('mnemo');
 
 /* Check if a passphrase has been sent. */
@@ -15,8 +15,8 @@ $passphrase = Horde_Util::getFormData('memo_passphrase');
 
 /* We can either have a UID or a memo id and a notepad. Check for UID
  * first. */
-$storage = $GLOBALS['injector']->getInstance('Mnemo_Factory_Driver')->create();
 if ($uid = Horde_Util::getFormData('uid')) {
+    $storage = $GLOBALS['injector']->getInstance('Mnemo_Factory_Driver')->create();
     try {
         $note = $storage->getByUID($uid, $passphrase);
     } catch (Mnemo_Exception $e) {

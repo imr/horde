@@ -1,12 +1,5 @@
 <?php
 /**
- * @category   Horde
- * @package    Support
- * @copyright  1999-2010 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
- */
-
-/**
  * Simple interface for timing operations.
  *
  * <code>
@@ -15,10 +8,11 @@
  *  $elapsed = $t->pop();
  * </code>
  *
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
+ *
  * @category   Horde
  * @package    Support
- * @copyright  1999-2010 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  */
 class Horde_Support_Timer
 {

@@ -2,14 +2,14 @@
 /**
  * This class provides an interface to all identities a user might have.
  *
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Jan Schneider <jan@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Prefs
  */
 class Horde_Prefs_Identity
@@ -114,16 +114,6 @@ class Horde_Prefs_Identity
 
             $this->_identities = array($identity);
             $this->verify(0);
-        }
-
-        if ($this->_prefs->isLocked($this->_prefnames['default_identity'])) {
-            foreach ($this->_prefnames['properties'] as $key) {
-                $value = $this->getValue($key);
-                if (is_array($value)) {
-                    $value = implode("\n", $value);
-                }
-                $this->_prefs->setValue($key, $value, array('nosave' => true));
-            }
         }
     }
 
@@ -332,17 +322,18 @@ class Horde_Prefs_Identity
             $this->setValue('id', Horde_Prefs_Translation::t("Unnamed"), $identity);
         }
 
-        /* RFC 2822 [3.2.5] does not allow the '\' character to be used in the
-         * personal portion of an e-mail string. */
-        if (strpos($this->getValue($this->_prefnames['fullname'], $identity), '\\') !== false) {
-            throw new Horde_Prefs_Exception('You cannot have the \ character in your full name.');
+        // To verify e-mail, first parse input, than re-parse in verify mode.
+        $ob = new Horde_Mail_Rfc822_Address($this->getValue($this->_prefnames['from_addr'], $identity));
+        try {
+            $rfc822 = new Horde_Mail_Rfc822();
+            $rfc822->parseAddressList($ob, array(
+                'validate' => true
+            ));
+        } catch (Horde_Mail_Exception $e) {
+            throw new Horde_Prefs_Exception(sprintf(Horde_Prefs_Translation::t("\"%s\" is not a valid email address."), strval($ob)));
         }
 
-        try {
-            Horde_Mime_Address::parseAddressList($this->getValue($this->_prefnames['from_addr'], $identity), array('validate' => true));
-        } catch (Horde_Mime_Exception $e) {
-            throw new Horde_Prefs_Exception($e);
-        }
+        $this->setValue('from_addr', strval($ob), $identity);
     }
 
     /**

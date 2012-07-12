@@ -1,18 +1,12 @@
 <?php
 /**
- * @category   Horde
- * @package    Support
- * @copyright  2008-2009 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
- */
-
-/**
  * Simple class for using an array as a stack.
+ *
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * @category   Horde
  * @package    Support
- * @copyright  2008-2009 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  */
 class Horde_Support_Stack
 {

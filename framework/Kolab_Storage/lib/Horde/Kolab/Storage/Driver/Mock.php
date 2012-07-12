@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * An Kolab storage mock driver.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Driver_Mock
@@ -70,10 +70,9 @@ extends Horde_Kolab_Storage_Driver_Base
      * @param Horde_Kolab_Storage_Factory $factory A factory for helper objects.
      * @param array $params                        Connection parameters.
      */
-    public function __construct(
-        Horde_Kolab_Storage_Factory $factory,
-        $params = array()
-    ) {
+    public function __construct(Horde_Kolab_Storage_Factory $factory,
+                                $params = array())
+    {
         if (isset($params['data'])) {
             if (is_array($params['data'])) {
                 $params['data'] = new Horde_Kolab_Storage_Driver_Mock_Data(
@@ -420,7 +419,7 @@ extends Horde_Kolab_Storage_Driver_Base
      */
     private function _folderVisible($folder, $user)
     {
-        return empty($user) 
+        return empty($user)
             || $this->_folderVisibleToUnique($folder, $user)
             || $this->_folderVisibleToGroup($folder, $user)
             || $this->_folderVisibleToUnique($folder, 'anyone')
@@ -567,7 +566,7 @@ extends Horde_Kolab_Storage_Driver_Base
     {
         throw new Horde_Kolab_Storage_Exception('Permission denied!');
     }
-    
+
     /**
      * Opens the given folder.
      *

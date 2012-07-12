@@ -5,8 +5,8 @@
  * @subpackage UnitTests
  */
 
-/** Horde_Feed_TestCase */
-require_once dirname(__FILE__) . '/TestCase.php';
+/** Setup testing */
+require_once __DIR__ . '/Autoload.php';
 
 class Horde_Feed_LexiconTest extends PHPUnit_Framework_TestCase
 {
@@ -15,19 +15,14 @@ class Horde_Feed_LexiconTest extends PHPUnit_Framework_TestCase
      */
     public function testParse($file)
     {
-        try {
-            $feed = Horde_Feed::readFile($file);
-        } catch (Exception $e) {
-            $this->fail($e->getMessage());
-        }
-
+        $feed = Horde_Feed::readFile($file);
         $this->assertGreaterThan(0, count($feed));
     }
 
     public static function getLexicon()
     {
         $files = array();
-        foreach (new DirectoryIterator(dirname(__FILE__) . '/fixtures/lexicon') as $file) {
+        foreach (new DirectoryIterator(__DIR__ . '/fixtures/lexicon') as $file) {
             if ($file->isFile()) {
                 $files[] = array($file->getPathname());
             }

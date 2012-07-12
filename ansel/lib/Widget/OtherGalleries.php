@@ -4,7 +4,7 @@
  * thumbnails and links to other galleries owned by the same user as the
  * currently viewed image/gallery.
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * @author Michael J. Rubinsky <mrubinsk@horde.org>
  * @package Ansel
@@ -94,14 +94,18 @@ class Ansel_Widget_OtherGalleries extends Ansel_Widget_Base
                                                    'view' => 'Gallery'),
                                      true);
 
-            $tree->addNode($gallery->id, $parent, $gallery->get('name'), null,
-                           ($gallery->id == $this->_view->gallery->id),
-                           array('icon' => $img, 'url' => $link));
+            $tree->addNode(array(
+                'id' => $gallery->id,
+                'parent' => $parent,
+                'label' => $gallery->get('name'),
+                'expanded' => $gallery->id == $this->_view->gallery->id,
+                'params' => array('icon' => $img, 'url' => $link)
+            ));
         }
 
         Horde::startBuffer();
-        $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create(array('ansel', 'ToggleOtherGalleries'), array(
-            'bindTo' => 'othergalleries'
+        $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create('Ansel_Ajax_Imple_ToggleOtherGalleries', array(
+            'id' => 'othergalleries'
         ));
 
         $tree->sort('label');

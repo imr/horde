@@ -7,23 +7,23 @@
  * @category Kolab
  * @package  Kolab_Cli
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Cli
  */
 
 /**
  * Horde_Kolab_Cli_Translation is the translation wrapper class for Horde_Kolab_Cli.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you did not
  * receive this file, see
- * http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+ * http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Cli
  * @author   Jan Schneider <jan@horde.org>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Cli
  */
 class Horde_Kolab_Cli_Translation extends Horde_Translation
@@ -39,7 +39,7 @@ class Horde_Kolab_Cli_Translation extends Horde_Translation
     static public function t($message)
     {
         self::$_domain = 'Horde_Kolab_Cli';
-        self::$_directory = '@data_dir@' == '@'.'data_dir'.'@' ? dirname(__FILE__) . '/../../../../locale' : '@data_dir@/Horde_Kolab_Cli/locale';
+        self::$_directory = '@data_dir@' == '@'.'data_dir'.'@' ? __DIR__ . '/../../../../locale' : '@data_dir@/Horde_Kolab_Cli/locale';
         return parent::t($message);
     }
 
@@ -56,7 +56,7 @@ class Horde_Kolab_Cli_Translation extends Horde_Translation
     static public function ngettext($singular, $plural, $number)
     {
         self::$_domain = 'Horde_Kolab_Cli';
-        self::$_directory = '@data_dir@' == '@'.'data_dir'.'@' ? dirname(__FILE__) . '/../../../../locale' : '@data_dir@/Horde_Kolab_Cli/locale';
+        self::$_directory = '@data_dir@' == '@'.'data_dir'.'@' ? __DIR__ . '/../../../../locale' : '@data_dir@/Horde_Kolab_Cli/locale';
         return parent::ngettext($singular, $plural, $number);
     }
 }

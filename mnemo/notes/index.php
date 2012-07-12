@@ -1,14 +1,14 @@
 <?php
 /**
- * Copyright 2001-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2001-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL). If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @package Mnemo
  */
 
-@define('MNEMO_BASE', dirname(dirname(__FILE__)));
+@define('MNEMO_BASE', dirname(__DIR__));
 require_once MNEMO_BASE . '/lib/Application.php';
 Horde_Registry::appInit('mnemo');
 
@@ -35,17 +35,15 @@ if (count($search_results) == 1) {
         ->redirect();
 }
 
-$title = _("Search Results");
 $memos = $search_results;
 
-if ($prefs->getValue('show_panel')) {
-    $bodyClass = 'rightPanel';
-}
+$page_output->addScriptFile('tables.js', 'horde');
+$page_output->addScriptFile('quickfinder.js', 'horde');
 
-Horde::addScriptFile('tables.js', 'horde', true);
-Horde::addScriptFile('quickfinder.js', 'horde', true);
-
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'body_class' => $prefs->getValue('show_panel') ? 'rightPanel' : null,
+    'title' => _("Search Results")
+));
 echo Horde::menu();
 require MNEMO_TEMPLATES . '/list/header.inc';
 
@@ -85,4 +83,4 @@ if (count($memos)) {
 }
 
 require MNEMO_TEMPLATES . '/panel.inc';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

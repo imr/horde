@@ -3,15 +3,15 @@
  * Turba directory driver implementation for the Horde_Db database abstraction
  * layer.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you did
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author   Jon Parise <jon@csh.rit.edu>
  * @author   Michael J. Rubinsky <mrubinsk@horde.org>
  * @category Horde
- * @license  http://www.horde.org/licenses/asl.php ASL
+ * @license  http://www.horde.org/licenses/apache ASL
  * @package  Turba
  */
 class Turba_Driver_Sql extends Turba_Driver
@@ -93,6 +93,23 @@ class Turba_Driver_Sql extends Turba_Driver
      * @param array $criteria      Array containing the search criteria.
      * @param array $fields        List of fields to return.
      * @param array $blobFields    TODO
+     *
+     * @return array  Hash containing the search results.
+     * @throws Turba_Exception
+     */
+    protected function _search(array $criteria, array $fields, array $blobFields = array())
+    {
+        return $this->_internalSearch($criteria, $fields, $blobFields);
+    }
+
+    /**
+     * Searches the SQL database with the given criteria and returns a
+     * filtered list of results. If the criteria parameter is an empty array,
+     * all records will be returned.
+     *
+     * @param array $criteria      Array containing the search criteria.
+     * @param array $fields        List of fields to return.
+     * @param array $blobFields    TODO
      * @param array $appendWhere   An additional where clause to append.
      *                             Array should contain 'sql' and 'params'
      *                             params are used as bind parameters.
@@ -100,7 +117,7 @@ class Turba_Driver_Sql extends Turba_Driver
      * @return array  Hash containing the search results.
      * @throws Turba_Exception
      */
-    protected function _search($criteria, $fields, $blobFields = array(), $appendWhere = array())
+    protected function _internalSearch(array $criteria, array $fields, $blobFields = array(), $appendWhere = array())
     {
         /* Build the WHERE clause. */
         $where = '';
@@ -146,25 +163,14 @@ class Turba_Driver_Sql extends Turba_Driver
     protected function _parseRead($blobFields, $result)
     {
         $results = array();
+        $columns = $this->_db->columns($this->_params['table']);
 
         foreach ($result as $row) {
             $entry = array();
 
             foreach ($row as $field => $val) {
                 if (isset($blobFields[$field])) {
-                    switch ($this->_db->adapterName()) {
-                    case 'PDO_PostgreSQL':
-                        if (is_resource($val)) {
-                            $tmp = stream_get_contents($val);
-                            fclose($val);
-                            $val = $tmp;
-                        }
-                        // Fall-through
-
-                    default:
-                        $entry[$field] = $val;
-                        break;
-                    }
+                    $entry[$field] = $columns[$field]->binaryToString($val);
                 } else {
                     $entry[$field] = $this->_convertFromDriver($val);
                 }
@@ -275,8 +281,9 @@ class Turba_Driver_Sql extends Turba_Driver
         $duplicates = array();
         for ($i = 0; $i < count($joins); $i++) {
             /* Build up the full query. */
-            $query = sprintf('SELECT DISTINCT a1.%s FROM %s a1 JOIN %s a2 ON %s AND a1.%s <> a2.%s WHERE a1.%s = ? AND a2.%s = ? AND %s ORDER BY %s',
+            $query = sprintf('SELECT DISTINCT a1.%s,%s FROM %s a1 JOIN %s a2 ON %s AND a1.%s <> a2.%s WHERE a1.%s = ? AND a2.%s = ? AND %s ORDER BY %s',
                              $this->map['__key'],
+                             $order[$i],
                              $this->_params['table'],
                              $this->_params['table'],
                              $joins[$i],
@@ -323,20 +330,19 @@ class Turba_Driver_Sql extends Turba_Driver
     }
 
     /**
-     * Reads the given data from the SQL database and returns the
-     * results.
+     * Reads the given data from the SQL database and returns the results.
      *
-     * @param string $key         The primary key field to use.
-     * @param mixed $ids          The ids of the contacts to load.
-     * @param string $owner       Only return contacts owned by this user.
-     * @param array $fields       List of fields to return.
-     * @param array $blob_fields  List of fields that contain binary data.
+     * @param string $key        The primary key field to use.
+     * @param mixed $ids         The ids of the contacts to load.
+     * @param string $owner      Only return contacts owned by this user.
+     * @param array $fields      List of fields to return.
+     * @param array $blobFields  Array of fields containing binary data.
      *
      * @return array  Hash containing the search results.
      * @throws Turba_Exception
      */
     protected function _read($key, $ids, $owner, array $fields,
-                             array $blob_fields = array())
+                             array $blobFields = array())
     {
         $values = array();
 
@@ -367,7 +373,7 @@ class Turba_Driver_Sql extends Turba_Driver
             . $this->_params['table'] . ' WHERE ' . $where;
 
         try {
-            return $this->_parseRead($blob_fields, $this->_db->selectAll($query, $values));
+            return $this->_parseRead($blobFields, $this->_db->selectAll($query, $values));
         } catch (Horde_Db_Exception $e) {
             throw new Turba_Exception($e);
         }
@@ -380,7 +386,7 @@ class Turba_Driver_Sql extends Turba_Driver
      *
      * @throws Turba_Exception
      */
-    protected function _add($attributes, $blob_fields = array())
+    protected function _add(array $attributes, array $blob_fields = array())
     {
         list($fields, $values) = $this->_prepareWrite($attributes, $blob_fields);
         $query  = 'INSERT INTO ' . $this->_params['table']
@@ -402,15 +408,7 @@ class Turba_Driver_Sql extends Turba_Driver
             $fields[] = $field;
 
             if (!empty($value) && isset($blob_fields[$field])) {
-                switch ($this->_db->adapterName()) {
-                case 'PDO_PostgreSQL':
-                    $values[] = bin2hex($value);
-                    break;
-
-                default:
-                    $values[] = $value;
-                    break;
-                }
+                $values[] = new Horde_Db_Value_Binary($value);
             } else {
                 $values[] = $this->_convertToDriver($value);
             }
@@ -448,6 +446,9 @@ class Turba_Driver_Sql extends Turba_Driver
     /**
      * Deletes all contacts from a specific address book.
      *
+     * @param string $sourceName  The source to remove all contacts from.
+     *
+     * @return array  An array of UIDs
      * @throws Turba_Exception
      */
     protected function _deleteAll($sourceName = null)
@@ -462,7 +463,8 @@ class Turba_Driver_Sql extends Turba_Driver
             : array($sourceName);
 
         /* Need a list of UIDs so we can notify History */
-        $query = 'SELECT '. $this->map['__uid'] . ' FROM ' . $this->_params['table'] . ' WHERE owner_id = ?';
+        $query = 'SELECT '. $this->map['__uid'] . ' FROM '
+            . $this->_params['table'] . ' WHERE owner_id = ?';
 
         try {
             $ids = $this->_db->selectValues($query, $values);
@@ -479,20 +481,7 @@ class Turba_Driver_Sql extends Turba_Driver
             throw new Turba_Exception($e);
         }
 
-        /* Update Horde_History */
-        $history = $GLOBALS['injector']->getInstance('Horde_History');
-        try {
-            foreach ($ids as $id) {
-                // This is slightly hackish, but it saves us from having to
-                // create and save an array of Turba_Objects before we delete
-                // them, just to be able to calculate this using
-                // Turba_Object#getGuid
-                $guid = 'turba:' . $this->getName() . ':' . $id;
-                $history->log($guid, array('action' => 'delete'), true);
-            }
-        } catch (Exception $e) {
-            Horde::logMessage($e, 'ERR');
-        }
+        return $ids;
     }
 
     /**
@@ -568,7 +557,7 @@ class Turba_Driver_Sql extends Turba_Driver
                         $clause .= ' ' . $glue . ' ';
                     }
                     $rhs = $this->_convertToDriver($vals['test']);
-                    $binds = Horde_Sql::buildClause($this->_db, $vals['field'], $vals['op'], $rhs, true, array('begin' => !empty($vals['begin'])));
+                    $binds = $this->_db->buildClause($vals['field'], $vals['op'], $rhs, true, array('begin' => !empty($vals['begin'])));
                     if (is_array($binds)) {
                         $clause .= $binds[0];
                         $values = array_merge($values, $binds[1]);
@@ -590,9 +579,9 @@ class Turba_Driver_Sql extends Turba_Driver
                             }
                             $rhs = $this->_convertToDriver($test['test']);
                             if ($rhs == '' && $test['op'] == '=') {
-                                $clause .= '(' . Horde_Sql::buildClause($this->_db, $test['field'], '=', $rhs) . ' OR ' . $test['field'] . ' IS NULL)';
+                                $clause .= '(' . $this->_db->buildClause($test['field'], '=', $rhs) . ' OR ' . $test['field'] . ' IS NULL)';
                             } else {
-                                $binds = Horde_Sql::buildClause($this->_db, $test['field'], $test['op'], $rhs, true, array('begin' => !empty($test['begin'])));
+                                $binds = $this->_db->buildClause($test['field'], $test['op'], $rhs, true, array('begin' => !empty($test['begin'])));
                                 if (is_array($binds)) {
                                     $clause .= $binds[0];
                                     $values = array_merge($values, $binds[1]);
@@ -661,7 +650,7 @@ class Turba_Driver_Sql extends Turba_Driver
      * @return Turba_List  Object list.
      * @throws Turba_Exception
      */
-    protected function _getTimeObjectTurbaList($start, $end, $field)
+    public function getTimeObjectTurbaList(Horde_Date $start, Horde_Date $end, $field)
     {
         $t_object = $this->toDriver($field);
         $criteria = $this->makesearch(
@@ -721,7 +710,7 @@ class Turba_Driver_Sql extends Turba_Driver
             }
         }
 
-        return $this->_toTurbaObjects($this->_search($criteria, $fields, array(), $where));
+        return $this->_toTurbaObjects($this->_internalSearch($criteria, $fields, array(), $where));
     }
 
 }

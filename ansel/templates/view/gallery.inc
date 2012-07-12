@@ -82,7 +82,7 @@ function editDates()
         alert('<?php echo addslashes(_("You must choose photos to edit.")) ?>');
         return false;
     }
-    Horde.popup({ url: imageDateUrl, width: 600, height: 250 });
+    HordePopup.popup({ url: imageDateUrl, width: 600, height: 250 });
 }
 
 function downloadSelected()
@@ -95,8 +95,6 @@ function downloadSelected()
     }
 
 }
-
-
 </script>
 <?php endif; ?>
 <div id="galleryHeader" class="header">

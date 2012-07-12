@@ -40,8 +40,6 @@ html, body {
     height: 100%;
 }
 body.hermesAjax {
-    /*font-family: "American Typewriter","Constantia","Verdana",monospace;*/
-    overflow: hidden;
 }
 /* Main views */
 #hermesBody {
@@ -50,9 +48,6 @@ body.hermesAjax {
     left: 175px;
     right: 10px;
     bottom: 10px;
-    overflow: auto;
-    overflow-x: hidden;
-    overflow-y: hidden;
     width: auto;
 }
 
@@ -83,12 +78,100 @@ body.hermesAjax {
     height: 16px;
     border: 1px #999 solid;
 }
+/* Navigation bar */
+#hermesBar {
+    position: absolute;
+    left: 175px;
+    top: 10px;
+}
+/*#hermesBar form {
+    float: left;
+    margin: 0;
+#hermesBar .hermesDateChoice {
+    float: left;
+    margin-right: 1px;
+    background: #d6d6d6;
+    border: 1px solid #999;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+}
+#hermesBar .hermesDateChoice div {
+    padding: 0 10px;
+    height: 23px;
+    line-height: 23px;
+}*/
+#hermesNav {
+    float: left;
+    margin-left: 5px;
+    height: 23px;
+    line-height: 23px;
+}
+#hermesHeader ul {
+    float: left;
+    list-style: none;
+}
+#hermesHeader li {
+    float: left;
+}
+#hermesHeader a {
+    display: block;
+    float: left;
+    margin: 0;
+    padding: 0 5px 0 25px;
+    background-color: #f0f0f0;
+    background-position: 5px center;
+    background-repeat: no-repeat;
+    /*font-weight: bold;*/
+    text-decoration: none;
+    color: #202020;
+    cursor: pointer;
+    border-top: 1px solid #999;
+    border-bottom: 1px solid #999;
+    border-right: 1px solid #999;
+}
+#hermesHeader li:first-child a {
+    border-left: 1px solid #999;
+    -moz-border-radius: 5px 0 0 5px;
+    -webkit-border-top-left-radius: 5px;
+    -webkit-border-bottom-left-radius: 5px;
+    border-radius: 5px 0 0 5px;
+}
+#hermesHeader li:last-child a {
+    -moz-border-radius: 0 5px 5px 0;
+    -webkit-border-top-right-radius: 5px;
+    -webkit-border-bottom-right-radius: 5px;
+    border-radius: 0 5px 5px 0;
+}
+#hermesHeader a:hover, #hermesHeader a.on {
+    background-color: #d9d9d9;
+}
+
+#hermesNavTime {
+    background: url("graphics/hermes.png");
+}
+
+#hermesNavCostObjects {
+    background: url("graphics/hermes.png");
+}
+
+#hermesNavClients {
+    background: url("graphics/hermes.png");
+}
+
+#hermesNavTypes {
+    background: url("graphics/hermes.png");
+}
+#hermesNavSearch {
+    background: url("graphics/search.png");
+}
 /* User data and options */
 #hermesApplications {
     display: inline;
     position: relative;
     z-index: 99;
-    float: left;
     height: 25px;
     line-height: 23px;
     margin-right: 10px;
@@ -98,20 +181,22 @@ body.hermesAjax {
     overflow: visible;
 }
 #hermesApplications ul {
-    list-style: none;
+    float: none;
 }
 #hermesApplications li {
-    margin-bottom: 1px;
+    float: none;
     text-align: left;
 }
 #hermesApplications a {
     display: block;
     padding: 0 4px;
     overflow: hidden;
+    float: none;
     background-color: #f0f0f0;
     border: 1px solid #999;
+    border-top-width: 0;
     color: #202020;
-    font-weight: bold;
+   /* font-weight: bold; */
     -moz-border-radius: 5px;
     -webkit-border-radius: 5px;
     border-radius: 5px;
@@ -120,6 +205,14 @@ body.hermesAjax {
     -moz-border-radius: 0;
     -webkit-border-radius: 0;
     border-radius: 0;
+    height: 23px;
+    line-height: 23px;
+}
+#hermesApplications li:first-child a {
+    border-top-width: 1px;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    border-radius: 5px;
 }
 #hermesApplications:hover li:first-child a {
     -moz-border-radius: 5px 5px 0 0;
@@ -145,9 +238,11 @@ body.hermesAjax {
 }
 
 #hermesServices {
+    height: 23px;
+    line-height: 23px;
     position: absolute;
-    top: 10px;
     right: 10px;
+    top: 10px;
     white-space: nowrap;
 }
 #hermesServices div {
@@ -156,16 +251,19 @@ body.hermesAjax {
 .hermesNotifications {
     background-color: #d9d9d9
 }
-#hermesNotifications {
-    float: left;
+a#hermesNotifications {
     width: 23px;
     height: 23px;
+    padding: 0;
     line-height: 23px;
     border: 1px solid #999;
     -moz-border-radius: 5px;
     -webkit-border-radius: 5px;
     border-radius: 5px;
-    background: #d9d9d9 url("graphics/alerts/message.png") no-repeat center center;
+    background: #f0f0f0 url("graphics/alerts/message.png") no-repeat center center;
+}
+a#hermesNotifications:hover {
+    background-color: #d9d9d9;
 }
 #hermesNotifications.horde-error {
     background-image: url("graphics/alerts/error.png")
@@ -184,95 +282,16 @@ body.hermesAjax {
 #hermesMain {
     clear: both;
     padding-top: 5px;
-    height: 100%;
-}
-
-/* Navigation bar */
-#hermesBar {
-    position: absolute;
-    left: 175px;
-    top: 10px;
-}
-#hermesBar form {
-    float: left;
-    margin: 0;
-}
-#hermesBar .hermesDateChoice div {
-    padding: 0 10px;
-    height: 23px;
-    line-height: 23px;
-}
-
-#hermesNav {
-    float: left;
-    margin-left: 5px;
-    height: 23px;
-    line-height: 23px;
-}
-#hermesNav ul {
-    float: left;
-    list-style: none;
-}
-#hermesNav li {
-    float: left;
-}
-#hermesNav a {
-    display: block;
-    float: left;
-    margin: 0 1px 0 0;
-    padding: 0 5px 0 25px;
-    background-color: #f0f0f0;
-    background-position: 5px center;
-    background-repeat: no-repeat;
-    font-weight: bold;
-    text-decoration: none;
-    color: #202020;
-    cursor: pointer;
-    border: 1px solid #999;
-}
-#hermesNav li:first-child a {
-    -moz-border-radius: 5px 0 0 5px;
-    -webkit-border-top-left-radius: 5px;
-    -webkit-border-bottom-left-radius: 5px;
-    border-radius: 5px 0 0 5px;
-}
-#hermesNav li:last-child a {
-    -moz-border-radius: 0 5px 5px 0;
-    -webkit-border-top-right-radius: 5px;
-    -webkit-border-bottom-right-radius: 5px;
-    border-radius: 0 5px 5px 0;
-}
-#hermesNav a:hover, #hermesNav a.on {
-    background-color: #d9d9d9;
-}
-
-#hermesNavTime {
-    background: url("graphics/hermes.png");
-}
-
-#hermesNavCostObjects {
-    background: url("graphics/hermes.png");
-}
-
-#hermesNavClients {
-    background: url("graphics/hermes.png");
-}
-
-#hermesNavTypes {
-    background: url("graphics/hermes.png");
-}
-#hermesNavSearch {
-    background: url("graphics/search.png");
+    /*height: 100%;*/
 }
 
 /* Main view time */
-#hermesViewTimeContainer {
+.hermesViewTimeContainer {
     position: relative;
     top: 1px;
     right: 0;
     bottom: 0;
     left: 0;
-    border: 1px solid black;
 }
 
 /* Full timelist container */
@@ -329,7 +348,8 @@ font-family: "American Typewriter","Constantia","Verdana",monospace;
 }
 div.hermesTimeListDate, div.hermesTimeListHours, div.hermesTimeListDesc,
 div.hermesTimeListClient, div.hermesTimeListCostObject, div.hermesTimeListType,
-div.hermesTimeSliceOptions, div.hermesTimeListSelect, div.hermesTimeListBill {
+div.hermesTimeSliceOptions, div.hermesTimeListSelect, div.hermesTimeListBill,
+div.hermesTimeListEmployee {
     float: left;
     white-space: pre-wrap;
     overflow: hidden;
@@ -352,8 +372,8 @@ div.hermesTimeSliceOptions {
 }
 /* Body of timelist */
 #hermesTimeListBody {
-  overflow-x: hidden;
-  overflow-y: auto;
+/*  overflow-x: hidden;
+  overflow-y: auto;*/
   width: 100%;
 }
 /* Each entry */
@@ -381,23 +401,27 @@ div.hermesTimeSliceOptions {
 }
 
 .rounded.sliceEdit {
-  background: -moz-linear-gradient(-90deg, #F0F0F0, #DBDBDB);
-  background: -webkit-gradient(linear, left bottom, left top, #f0f0f0, #dbdbdb);
+  background: -moz-linear-gradient(-90deg, #eaeaea, #d7d7d7);
+  background: -webkit-gradient(linear, left bottom, left top, #eaeaea, #d7d7d7);
+  background-color: #eaeaea;
   color: #444444;
 }
 .rounded.sliceEdit:hover {
-  background: -moz-linear-gradient(-90deg, #E0E0E0, #BAB5B5);
-  background: -webkit-gradient(linear, left bottom, left top, #e0e0e0, #bab5b5);
+  background: -moz-linear-gradient(-90deg, #d7d7d7, #eaeaea);
+  background: -webkit-gradient(linear, left bottom, left top, #d7d7d7, #eaeaea);
+  background-color: #d7d7d7;
   border: 1px solid #BAB5B5;
   color: #333333;
 }
 .rounded.sliceDelete {
-  background: -moz-linear-gradient(-90deg, #F5B5B5, #ED8080) repeat scroll 0 0 transparent;
+  background: -moz-linear-gradient(-90deg, #f5b5b5, #ed8080) repeat scroll 0 0 transparent;
+  background-color: #f5b5b5;
   border: 1px solid #ED8080;
   color: #8A1111;
 }
 .rounded.sliceDelete:hover {
-  background: -moz-linear-gradient(-90deg, #DCA0A0, #D47272) repeat scroll 0 0 transparent;
+  background: -moz-linear-gradient(-90deg, #ed8080, #f5b5b5) repeat scroll 0 0 transparent;
+  background-color: #ed8080;
   border: 1px solid #D47272;
   color: #8A1111;
 }
@@ -424,6 +448,14 @@ a.rounded {
     font-weight: bold;
 }
 
+.hermesStopTimer:hover, .hermesPauseTimer:hover {
+    cursor: pointer;
+}
+.hermesTimerControls {
+    display: block;
+    float: right;
+    cursor: pointer;
+}
 /* Timelist submission controls */
 .hermesTimeListControls {
     padding: 7px;
@@ -469,6 +501,81 @@ a.rounded {
     padding-top: 6px;
 }
 
+/* Search Form */
+#hermesSearchFormInputs {
+    margin-left: 7px;
+    margin-right: 7px;
+}
+#hermesSearchFormInputs label {
+    font-weight: bold;
+    white-space: nowrap;
+}
+#hermesSearchFormInputs .input {
+  border: medium none;
+  margin: 7px 7px 0 0;
+  padding: 6px 5px 4px;
+}
+#hermesSearchFormInputs .hermesLongField {
+  border: medium none;
+  margin: 0  7px 0;
+  padding: 6px 5px 4px;
+  width: 98%;
+
+}
+.hermesLongField {
+    width: 98%;
+}
+#hermesSearchFormClient {
+    width: 180px;
+}
+#hermesSearchFormCostobject {
+    width: 180px;
+}
+#hermesSearchEntry {
+  background: none repeat scroll 0 0 #dbdbdb;
+  padding: 10px;
+}
+#hermesSearchListBody {
+/*  overflow-x: hidden;
+  overflow-y: auto;*/
+  width: 100%;
+}
+#hermesSearchList {
+    margin: 0 25px 0 25px;
+}
+/* Header */
+#hermesSearchListHeader {
+    width: 100%;
+    display: inline-block;
+    background-color: #ddd;
+    border-color: -moz-use-text-color silver silver;
+    border-right: 1px solid silver;
+    border-style: none solid solid;
+    border-width: 0 1px 1px;
+}
+#hermesSerachListHeader div {
+    height: 14px;
+    text-indent: 2px;
+    font-weight: bold;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+#hermesSearchListBody div {
+    text-indent: 2px;
+}
+#hermesSearchListHeader div.sortup, #hermesSearchListHeader div.sortdown {
+  background-position: 2px 50%;
+  padding-left: 0;
+}
+#hermesSearchListHeader div.sortup a, #hermesSearchListHeader div.sortdown a {
+    padding-left: 14px;
+}
+#hermesSearchListEmpty {
+    text-align: center;
+    font-style: italic;
+    font-size: 125%;
+}
+
 /* Left menu column */
 #hermesMenu {
     position: absolute;
@@ -479,12 +586,13 @@ a.rounded {
 }
 #hermesMenu .hermesMenuItem {
     margin: 0 0 4px 4px;
-    background: -moz-linear-gradient(-90deg, #F0F0F0, #DBDBDB);
-    background: -webkit-gradient(linear, left bottom, left top, #f0f0f0, #dbdbdb);
-    color: #444444;
+    background: -moz-linear-gradient(-90deg, #eaeaea, #d7d7d7);
+    background: -webkit-gradient(linear, left bottom, left top, #eaeaea, #d7d7d7);
+    background-color: #d9d9d9;
+    color: #202020;
 }
 /* Time summary */
-#hermesViewTimeContainer h2 {
+.hermesViewTimeContainer h2 {
     float: left;
 }
 .hermesMenuItem .rounded {
@@ -516,8 +624,6 @@ a.rounded {
   top: 46px;
   width: 100%;
 }
-.hermesTimerOn {
-}
 .hermesMenuRecent {
     margin-bottom: 7px;
 }
@@ -525,9 +631,25 @@ a.rounded {
     margin-left: 7px;
     font-style: italic;
 }
-.hermesTimerStop {
-    float: right;
-    line-height: 16px;
+#hermesTimerDialog {
+    position: absolute;
+    z-index: 110;
+    left: 163px;
+    top: 370px;
+    width: 350px;
+    height: auto;
+    background: transparent url("graphics/back_quick.png") no-repeat left top;
+}
+#hermesTimerDialog form {
+    padding: 10px;
+    margin-left: 10px;
+    background-color: #999;
+}
+.hermesTimer {
+    min-height: 24px;
+}
+.hermesTimerLabel {
+    padding: 2px 2px 2px 2px;
 }
 #hermesMenu h3 {
   border-bottom: 1px dotted #999999;
@@ -560,7 +682,52 @@ a.rounded {
     margin: 6px;
     float: left;
 }
- /* Mini calendar */
+
+/* Dialogs */
+.hermesDialog {
+    width: 700px;
+    padding: 10px 20px;
+    background: #efefef;
+    border: 1px #999 solid;
+}
+.hermesDialog div {
+    margin-bottom: 5px;
+}
+.hermesDialog td {
+    padding-right: 10px;
+    vertical-align: top;
+}
+.hermesDialog label {
+    font-weight: bold;
+}
+.hermesDialog .tabset {
+    float: none;
+    width: auto;
+    background: none;
+    margin: 15px 0;
+}
+.hermesDialog .tabset ul {
+    float: left;
+    padding-left: 0;
+    margin: 0;
+}
+.hermesDialog .tabset .hermesSeparator {
+    float: left;
+}
+.hermesDialog hr {
+   margin: 5px 0;
+   height: 0;
+   line-height: 0;
+   border-width: 1px 0;
+   border-color: #ccc transparent #fff;
+   border-style: solid none;
+}
+.hermesDialogInfo {
+    background: transparent url('graphics/alerts/message.png') 0 0 no-repeat;
+    padding-left: 20px;
+    font-style: italic;
+}
+/* Mini calendar */
 .hermesMinical {
     position: relative;
 }
@@ -569,7 +736,8 @@ a.rounded {
 }
 .hermesMinical table {
     width: 100%;
-    border-spacing: 1px;
+    border-spacing: 0;
+    border-collapse: collapse;
 }
 .hermesMinical caption, #hermesBody .hermesMinical caption {
     position: relative;
@@ -624,9 +792,19 @@ a.rounded {
 }
 .hermesMinical .hermesMinicalEmpty {
     background: none;
-    border-color: #e2e2e2;
     color: silver;
 }
 .hermesMinical .hermesSelected {
     background-color: #ffc;
+}
+
+#hermesTimeFormCollapse {
+    float: right;
+    padding-right:10px;
+}
+.hermesTimeFormShown {
+   background: url("graphics/minus.png") no-repeat scroll left  transparent;
+}
+.hermesTimeFormHidden {
+    background: url("graphics/plus.png") no-repeat scroll left transparent;
 }

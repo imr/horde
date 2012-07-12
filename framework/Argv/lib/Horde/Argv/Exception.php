@@ -6,7 +6,7 @@
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @author   Mike Naberezny <mike@maintainable.com>
- * @license  http://opensource.org/licenses/bsd-license.php BSD
+ * @license  http://www.horde.org/licenses/bsd BSD
  * @category Horde
  * @package  Argv
  */
@@ -15,6 +15,6 @@
  * @category Horde
  * @package  Argv
  */
-class Horde_Argv_Exception extends Horde_Exception_Prior
+class Horde_Argv_Exception extends Horde_Exception_Wrapped
 {
 }

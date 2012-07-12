@@ -2,13 +2,13 @@
 /**
  * Help display script.
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  */
 
-require_once dirname(__FILE__) . '/../../lib/Application.php';
+require_once __DIR__ . '/../../lib/Application.php';
 Horde_Registry::appInit('horde', array('authentication' => 'none'));
 
 $vars = Horde_Variables::getDefaultVariables();
@@ -23,7 +23,7 @@ $module = isset($vars->module)
     : 'horde';
 $topic = isset($vars->topic) ? $vars->topic : 'overview';
 
-$base_url = Horde::getServiceLink('help', $module);
+$base_url = $registry->getServiceLink('help', $module);
 
 $sidebar_url = Horde::url($base_url->copy()->add(array(
     'show' => 'sidebar',
@@ -51,8 +51,10 @@ if ($module == 'admin') {
 
 $help = new Horde_Help(Horde_Help::SOURCE_FILE, array($fileroot . '/locale/' . $language . '/help.xml', $fileroot . '/locale/' . substr($language, 0, 2) . '/help.xml', $fileroot . '/locale/en/help.xml'));
 
-$bodyClass = 'help help_' . urlencode($show);
-require HORDE_TEMPLATES . '/common-header.inc';
+$page_output->header(array(
+    'body_class' => 'help help_' . urlencode($show),
+    'title' => $title
+));
 
 switch ($show) {
 case 'menu':
@@ -117,7 +119,13 @@ case 'sidebar':
                             'topic' => $id
                         ));
                     }
-                    $tree->addNode($idx, $parent, $name, 0, false, $node_params);
+                    $tree->addNode(array(
+                        'id' => $idx,
+                        'parent' => $parent,
+                        'label' => $name,
+                        'expanded' => false,
+                        'params' => $node_params
+                    ));
                 }
                 $parent .= '|' . $name;
             }
@@ -164,4 +172,4 @@ case 'entry':
     break;
 }
 
-require HORDE_TEMPLATES . '/common-footer.inc';
+$page_output->footer();

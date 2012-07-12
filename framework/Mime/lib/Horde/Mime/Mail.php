@@ -6,14 +6,14 @@
  * All content has to be passed UTF-8 encoded. The charset parameters is used
  * for the generated message only.
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Jan Schneider <jan@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Mime
  */
 class Horde_Mime_Mail
@@ -49,9 +49,9 @@ class Horde_Mime_Mail
     /**
      * The message recipients.
      *
-     * @var array
+     * @var Horde_Mail_Rfc822_List
      */
-    protected $_recipients = array();
+    protected $_recipients;
 
     /**
      * Bcc recipients.
@@ -120,6 +120,8 @@ class Horde_Mime_Mail
         }
 
         $this->addHeaders($params);
+
+        $this->clearRecipients();
     }
 
     /**
@@ -142,7 +144,6 @@ class Horde_Mime_Mail
      *
      * @param string $header      The header name.
      * @param string $value       The header value.
-     * @param string $charset     The header value's charset.
      * @param boolean $overwrite  If true, an existing header of the same name
      *                            is being overwritten; if false, multiple
      *                            headers are added; if null, the correct
@@ -321,6 +322,15 @@ class Horde_Mime_Mail
     }
 
     /**
+     * Removes all (additional) message parts but leaves the body parts
+     * untouched.
+     */
+    public function clearParts()
+    {
+        $this->_parts = array();
+    }
+
+    /**
      * Adds message recipients.
      *
      * Recipients specified by To:, Cc:, or Bcc: headers are added
@@ -333,7 +343,7 @@ class Horde_Mime_Mail
      */
     public function addRecipients($recipients)
     {
-        $this->_recipients = array_merge($this->_recipients, $this->_buildRecipients($recipients));
+        $this->_recipients->add($recipients);
     }
 
     /**
@@ -346,7 +356,7 @@ class Horde_Mime_Mail
      */
     public function removeRecipients($recipients)
     {
-        $this->_recipients = array_diff($this->_recipients, $this->_buildRecipients($recipients));
+        $this->_recipients->remove($recipients);
     }
 
     /**
@@ -354,44 +364,7 @@ class Horde_Mime_Mail
      */
     public function clearRecipients()
     {
-        $this->_recipients = array();
-    }
-
-    /**
-     * Builds a recipients list.
-     *
-     * @param string|array  List of recipients, either as a comma separated
-     *                      list or as an array of email addresses.
-     *
-     * @return array  Normalized list of recipients.
-     * @throws Horde_Mime_Exception
-     */
-    protected function _buildRecipients($recipients)
-    {
-        if (is_string($recipients)) {
-            $recipients = Horde_Mime_Address::explode($recipients, ',');
-        }
-        $recipients = array_filter(array_map('trim', $recipients));
-
-        $addrlist = array();
-        foreach ($recipients as $email) {
-            if (!empty($email)) {
-                $unique = Horde_Mime_Address::bareAddress($email);
-                if ($unique) {
-                    $addrlist[$unique] = $email;
-                } else {
-                    $addrlist[$email] = $email;
-                }
-            }
-        }
-
-        foreach (Horde_Mime_Address::bareAddress(implode(', ', $addrlist), null, true) as $val) {
-            if (Horde_Mime::is8bit($val)) {
-                throw new Horde_Mime_Exception(sprintf(Horde_Mime_Translation::t("Invalid character in e-mail address: %s."), $val));
-            }
-        }
-
-        return $addrlist;
+        $this->_recipients = new Horde_Mail_Rfc822_List();
     }
 
     /**
@@ -466,22 +439,20 @@ class Horde_Mime_Mail
         $basepart->setHeaderCharset($this->_charset);
 
         /* Build recipients. */
-        $recipients = $this->_recipients;
+        $recipients = clone $this->_recipients;
         foreach (array('to', 'cc') as $header) {
-            $value = $this->_headers->getValue($header, Horde_Mime_Headers::VALUE_BASE);
-            if (is_null($value)) {
-                continue;
-            }
-            $value = Horde_Mime::encodeAddress($value, $this->_charset);
-            $recipients = array_merge($recipients, $this->_buildRecipients($value));
+            $recipients->add($this->_headers->getOb($header));
         }
         if ($this->_bcc) {
-            $recipients = array_merge($recipients, $this->_buildRecipients(Horde_Mime::encodeAddress($this->_bcc, $this->_charset)));
+            $recipients->add($this->_bcc);
         }
 
+        /* Trick Horde_Mime_Part into re-generating the message headers. */
+        $this->_headers->removeHeader('MIME-Version');
+
         /* Send message. */
-        return $basepart->send(implode(', ', $recipients),
-                               $this->_headers, $mailer);
+        $recipients->unique();
+        $basepart->send($recipients->writeAddress(), $this->_headers, $mailer);
     }
 
 }

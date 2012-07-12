@@ -2,10 +2,10 @@
 /**
  * @package Alarm
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  */
 
 /**
@@ -57,9 +57,9 @@ class Horde_Alarm_Sql extends Horde_Alarm
     /**
      * Returns a list of alarms from the backend.
      *
-     * @param Horde_Date $time  The time when the alarms should be active.
      * @param string $user      Return alarms for this user, all users if
      *                          null, or global alarms if empty.
+     * @param Horde_Date $time  The time when the alarms should be active.
      *
      * @return array  A list of alarm hashes.
      * @throws Horde_Alarm_Exception

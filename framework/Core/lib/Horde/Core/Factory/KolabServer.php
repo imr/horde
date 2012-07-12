@@ -7,22 +7,22 @@
  * @category Horde
  * @package  Core
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Core
  */
 
 /**
  * A Horde_Injector:: based Horde_Kolab_Server:: factory.
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Core
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Core
  */
 class Horde_Core_Factory_KolabServer extends Horde_Core_Factory_Base
@@ -69,7 +69,7 @@ class Horde_Core_Factory_KolabServer extends Horde_Core_Factory_Base
         }
 
         if (isset($configuration['server'])) {
-            $configuration['host'] = $configuration['server'];
+            $configuration['hostspec'] = $configuration['server'];
             unset($configuration['server']);
         }
 
@@ -149,11 +149,9 @@ class Horde_Core_Factory_KolabServer extends Horde_Core_Factory_Base
     private function _setupStructure()
     {
         $configuration = $this->getConfiguration();
-        if (!isset($configuration['structure']['driver'])) {
-            $driver = 'Horde_Kolab_Server_Structure_Kolab';
-        } else {
-            $driver = $configuration['structure']['driver'];
-        }
+        $driver = isset($configuration['structure']['driver'])
+            ? $configuration['structure']['driver']
+            : 'Horde_Kolab_Server_Structure_Kolab';
 
         $this->_injector->bindImplementation(
             'Horde_Kolab_Server_Structure_Interface', $driver
@@ -184,35 +182,34 @@ class Horde_Core_Factory_KolabServer extends Horde_Core_Factory_Base
         $configuration = $this->_injector->getInstance('Horde_Kolab_Server_Configuration');
         if (empty($configuration['mock'])) {
             if (!isset($configuration['basedn'])) {
-                throw new Horde_Exception('The parameter \'basedn\' is missing in the Kolab server configuration!');
+                $configuration['basedn'] = '';
             }
+
+            $configuration['cache'] = $this->_injector->getInstance('Horde_Cache');
 
             $ldap_read = new Horde_Ldap($configuration);
             if (isset($configuration['host_master'])) {
-                $configuration['host'] = $configuration['host_master'];
+                $configuration['hostspec'] = $configuration['host_master'];
                 $ldap_write = new Horde_Ldap($configuration);
-                $connection = new Horde_Kolab_Server_Connection_Splittedldap(
+                return new Horde_Kolab_Server_Connection_Splittedldap(
                     $ldap_read, $ldap_write
                 );
-            } else {
-                $connection = new Horde_Kolab_Server_Connection_Simpleldap(
-                    $ldap_read
-                );
             }
-            return $connection;
-        } else {
-            if (isset($configuration['data'])) {
-                $data = $configuration['data'];
-            } else {
-                $data = array();
-            }
-            $connection = new Horde_Kolab_Server_Connection_Mock(
-                new Horde_Kolab_Server_Connection_Mock_Ldap(
-                    $configuration, $data
-                )
+
+            return new Horde_Kolab_Server_Connection_Simpleldap(
+                $ldap_read
             );
-            return $connection;
         }
+
+        $data = isset($configuration['data'])
+            ? $configuration['data']
+            : array();
+
+        return new Horde_Kolab_Server_Connection_Mock(
+            new Horde_Kolab_Server_Connection_Mock_Ldap(
+                $configuration, $data
+            )
+        );
     }
 
     /**
@@ -234,7 +231,7 @@ class Horde_Core_Factory_KolabServer extends Horde_Core_Factory_Base
     {
         $configuration = $this->getConfiguration();
         if (!isset($configuration['basedn'])) {
-            throw new Horde_Exception('The parameter \'basedn\' is missing in the Kolab server configuration!');
+            $configuration['basedn'] = '';
         }
 
         $connection = $this->getConnection();
@@ -275,6 +272,7 @@ class Horde_Core_Factory_KolabServer extends Horde_Core_Factory_Base
                 $server
             );
         }
+
         return $server;
     }
 

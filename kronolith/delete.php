@@ -1,27 +1,23 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Chuck Hagenbuch <chuck@horde.org>
  * @package Kronolith
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('kronolith');
 
 if (Kronolith::showAjaxView()) {
     Horde::url('', true)->redirect();
 }
 
-if (Kronolith_Resource::isResourceCalendar($c = Horde_Util::getFormData('calendar'))) {
-    $driver = 'Resource';
-} else {
-    $driver = Horde_Util::getFormData('type');
-}
-
+$c = Horde_Util::getFormData('calendar');
+$driver = Horde_Util::getFormData('type');
 $kronolith_driver = Kronolith::getDriver($driver, $c);
 if ($eventID = Horde_Util::getFormData('eventID')) {
     try {
@@ -39,7 +35,7 @@ if ($eventID = Horde_Util::getFormData('eventID')) {
             /* The remote server is doing the permission checks for us. */
             $have_perms = true;
         } else {
-            $share = $kronolith_shares->getShare($event->calendar);
+            $share = $injector->getInstance('Kronolith_Shares')->getShare($event->calendar);
             if (!$share->hasPermission($GLOBALS['registry']->getAuth(), Horde_Perms::DELETE, $event->creator)) {
                 $notification->push(_("You do not have permission to delete this event."), 'horde.warning');
             } else {

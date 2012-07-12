@@ -18,10 +18,10 @@
  * The table structure for the VFS can be created with the horde-db-migrate
  * script from the Horde_Db package.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Chuck Hagenbuch <chuck@horde.org>
  * @author  Mike Cochrane <mike@graftonhall.co.nz>
@@ -155,7 +155,7 @@ class Horde_Vfs_Musql extends Horde_Vfs_Sql
                 if ($result == 0) {
                     throw new Horde_Vfs_Exception('Unable to delete VFS file.');
                 }
-                return $result;
+                return;
             }
         }
 
@@ -336,7 +336,7 @@ class Horde_Vfs_Musql extends Horde_Vfs_Sql
     }
 
     /**
-     * Returns a list of the contents of a folder.
+     * Returns an an unsorted file list of the specified directory.
      *
      * @param string $path       The path of the directory.
      * @param mixed $filter      String/hash to filter file/dirname on.
@@ -416,8 +416,9 @@ class Horde_Vfs_Musql extends Horde_Vfs_Sql
     /**
      * Changes permissions for an Item on the VFS.
      *
-     * @param string $path  Holds the path of directory of the Item.
-     * @param string $name  Holds the name of the Item.
+     * @param string $path        The path of directory of the item.
+     * @param string $name        The name of the item.
+     * @param string $permission  The permission to set in octal notation.
      *
      * @throws Horde_Vfs_Exception
      */

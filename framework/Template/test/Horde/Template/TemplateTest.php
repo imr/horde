@@ -1,15 +1,17 @@
 <?php
+
+require_once dirname(__FILE__) . '/Autoload.php';
+
 /**
  * Json serialization tests.
  *
  * @author     Michael Slusarz <slusarz@horde.org>
  * @category   Horde
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package    Template
  * @subpackage UnitTests
  */
-
-class Horde_Template_TemplateTest extends PHPUnit_Framework_TestCase
+class Horde_Template_TemplateTest extends Horde_Test_Case
 {
     // Associative Array Test
     public function testAssociativeArray()

@@ -4,7 +4,7 @@
  * information.
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author  Michael Slusarz <slusarz@horde.org>
  * @package Ingo
@@ -25,9 +25,9 @@ class Ingo_Storage_Forward extends Ingo_Storage_Rule
 
     /**
      */
-    public function setForwardAddresses($data, $sort = true)
+    public function setForwardAddresses($data)
     {
-        $this->_addr = $this->_addressList($data, $sort);
+        $this->_addr = $this->_addressList($data);
     }
 
     /**

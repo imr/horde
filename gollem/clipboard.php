@@ -2,21 +2,21 @@
 /**
  * Gollem clipboard script.
  *
- * Copyright 2005-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2005-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  Gollem
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('gollem');
 
-$dir = Horde_Util::getFormData('dir');
+$vars = Horde_Variables::getDefaultVariables();
 
 /* Set up the template object. */
 $template = $injector->createInstance('Horde_Template');
@@ -26,8 +26,8 @@ $template->set('clearbutton', _("Clear"));
 $template->set('pastebutton', _("Paste"));
 $template->set('cutgraphic', Horde::img('cut.png', _("Cut")));
 $template->set('copygraphic', Horde::img('copy.png', _("Copy")));
-$template->set('currdir', Gollem::getDisplayPath($dir));
-$template->set('dir', $dir);
+$template->set('currdir', Gollem::getDisplayPath($vars->dir));
+$template->set('dir', $vars->dir);
 $template->set('manager_url', Horde::url('manager.php'));
 
 $entry = array();
@@ -41,12 +41,19 @@ foreach ($session->get('gollem', 'clipboard') as $key => $val) {
 }
 $template->set('entry', $entry, true);
 
-$title = _("Clipboard");
-Horde::addScriptFile('tables.js', 'horde');
+$page_output->addScriptFile('clipboard.js');
+$page_output->addScriptFile('tables.js', 'horde');
+$page_output->addInlineJsVars(array(
+    'GollemClipboard.selectall' => _("Select All"),
+    'GollemClipboard.selectnone' => _("Select None")
+));
 $menu = Gollem::menu();
-require $registry->get('templates', 'horde') . '/common-header.inc';
+
+$page_output->header(array(
+    'title' => _("Clipboard")
+));
 require GOLLEM_TEMPLATES . '/javascript_defs.php';
 echo $menu;
 Gollem::status();
 echo $template->fetch(GOLLEM_TEMPLATES . '/clipboard/clipboard.html');
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

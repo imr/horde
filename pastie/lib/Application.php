@@ -5,17 +5,17 @@
  * This file defines Horde's core API interface. Other core Horde libraries
  * can interact with Pastie through this API.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * See the enclosed file LICENSE for license information (BSD). If you
+ * did not receive this file, see http://www.horde.org/licenses/bsd.
  *
  * @package Pastie
  */
 
 /* Determine the base directories. */
 if (!defined('PASTIE_BASE')) {
-    define('PASTIE_BASE', dirname(__FILE__) . '/..');
+    define('PASTIE_BASE', __DIR__ . '/..');
 }
 
 if (!defined('HORDE_BASE')) {
@@ -36,7 +36,7 @@ class Pastie_Application extends Horde_Registry_Application
 {
     /**
      */
-    public $version = 'H4 (0.1-git)';
+    public $version = 'H5 (0.1-git)';
 
     /**
      */
@@ -55,5 +55,4 @@ class Pastie_Application extends Horde_Registry_Application
     {
         return Pastie::getMenu();
     }
-
 }

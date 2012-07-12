@@ -7,22 +7,22 @@
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 
 /**
  * Components_Module_Change:: records a change log entry.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 class Components_Module_Change
@@ -42,19 +42,19 @@ extends Components_Module_Base
     {
         return array(
             new Horde_Argv_Option(
-                '-n',
-                '--changed',
+                '',
+                '--nochanges',
                 array(
-                    'action' => 'store',
-                    'help'   => 'Store CHANGED as change log entry.'
+                    'action' => 'store_true',
+                    'help'   => 'Don\'t add entry to CHANGES.'
                 )
             ),
             new Horde_Argv_Option(
-                '-G',
-                '--commit',
+                '',
+                '--nopackage',
                 array(
                     'action' => 'store_true',
-                    'help'   => 'Commit the change log entries to git (using the change log message).'
+                    'help'   => 'Don\'t add entry to package.xml.'
                 )
             ),
         );
@@ -67,7 +67,7 @@ extends Components_Module_Base
      */
     public function getUsage()
     {
-        return '  changed - Add a change log entry.
+        return '  changed     - Add a change log entry.
 ';
     }
 
@@ -90,10 +90,37 @@ extends Components_Module_Base
      */
     public function getHelp($action)
     {
-        return 'Action "changed"
+        return 'This module records a change log entry in package.xml and
+docs/CHANGES in case it exists.
 
-This module records a change log entry in package.xml (and docs/CHANGES in case it exists).
-';
+Move into the directory of the component you wish to record a change for
+and run
+
+  horde-components changed "[xyz] Fixed issue #99999"
+
+If you want to commit the change log entry immediately you can run the
+command with the "--commit" flag:
+
+  horde-components changed --commit "[xyz] Fixed issue #99999"
+
+This will use the change log message as commit message. You might wish to
+ensure that you already added all changes you want to mark with that
+commit message by using "git add ..." before.';
+    }
+
+    /**
+     * Return the options that should be explained in the context help.
+     *
+     * @return array A list of option help texts.
+     */
+    public function getContextOptionHelp()
+    {
+        return array(
+            '--commit' => 'Commit the change log entries to git (using the change log entry as commit message).',
+            '--nochanges' => '',
+            '--nopackage' => '',
+            '--pretend' => ''
+        );
     }
 
     /**
@@ -110,7 +137,6 @@ This module records a change log entry in package.xml (and docs/CHANGES in case 
         $arguments = $config->getArguments();
         if (!empty($options['changed'])
             || (isset($arguments[0]) && $arguments[0] == 'changed')) {
-            $this->requirePackageXml($config->getComponentDirectory());
             $this->_dependencies->getRunnerChange()->run();
             return true;
         }

@@ -8,25 +8,14 @@
  * @package    Itip
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Itip
  */
 
-if (!spl_autoload_functions()) {
-    spl_autoload_register(
-        create_function(
-            '$class', 
-            '$filename = str_replace(array(\'::\', \'_\'), \'/\', $class);'
-            . '$err_mask = E_ALL ^ E_WARNING;'
-            . '$oldErrorReporting = error_reporting($err_mask);'
-            . 'include "$filename.php";'
-            . 'error_reporting($oldErrorReporting);'
-        )
-    );
-}
+require_once 'Horde/Test/Autoload.php';
 
 /** Catch strict standards */
 error_reporting(E_ALL | E_STRICT);
 
 /** Load dependencies from the test suite */
-require_once dirname(__FILE__) . '/Stub/Identity.php';
+require_once __DIR__ . '/Stub/Identity.php';

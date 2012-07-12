@@ -7,22 +7,22 @@
  * @category Horde
  * @package  Core
  * @author   Michael Slusarz <slusarz@horde.org>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Core
  */
 
 /**
  * A Horde_Injector:: based Horde_Prefs:: factory.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Core
  * @author   Michael Slusarz <slusarz@horde.org>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Core
  */
 class Horde_Core_Factory_Prefs extends Horde_Core_Factory_Base
@@ -40,12 +40,10 @@ class Horde_Core_Factory_Prefs extends Horde_Core_Factory_Base
      * @param string $scope  The scope for this set of preferences.
      * @param array $opts    See Horde_Prefs::__construct().  Additional
      *                       parameters:
-     * <pre>
-     * driver - (boolean) Use this driver instead of the value in the Horde
-     *          config.
-     * driver_params - (array) Use these driver parameters instead of the
-     *                 values in the Horde config.
-     * </pre>
+     *   - driver: (boolean) Use this driver instead of the value in the Horde
+     *             config.
+     *   - driver_params: (array) Use these driver parameters instead of the
+     *                    values in the Horde config.
      *
      * @return Horde_Prefs  The singleton instance.
      */
@@ -73,7 +71,6 @@ class Horde_Core_Factory_Prefs extends Horde_Core_Factory_Base
             'sizecallback' => ((isset($GLOBALS['conf']['prefs']['maxsize'])) ? array($this, 'sizeCallback') : null),
             'user' => ''
         ), $opts);
-        ksort($opts);
 
         /* If $params['user_hook'] is defined, use it to retrieve the value to
          * use for the username. */
@@ -82,64 +79,80 @@ class Horde_Core_Factory_Prefs extends Horde_Core_Factory_Base
             $opts['user'] = call_user_func($params['user_hook'], $opts['user']);
         }
 
-        $sig = hash('md5', serialize($opts));
+        /* To determine signature, don't serialize the logger or size
+         * callback, since they may contain unserializable components. */
+        $sig_opts = array_merge($opts, array(
+            'logger' => get_class($opts['logger']),
+            'sizecallback' => !is_null($opts['sizecallback'])
+        ));
+        ksort($sig_opts);
+        $sig = hash('md5', serialize($sig_opts));
 
         if (isset($this->_instances[$sig])) {
             $this->_instances[$sig]->retrieve($scope);
-        } else {
-            try {
-                switch ($driver) {
-                case 'Horde_Prefs_Storage_Ldap':
-                    $params['ldap'] = $this->_injector
-                        ->getInstance('Horde_Core_Factory_Ldap')
-                        ->create('horde', 'ldap');
-                    break;
+            return $this->_instances[$sig];
+        }
 
-                case 'Horde_Prefs_Storage_Session':
-                    $driver = 'Horde_Prefs_Storage_Null';
-                    $opts['cache'] = false;
-                    break;
+        try {
+            switch ($driver) {
+            case 'Horde_Prefs_Storage_Ldap':
+                $params['ldap'] = $this->_injector
+                    ->getInstance('Horde_Core_Factory_Ldap')
+                    ->create('horde', 'ldap');
+                break;
 
-                case 'Horde_Prefs_Storage_Sql':
-                    $params['db'] = $this->_injector
-                        ->getInstance('Horde_Db_Adapter');
-                    break;
-                }
-            } catch (Horde_Exception $e) {
-                $this->_notifyError($e);
+            case 'Horde_Prefs_Storage_Session':
                 $driver = 'Horde_Prefs_Storage_Null';
-                $opts['cache'] = false;
+                break;
+
+            case 'Horde_Prefs_Storage_Sql':
+                $params['db'] = $this->_injector
+                    ->getInstance('Horde_Db_Adapter');
+                break;
+            case 'Horde_Prefs_Storage_KolabImap':
+                if ($GLOBALS['registry']->isAdmin()) {
+                    throw new Horde_Exception('The IMAP based Kolab preferences backend is unavailable for system administrators.');
+                }
+                $params['kolab'] = $this->_injector
+                    ->getInstance('Horde_Kolab_Storage');
+                $params['logger'] = $opts['logger'];
+                break;
+            case 'Horde_Prefs_Storage_Imsp':
+                $imspParams = $GLOBALS['conf']['imsp'];
+                $imspParams['username'] = $GLOBALS['registry']->getAuth('bare');
+                $imspParams['password'] = $GLOBALS['registry']->getAuthCredential('password');
+                $params['imsp'] = $this->_injector
+                    ->getInstance('Horde_Core_Factory_Imsp')->create('Options', $imspParams);
             }
+            $driverOb = new $driver($opts['user'], $params);
+        } catch (Horde_Exception $e) {
+            $this->_notifyError($e);
+            $driver = 'Horde_Prefs_Storage_Null';
+            $driverOb = new $driver($opts['user'], $params);
+            $opts['cache'] = false;
+        }
 
-            $config_driver = new Horde_Core_Prefs_Storage_Configuration($opts['user']);
-            $hooks_driver = new Horde_Core_Prefs_Storage_Hooks($opts['user'], array('conf_ob' => $config_driver));
+        $config_driver = new Horde_Core_Prefs_Storage_Configuration($opts['user']);
+        $hooks_driver = new Horde_Core_Prefs_Storage_Hooks($opts['user'], array('conf_ob' => $config_driver));
 
-            $drivers = $driver
-                ? array(
-                      $config_driver,
-                      new $driver($opts['user'], $params),
-                      $hooks_driver
-                  )
-                : array(
-                      $config_driver,
-                      $hooks_driver
-                  );
+        $drivers = $driver
+            ? array($config_driver, $driverOb, $hooks_driver)
+            : array($config_driver, $hooks_driver);
 
-            if ($driver && $opts['cache']) {
-                $opts['cache'] = new Horde_Core_Prefs_Cache_Session($opts['user']);
-            } else {
-                unset($opts['cache']);
-            }
+        if ($driver && $opts['cache']) {
+            $opts['cache'] = new Horde_Core_Prefs_Cache_Session($opts['user']);
+        } else {
+            unset($opts['cache']);
+        }
 
-            try {
-                $this->_instances[$sig] = new Horde_Prefs($scope, $drivers, $opts);
-            } catch (Horde_Prefs_Exception $e) {
-                $this->_notifyError($e);
+        try {
+            $this->_instances[$sig] = new Horde_Prefs($scope, $drivers, $opts);
+        } catch (Horde_Prefs_Exception $e) {
+            $this->_notifyError($e);
 
-                /* Store data in the cached session object. */
-                $opts['cache'] = new Horde_Core_Prefs_Cache_Session($opts['user']);
-                $this->_instances[$sig] = new Horde_Prefs($scope, array($config_driver, $hooks_driver), $opts);
-            }
+            /* Store data in the cached session object. */
+            $opts['cache'] = new Horde_Core_Prefs_Cache_Session($opts['user']);
+            $this->_instances[$sig] = new Horde_Prefs($scope, array($config_driver, $hooks_driver), $opts);
         }
 
         return $this->_instances[$sig];

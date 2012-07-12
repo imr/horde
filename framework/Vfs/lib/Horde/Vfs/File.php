@@ -1,20 +1,11 @@
 <?php
 /**
- * VFS implementation for a standard filesystem.
+ * VFS implementation for a filesystem.
  *
- * Required parameters:
- * <pre>
- * 'vfsroot' - (string) The root path.
- * </pre>
- *
- * Note: The user that your webserver runs as (commonly 'nobody',
- * 'apache', or 'www-data') MUST have read/write permission to the
- * directory you specify as the 'vfsroot'.
- *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Chuck Hagenbuch
  * @package Vfs
@@ -45,9 +36,22 @@ class Horde_Vfs_File extends Horde_Vfs_Base
     );
 
     /**
+     * List of features that the VFS driver supports.
+     *
+     * @var array
+     */
+    protected $_features = array(
+        'readByteRange' => true,
+    );
+
+    /**
      * Constructs a new Filesystem based VFS object.
      *
-     * @param array $params  A hash containing connection parameters.
+     * @param array $params  A hash containing connection parameters. REQUIRED
+     *                       parameters:
+     *   - vfsroot: (string) The root path.
+     *              Note: The user that your webserver runs as MUST have
+     *              read/write permission to this directory.
      */
     public function __construct($params = array())
     {
@@ -58,6 +62,8 @@ class Horde_Vfs_File extends Horde_Vfs_Base
              (substr($this->_params['vfsroot'], -1) == '\\'))) {
             $this->_params['vfsroot'] = substr($this->_params['vfsroot'], 0, strlen($this->_params['vfsroot']) - 1);
         }
+
+        $this->_connect();
     }
 
     /**
@@ -72,7 +78,7 @@ class Horde_Vfs_File extends Horde_Vfs_Base
     public function size($path, $name)
     {
         if (($size = @filesize($this->_getNativePath($path, $name))) === false) {
-            throw new Horde_Vfs_Exception(sprintf('Unable to check file size of "%s/%s".'), $path, $name);
+            throw new Horde_Vfs_Exception(sprintf('Unable to check file size of "%s/%s".', $path, $name));
         }
 
         return $size;
@@ -124,12 +130,10 @@ class Horde_Vfs_File extends Horde_Vfs_Base
      */
     public function readStream($path, $name)
     {
-        $mode = OS_WINDOWS ? 'rb' : 'r';
-        $stream = @fopen($this->_getNativePath($path, $name), $mode);
+        $stream = @fopen($this->_getNativePath($path, $name), 'rb');
         if (!is_resource($stream)) {
             throw new Horde_Vfs_Exception('Unable to open VFS file.');
         }
-
         return $stream;
     }
 
@@ -153,8 +157,7 @@ class Horde_Vfs_File extends Horde_Vfs_Base
      * @return string  The file data.
      * @throws Horde_Vfs_Exception
      */
-    public function readByteRange($path, $name, &$offset, $length = -1,
-                                  &$remaining)
+    public function readByteRange($path, $name, &$offset, $length, &$remaining)
     {
         if ($offset < 0) {
             throw new Horde_Vfs_Exception(sprintf('Wrong offset %d while reading a VFS file.', $offset));
@@ -197,7 +200,7 @@ class Horde_Vfs_File extends Horde_Vfs_Base
      *
      * @throws Horde_Vfs_Exception
      */
-    public function write($path, $name, $tmpFile, $autocreate = true)
+    public function write($path, $name, $tmpFile, $autocreate = false)
     {
         if (!@is_dir($this->_getNativePath($path))) {
             if ($autocreate) {
@@ -294,13 +297,13 @@ class Horde_Vfs_File extends Horde_Vfs_Base
      *
      * @throws Horde_Vfs_Exception
      */
-    public function writeData($path, $name, $data, $autocreate = true)
+    public function writeData($path, $name, $data, $autocreate = false)
     {
         if (!@is_dir($this->_getNativePath($path))) {
             if ($autocreate) {
                 $this->autocreatePath($path);
             } else {
-                throw new Horde_Vfs_Exception('VFS directory does not exist.');
+                throw new Horde_Vfs_Exception(sprintf('VFS directory %s does not exist.', $path));
             }
         }
 
@@ -394,26 +397,27 @@ class Horde_Vfs_File extends Horde_Vfs_Base
     /**
      * Changes permissions for an item in the VFS.
      *
-     * @param string $path         The path of directory of the item.
-     * @param string $name         The name of the item.
-     * @param integer $permission  The octal value of the new permission.
+     * @param string $path        The path of directory of the item.
+     * @param string $name        The name of the item.
+     * @param string $permission  The permission to set in octal notation.
      *
      * @throws Horde_Vfs_Exception
      */
     public function changePermissions($path, $name, $permission)
     {
-        if (!@chmod($this->_getNativePath($path, $name), $permission)) {
+        if (!@chmod($this->_getNativePath($path, $name), base_convert($permission, 8, 10))) {
             throw new Horde_Vfs_Exception(sprintf('Unable to change permission for VFS file %s/%s.', $path, $name));
         }
     }
 
     /**
-     * Return a list of the contents of a folder.
+     * Returns an unsorted file list of the specified directory.
      *
-     * @param string $path       The path of the directory.
-     * @param mixed $filter      String/hash to filter file/dirname on.
-     * @param boolean $dotfiles  Show dotfiles?
-     * @param boolean $dironly   Show only directories?
+     * @param string $path          The path of the directory.
+     * @param string|array $filter  Regular expression(s) to filter
+     *                              file/directory name on.
+     * @param boolean $dotfiles     Show dotfiles?
+     * @param boolean $dironly      Show only directories?
      *
      * @return array  File list.
      * @throws Horde_Vfs_Exception
@@ -459,7 +463,7 @@ class Horde_Vfs_File extends Horde_Vfs_Base
 
             // Group
             $file['group'] = filegroup($entry);
-            if (function_exists('posix_getgrgid') && (PHP_VERSION != '5.2.1')) {
+            if (function_exists('posix_getgrgid')) {
                 $group = posix_getgrgid($file['group']);
                 $file['group'] = $group['name'];
             }
@@ -535,42 +539,6 @@ class Horde_Vfs_File extends Horde_Vfs_Base
         $d->close();
 
         return $files;
-    }
-
-    /**
-     * Returns a sorted list of folders in specified directory.
-     *
-     * @param string $path         The path of the directory to get the
-     *                             directory list for.
-     * @param mixed $filter        Hash of items to filter based on folderlist.
-     * @param boolean $dotfolders  Include dotfolders?
-     *
-     * @return array  Folder list.
-     * @throws Horde_Vfs_Exception
-     */
-    function listFolders($path = '', $filter = null, $dotfolders = true)
-    {
-        $this->_connect();
-
-        $folders = array();
-        $folders[dirname($path)] = array(
-            'val' => dirname($path),
-            'abbrev' => '..',
-            'label' => '..'
-        );
-
-        $folderList = $this->listFolder($path, null, $dotfolders, true);
-        foreach ($folderList as $name => $files) {
-            $folders[$name] = array(
-                'val' => $path . '/' . $files['name'],
-                'abbrev' => $files['name'],
-                'label' => $path . '/' . $files['name']
-            );
-        }
-
-        ksort($folders);
-
-        return $folders;
     }
 
     /**
@@ -673,9 +641,9 @@ class Horde_Vfs_File extends Horde_Vfs_Base
 
             $path = str_replace('..', '', $path);
             if (substr($path, 0, 1) == '/') {
-                return $this->_params['vfsroot'] . $path . $name;
+                return $this->_params['vfsroot'] . rtrim($path, '/') . $name;
             } else {
-                return $this->_params['vfsroot'] . '/' . $path . $name;
+                return $this->_params['vfsroot'] . '/' . rtrim($path, '/') . $name;
             }
         }
 
@@ -683,16 +651,17 @@ class Horde_Vfs_File extends Horde_Vfs_Base
     }
 
     /**
-     * Stub to check if we have a valid connection. Makes sure that
-     * the vfsroot is readable.
+     * Make sure that the vfsroot is readable.
      *
      * @throws Horde_Vfs_Exception
      */
     protected function _connect()
     {
-        if (!(@is_dir($this->_params['vfsroot']) &&
-              is_readable($this->_params['vfsroot'])) ||
-            !@mkdir($this->_params['vfsroot'])) {
+        if (!@is_dir($this->_params['vfsroot'])) {
+            @mkdir($this->_params['vfsroot']);
+        }
+
+        if (!is_readable($this->_params['vfsroot'])) {
             throw new Horde_Vfs_Exception('Unable to read the vfsroot directory.');
         }
     }

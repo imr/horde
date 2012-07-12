@@ -1,0 +1,62 @@
+<?php
+/**
+ * Release focus. Possible values:
+ * Horde_Release::FOCUS_INITIAL - Initial announcement
+ * Horde_Release::FOCUS_MINORFEATURE - Minor feature enhancement
+ * Horde_Release::FOCUS_MAJORFEATURE - Major feature enhancement
+ * Horde_Release::FOCUS_MINORBUG - Minor bugfixes
+ * Horde_Release::FOCUS_MAJORBUG - Major bugfixes
+ * Horde_Release::FOCUS_MINORSECURITY - Minor security fixes
+ * Horde_Release::FOCUS_MAJORSECURITY - Major security fixes
+ * Horde_Release::FOCUS_DOCS - Documentation improvements
+ */
+$this->notes['fm']['focus'] = array(Horde_Release::FOCUS_MINORSECURITY, Horde_Release::FOCUS_MINORBUG, Horde_Release::FOCUS_MINORFEATURE);
+
+/* Mailing list release notes. */
+$this->notes['ml']['changes'] = <<<ML
+The Horde Team is pleased to announce the final release of the Horde Groupware
+Webmail Edition version 4.0.8.
+
+Horde Groupware Webmail Edition is a free, enterprise ready, browser based
+communication suite. Users can read, send and organize email messages with
+four different webmail interfaces and manage and share calendars, contacts,
+tasks and notes with the standards compliant components from the Horde
+Project.
+
+For upgrading instructions, please see
+http://www.horde.org/apps/webmail/docs/UPGRADING
+
+For detailed installation and configuration instructions, please see
+http://www.horde.org/apps/webmail/docs/INSTALL
+
+The major changes compared to the Horde Groupware Webmail Edition version 4.0.7
+are:
+
+General changes:
+    * Updated Czech, Hungarian, Italian, Slovak, and Swedish translations.
+    * Small bugfixes and improvements.
+
+Mail changes:
+    * Fixed XSS vulnerabilities.
+    * Fixed regression in PGP support.
+    * Improved HTML editor support.
+
+Filters changes:
+    * Fixed folder names in Procmail rules if using Maildir.
+
+Calendar changes:
+    * Fixed XSS vulnerabilities in tasks and search views.
+ML;
+
+/* Freshmeat release notes, not more than 600 characters. */
+$this->notes['fm']['changes'] = <<<FM
+Fixed XSS vulnerabilities.
+Fixed regression in PGP support.
+Improved HTML editor support.
+Updated Czech, Hungarian, Italian, Slovak, and Swedish translations.
+Small bugfixes and improvements.
+FM;
+
+$this->notes['name'] = 'Horde Groupware Webmail Edition';
+$this->notes['list'] = 'horde';
+$this->notes['fm']['project'] = 'horde-webmail';

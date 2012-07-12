@@ -3,13 +3,13 @@
  * Copyright Obala d.o.o. (www.obala.si)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Duck <duck@obala.net>
  * @package Folks
  */
 
-require_once dirname(__FILE__) . '/account/tabs.php';
+require_once __DIR__ . '/account/tabs.php';
 require_once FOLKS_BASE . '/lib/Forms/Login.php';
 
 /*
@@ -87,7 +87,7 @@ if ($conf['login']['prelogin'] &&
  * Login parameters
  */
 $url_param = Horde_Util::getFormData('url');
-$login_url = Horde_Util::addParameter(Horde::getServiceLink('login', 'folks'), 'url', $url_param);
+$login_url = Horde_Util::addParameter($registry->getServiceLink('login', 'folks'), 'url', $url_param);
 
 /*
  * We are already logged in?
@@ -108,7 +108,7 @@ if (isset($_COOKIE['folks_login_code']) &&
     $_COOKIE['folks_login_code'] == $folks_driver->getCookie($_COOKIE['folks_login_user'])) {
 
     // Horde Auto login
-    Horde_Auth::setAuth($_COOKIE['folks_login_user'], array('transparent' => 1));
+    $registry->setAuth($_COOKIE['folks_login_user'], array('transparent' => 1));
 
     if (empty($url_param)) {
         $url_param = Folks::getUrlFor('user', $_COOKIE['folks_login_user']);
@@ -189,7 +189,10 @@ if ($form->isSubmitted()) {
     }
 
     // Horde Auto login
-    Horde_Auth::setAuth($username, array('transparent' => 1, 'password' => $info['password']));
+    $registry->setAuth($username, array(
+        'password' => $info['password'],
+        'transparent' => 1
+    ));
 
     // Save user last login info.
     // We ignore last_login pref as it can be turned off by user
@@ -226,9 +229,9 @@ if ($form->isSubmitted()) {
     exit;
 }
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 require FOLKS_TEMPLATES . '/menu.inc';
-
 require FOLKS_TEMPLATES . '/login/login.php';
-
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

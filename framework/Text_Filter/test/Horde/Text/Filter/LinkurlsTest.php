@@ -4,11 +4,13 @@
  *
  * @author     Chuck Hagenbuch <chuck@horde.org>
  * @category   Horde
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package    Text_Filter
  * @subpackage UnitTests
  */
-class Horde_Text_Filter_LinkurlsTest extends PHPUnit_Framework_TestCase
+require_once __DIR__ . '/Autoload.php';
+
+class Horde_Text_Filter_LinkurlsTest extends Horde_Test_Case
 {
     /**
      * @dataProvider urlProvider
@@ -78,4 +80,37 @@ class Horde_Text_Filter_LinkurlsTest extends PHPUnit_Framework_TestCase
             array('example.com/', 'example.com/'),
         );
     }
+
+    public function testBug10516()
+    {
+        $testText = '[http://example.com](http://example2.com)';
+
+        $actual = Horde_Text_Filter::filter($testText, 'linkurls', array(
+            'target' => null
+        ));
+
+        $this->assertEquals(
+            '[<a href="http://example.com">http://example.com</a>](<a href="http://example2.com">http://example2.com</a>)',
+            $actual
+        );
+    }
+
+    public function testUrlWithManyQuestionMarks()
+    {
+        $this->assertEquals(
+            '<a href="http://www.example.com">http://www.example.com</a>?????????????????????????????????????????????????????????????????',
+            Horde_Text_Filter::filter('http://www.example.com?????????????????????????????????????????????????????????????????',
+                                      'linkurls',
+                                      array('target' => null)));
+    }
+
+    public function testBug11116()
+    {
+        $text = file_get_contents(__DIR__ . '/fixtures/bug_11116.txt');
+
+        $this->assertNotNull(
+            Horde_Text_Filter::filter($text, 'linkurls')
+        );
+    }
+
 }

@@ -2,38 +2,39 @@
  * Provides basic IMP javascript functions.
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
-document.observe('dom:loaded', function() {
-    if (!window.IMP) {
-        window.IMP = {};
-    }
+var IMP_JS = {
 
-    IMP.imgs = {};
+    // Defaulting to null: menumbox_load
+    keydownhandler: null,
+    imgs: {},
 
-    IMP.menuFolderSubmit = function(clear)
+    menuMailboxSubmit: function(clear)
     {
         var mf = $('menuform');
 
-        if ((!this.menufolder_load || clear) &&
+        if ((!this.menumbox_load || clear) &&
             $F(mf.down('SELECT[name="mailbox"]'))) {
-            this.menufolder_load = true;
+            this.menumbox_load = true;
             mf.submit();
         }
-    };
+    },
 
     /**
      * Use DOM manipulation to un-block images.
      */
-    IMP.unblockImages = function(e)
+    unblockImages: function(e)
     {
         var callback,
             elt = e.element().up('.mimeStatusMessageTable').up(),
-            iframe = elt.up().next().down('.htmlMsgData'),
+            iframe = elt.up('.mimePartBase').down('.mimePartData IFRAME.htmlMsgData'),
             iframeid = iframe.readAttribute('id'),
             imgload = false,
-            s = new Selector('[htmlimgblocked]');
+            s = new Selector('[htmlimgblocked]'),
+            s2 = new Selector('[htmlcssblocked]'),
+            s3 = new Selector('STYLE[type="text/x-imp-cssblocked"]');
 
         e.stop();
 
@@ -48,34 +49,45 @@ document.observe('dom:loaded', function() {
             var src = img.getAttribute('htmlimgblocked');
             if (img.getAttribute('src')) {
                 img.onload = callback;
-                ++IMP.imgs[iframeid];
+                ++this.imgs[iframeid];
                 img.setAttribute('src', src);
                 imgload = true;
-            } else if (img.getAttribute('background')) {
-                img.setAttribute('background', src);
-            } else if (img.style.backgroundImage) {
-                if (img.style.setProperty) {
-                    img.style.setProperty('background-image', 'url(' + src + ')', '');
-                } else {
-                    // IE workaround
-                    img.style.backgroundImage = 'url(' + src + ')';
+            } else {
+                if (img.getAttribute('background')) {
+                    img.setAttribute('background', src);
+                }
+                if (img.style.backgroundImage) {
+                    if (img.style.setProperty) {
+                        img.style.setProperty('background-image', 'url(' + src + ')', '');
+                    } else {
+                        // IE workaround
+                        img.style.backgroundImage = 'url(' + src + ')';
+                    }
                 }
             }
+        }, this);
+
+        s2.findElements(iframe.contentWindow.document).each(function(link) {
+            link.setAttribute('href', link.getAttribute('htmlcssblocked'));
+        });
+
+        s3.findElements(iframe.contentWindow.document).each(function(style) {
+            style.setAttribute('type', 'text/css');
         });
 
         if (!imgload) {
             this.iframeResize(iframeid);
         }
-    };
+    },
 
-    IMP.imgOnload = function(id)
+    imgOnload: function(id)
     {
-        if (!(--IMP.imgs[id])) {
+        if (!(--this.imgs[id])) {
             this.iframeResize(id);
         }
-    };
+    },
 
-    IMP.iframeInject = function(id, data)
+    iframeInject: function(id, data)
     {
         if (!(id = $(id))) {
             return;
@@ -85,19 +97,27 @@ document.observe('dom:loaded', function() {
 
         id.observe('load', function(i) {
             i.stopObserving('load');
-            this.iframeResize.bind(IMP, i).defer(0.3);
+            this.iframeResize.bind(this, i).defer(0.3);
         }.bind(this, id));
 
         d.open();
         d.write(data);
         d.close();
 
+        if (this.keydownhandler) {
+            if (d.addEventListener) {
+                d.addEventListener('keydown', this.keydownhandler.bindAsEventListener(this), false);
+            } else {
+                d.attachEvent('onkeydown', this.keydownhandler.bindAsEventListener(this));
+            }
+        }
+
         id.show().previous().remove();
 
         this.iframeResize(id);
-    };
+    },
 
-    IMP.iframeResize = function(id)
+    iframeResize: function(id)
     {
         if (!(id = $(id))) {
             return;
@@ -117,9 +137,9 @@ document.observe('dom:loaded', function() {
                 id.setStyle({ height: (lc.scrollHeight + 25) + 'px' });
             }
         }
-    };
+    },
 
-    IMP.printWindow = function(win)
+    printWindow: function(win)
     {
         /* Prototypejs not available in this window. */
         var fs = win.document.getElementById('frameset');
@@ -128,13 +148,19 @@ document.observe('dom:loaded', function() {
         }
         win.print();
         win.close();
-    };
+    },
 
-    // If menu is present, attach event handlers to folder switcher.
-    var tmp = $('openfoldericon');
-    if (tmp) {
-        // Observe actual element since IE does not bubble change events.
-        $('menu').down('[name=mailbox]').observe('change', IMP.menuFolderSubmit.bind(IMP));
-        tmp.down().observe('click', IMP.menuFolderSubmit.bind(IMP, true));
+    onDomLoad: function()
+    {
+        // If menu is present, attach event handlers to mailbox switcher.
+        var tmp = $('openmboxicon');
+        if (tmp) {
+            // Observe actual element since IE does not bubble change events.
+            $('menu').down('[name=mailbox]').observe('change', this.menuMailboxSubmit.bind(this));
+            tmp.down().observe('click', this.menuMailboxSubmit.bind(this, true));
+        }
     }
-});
+
+};
+
+document.observe('dom:loaded', IMP_JS.onDomLoad.bind(IMP_JS));

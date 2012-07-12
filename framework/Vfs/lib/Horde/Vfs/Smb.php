@@ -27,7 +27,7 @@
  * Patrice Levesque or dev@lists.horde.org.
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Paul Gareau <paul@xhawk.net>
  * @author  Patrice Levesque <wayne@ptaff.ca>
@@ -54,6 +54,21 @@ class Horde_Vfs_Smb extends Horde_Vfs_Base
         } catch (Horde_Vfs_Exception $e) {
             throw new Horde_Vfs_Exception('Authentication to the SMB server failed.');
         }
+    }
+
+    /**
+     * Retrieves the size of a file from the VFS.
+     *
+     * @param string $path  The pathname to the file.
+     * @param string $name  The filename to retrieve.
+     *
+     * @return integer  The file size.
+     * @throws Horde_Vfs_Exception
+     */
+    public function size($path, $name)
+    {
+        $file = $this->readFile($path, $name);
+        return filesize($file);
     }
 
     /**
@@ -89,10 +104,9 @@ class Horde_Vfs_Smb extends Horde_Vfs_Base
     {
         // Create a temporary file and register it for deletion at the
         // end of this request.
-        if (!($localFile = tempnam(null, 'vfs'))) {
+        if (!($localFile = Horde_Util::getTempFile('vfs'))) {
             throw new Horde_Vfs_Exception('Unable to create temporary file.');
         }
-        register_shutdown_function(create_function('', '@unlink(\'' . addslashes($localFile) . '\');'));
 
         list($path, $name) = $this->_escapeShellCommand($path, $name);
         $cmd = array('get \"' . $name . '\" ' . $localFile);
@@ -100,6 +114,8 @@ class Horde_Vfs_Smb extends Horde_Vfs_Base
         if (!file_exists($localFile)) {
             throw new Horde_Vfs_Exception(sprintf('Unable to open VFS file "%s".', $this->_getPath($path, $name)));
         }
+
+        clearstatcache();
 
         return $localFile;
     }
@@ -155,7 +171,7 @@ class Horde_Vfs_Smb extends Horde_Vfs_Base
      */
     public function writeData($path, $name, $data, $autocreate = false)
     {
-        $tmpFile = tempnam(null, 'vfs');
+        $tmpFile = Horde_Util::getTempFile('vfs');
         file_put_contents($tmpFile, $data);
         try {
             $this->write($path, $name, $tmpFile, $autocreate);
@@ -326,15 +342,14 @@ class Horde_Vfs_Smb extends Horde_Vfs_Base
     }
 
     /**
-     * Returns an unsorted file list.
+     * Returns a file list of the directory passed in.
      *
-     * @param string $path       The path of the directory to get the file list
-     *                           for.
-     * @param mixed $filter      Hash of items to filter based on filename.
-     * @param boolean $dotfiles  Show dotfiles? This is irrelevant with
-     *                           smbclient.
-     * @param boolean $dironly   Show directories only?
-     * @param boolean $recursive  Return all directory levels recursively?
+     * @param string $path          The path of the directory.
+     * @param string|array $filter  Regular expression(s) to filter
+     *                              file/directory name on.
+     * @param boolean $dotfiles     Show dotfiles?
+     * @param boolean $dironly      Show only directories?
+     * @param boolean $recursive    Return all directory levels recursively?
      *
      * @return array  File list.
      * @throws Horde_Vfs_Exception
@@ -401,40 +416,6 @@ class Horde_Vfs_Smb extends Horde_Vfs_Base
         }
 
         return $files;
-    }
-
-    /**
-     * Returns a sorted list of folders in specified directory.
-     *
-     * @param string $path         The path of the directory to get the
-     *                             directory list for.
-     * @param mixed $filter        Hash of items to filter based on folderlist.
-     * @param boolean $dotfolders  Include dotfolders? Irrelevant for SMB.
-     *
-     * @return array  Folder list.
-     * @throws Horde_Vfs_Exception
-     */
-    public function listFolders($path = '', $filter = null, $dotfolders = true)
-    {
-        // dirname will strip last component from path, even on a directory
-        $folder = array(
-            'val' => dirname($path),
-            'abbrev' => '..',
-            'label' => '..'
-        );
-        $folders = array($folder['val'] => $folder);
-
-        $folderList = $this->listFolder($path, null, $dotfolders, true);
-        foreach ($folderList as $files) {
-            $folders[$folder['val']] = array(
-                'val' => $this->_getPath($path, $files['name']),
-                'abbrev' => $files['name'],
-                'label' => $folder['val']
-            );
-        }
-
-        ksort($folders);
-        return $folders;
     }
 
     /**
@@ -538,14 +519,24 @@ class Horde_Vfs_Smb extends Horde_Vfs_Base
     protected function _execute($cmd)
     {
         $cmd = str_replace('"-U%"', '-N', $cmd);
-        exec($cmd, $out, $ret);
+        $proc = proc_open(
+            $cmd,
+            array(1 => array('pipe', 'w'), 2 => array('pipe', 'w')),
+            $pipes);
+        if (!is_resource($proc)) {
+            // This should never happen.
+            throw new Horde_Vfs_Exception('Failed to call proc_open().');
+        }
+        $out   = explode("\n", stream_get_contents($pipes[1]));
+        $error = explode("\n", stream_get_contents($pipes[2]));
+        $ret = proc_close($proc);
 
         // In some cases, (like trying to delete a nonexistant file),
         // smbclient will return success (at least on 2.2.7 version I'm
         // testing on). So try to match error strings, even after success.
         if ($ret != 0) {
             $err = '';
-            foreach ($out as $line) {
+            foreach ($error as $line) {
                 if (strpos($line, 'Usage:') === 0) {
                     $err = 'Command syntax incorrect';
                     break;

@@ -77,19 +77,34 @@
  * );
  * </pre>
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you did
- * not receive this file, see http://opensource.org/licenses/lgpl-2.1.php
+ * not receive this file, http://www.horde.org/licenses/lgpl21
  *
  * @author   Ilya Krel <mail@krel.org>
  * @author   Jan Schneider <jan@horde.org>
  * @category Horde
- * @license  http://opensource.org/licenses/lgpl-2.1.php LGPL
+ * @license http://www.horde.org/licenses/lgpl21 LGPL-2.1
  * @package  Auth
  */
 class Horde_Auth_Cyrsql extends Horde_Auth_Sql
 {
+    /**
+     * An array of capabilities, so that the driver can report which
+     * operations it supports and which it doesn't.
+     *
+     * @var array
+     */
+    protected $_capabilities = array(
+        'add'           => true,
+        'list'          => true,
+        'remove'        => true,
+        'resetpassword' => false,
+        'update'        => true,
+        'authenticate'  => true,
+    );
+
     /**
      * Horde_Imap_Client object.
      *
@@ -98,35 +113,22 @@ class Horde_Auth_Cyrsql extends Horde_Auth_Sql
     protected $_imap;
 
     /**
-     * Hierarchy separator to use (e.g., is it user/mailbox or user.mailbox)
-     *
-     * @var string
-     */
-    protected $_separator = '.';
-
-    /**
      * Constructor.
      *
      * @param array $params  Parameters:
-     * <pre>
-     * 'charset' - (string) Default charset.
-     *             DEFAULT: NONE
-     * 'domain_field' - (string) If set to anything other than 'none' this is
-     *                  used as field name where domain is stored.
-     *                  DEFAULT: 'domain_name'
-     * 'folders' - (array) An array of folders to create under username.
-     *             DEFAULT: NONE
-     * 'hidden_accounts' - (array) An array of system accounts to hide from
-     *                     the user interface.
-     *                     DEFAULT: None.
-     * 'imap' - (Horde_Imap_Client_Base) [REQUIRED] An IMAP client object.
-     * 'quota' - (integer) The quota (in kilobytes) to grant on the mailbox.
-     *           DEFAULT: NONE
-     * 'unixhier' - (boolean) The value of imapd.conf's unixhierarchysep
-     *              setting. Set this to true if the value is true in
-     *              imapd.conf.
-     *              DEFAULT: false
-     * </pre>
+     *   - domain_field: (string) If set to anything other than 'none' this is
+     *                   used as field name where domain is stored.
+     *                   DEFAULT: 'domain_name'
+     *   - folders: (array) An array of folders to create under username.
+     *                DEFAULT: NONE
+     *   - hidden_accounts: (array) An array of system accounts to hide from
+     *                      the user interface.
+     *                      DEFAULT: None.
+     *   - imap: (Horde_Imap_Client_Base) [REQUIRED] An IMAP client object.
+     *   - quota: (integer) The quota (in kilobytes) to grant on the mailbox.
+     *            DEFAULT: NONE
+     *   - userhierarchy: (string) The user hierarchy prefix (UTF-8).
+     *                    DEFAULT: 'user.'
      *
      * @throws InvalidArgumentException
      */
@@ -140,19 +142,14 @@ class Horde_Auth_Cyrsql extends Horde_Auth_Sql
         unset($params['imap']);
 
         $params = array_merge(array(
-            'charset' => null,
             'domain_field' => 'domain_name',
             'folders' => array(),
             'hidden_accounts' => array('cyrus'),
-            'quota' => null
+            'quota' => null,
+            'userhierarchy' => 'user.'
         ), $params);
 
         parent::__construct($params);
-
-        if (!empty($this->_params['unixhier'])) {
-            $this->_params['userhierarchy'] = 'user/';
-            $this->_separator = '/';
-        }
     }
 
     /**
@@ -247,10 +244,11 @@ class Horde_Auth_Cyrsql extends Horde_Auth_Sql
             parent::addUser($userId, $credentials);
         }
 
+        $mailbox = $this->_params['userhierarchy'];
+
         try {
-            $mailbox = Horde_String::convertCharset($this->_params['userhierarchy'] . $userId, $this->_params['charset'], 'utf7-imap');
             $this->_imap->createMailbox($mailbox);
-            $this->_imap->setACL($mailbox, $this->_params['cyradm'], 'lrswipcda');
+            $this->_imap->setACL($mailbox, $this->_params['cyradmin'], 'lrswipcda');
             if (isset($this->_params['quota']) &&
                 ($this->_params['quota'] >= 0)) {
                 $this->_imap->setQuota($mailbox, array('storage' => $this->_params['quota']));
@@ -262,7 +260,7 @@ class Horde_Auth_Cyrsql extends Horde_Auth_Sql
         foreach ($this->_params['folders'] as $val) {
             try {
                 $this->_imap->createMailbox($val);
-                $this->_imap->setACL($val, $this->_params['cyradm'], 'lrswipcda');
+                $this->_imap->setACL($val, $this->_params['cyradmin'], 'lrswipcda');
             } catch (Horde_Imap_Client_Exception $e) {}
         }
     }
@@ -303,6 +301,8 @@ class Horde_Auth_Cyrsql extends Horde_Auth_Sql
         /* Set ACL for mailbox deletion. */
         list($admin) = explode('@', $this->_params['cyradmin']);
 
+        $mailbox = $this->_params['userhierarchy'];
+
         try {
             $this->_imap->setACL($mailbox, $admin, array('rights' => 'lrswipcda'));
             $this->_imap->deleteMailbox($mailbox);
@@ -317,22 +317,23 @@ class Horde_Auth_Cyrsql extends Horde_Auth_Sql
      * @return mixed  The array of userIds.
      * @throws Horde_Auth_Exception
      */
-    public function listUsers()
+    public function listUsers($sort = false)
     {
         if (!empty($this->_params['domain_field']) &&
             ($this->_params['domain_field'] != 'none')) {
             /* Build the SQL query with domain. */
-            $query = sprintf('SELECT %s, %s FROM %s ORDER BY %s',
+            $query = sprintf('SELECT %s, %s FROM %s',
                              $this->_params['username_field'],
                              $this->_params['domain_field'],
-                             $this->_params['table'],
-                             $this->_params['username_field']);
+                             $this->_params['table']);
         } else {
             /* Build the SQL query without domain. */
-            $query = sprintf('SELECT %s FROM %s ORDER BY %s',
+            $query = sprintf('SELECT %s FROM %s',
                              $this->_params['username_field'],
-                             $this->_params['table'],
-                             $this->_params['username_field']);
+                             $this->_params['table']);
+        }
+        if ($sort) {
+            $query .= sprintf(" ORDER BY %s", $this->_params['username_field']);
         }
 
         try {
@@ -346,18 +347,17 @@ class Horde_Auth_Cyrsql extends Horde_Auth_Sql
         if (!empty($this->_params['domain_field']) &&
             ($this->_params['domain_field'] != 'none')) {
             foreach ($result as $ar) {
-                if (!in_array($ar[0], $this->_params['hidden_accounts'])) {
-                    $users[] = $ar[0] . '@' . $ar[1];
+                if (!in_array($ar[$this->_params['username_field']], $this->_params['hidden_accounts'])) {
+                    $users[] = $ar[$this->_params['username_field']] . '@' . $ar[$this->_params['domain_field']];
                 }
             }
         } else {
             foreach ($result as $ar) {
-                if (!in_array($ar[0], $this->_params['hidden_accounts'])) {
-                    $users[] = $ar[0];
+                if (!in_array($ar[$this->_params['username_field']], $this->_params['hidden_accounts'])) {
+                    $users[] = $ar[$this->_params['username_field']];
                 }
             }
         }
-
         return $users;
     }
 

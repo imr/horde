@@ -3,35 +3,38 @@
  <name>Horde_Xml_Element</name>
  <channel>pear.horde.org</channel>
  <summary>Horde Xml Element object</summary>
- <description>This package provides an element object that can be used to provide SimpleXML-like functionality over a DOM object. The main advantage over using SimpleXML is the ability to add multiple levels of new elements in a single call, without introducing "ghost" objects.</description>
+ <description>An element object that can be used to provide SimpleXML-like functionality over a DOM object. The main advantage over using SimpleXML is the ability to add multiple levels of new elements in a single call, without introducing "ghost" objects.</description>
  <lead>
   <name>Chuck Hagenbuch</name>
   <user>chuck</user>
   <email>chuck@horde.org</email>
   <active>yes</active>
  </lead>
- <lead>
-  <name>Jan Schneider</name>
-  <user>jan</user>
-  <email>jan@horde.org</email>
-  <active>yes</active>
- </lead>
- <date>2011-03-16</date>
- <time>18:20:59</time>
+ <date>2012-07-06</date>
+ <time>00:07:23</time>
  <version>
-  <release>1.0.0RC1</release>
+  <release>2.0.0beta1</release>
   <api>1.0.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+ <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
  <notes>
-* First release candidate for Horde 4.
+* 
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
+   <dir name="doc">
+    <dir name="Horde">
+     <dir name="Xml">
+      <dir name="Element">
+       <file name="COPYING" role="doc" />
+      </dir> <!-- /doc/Horde/Xml/Element -->
+     </dir> <!-- /doc/Horde/Xml -->
+    </dir> <!-- /doc/Horde -->
+   </dir> <!-- /doc -->
    <dir name="lib">
     <dir name="Horde">
      <dir name="Xml">
@@ -52,6 +55,7 @@
         <file name="Sample.xml" role="test" />
        </dir> <!-- /test/Horde/Xml/Element/fixtures -->
        <file name="AllTests.php" role="test" />
+       <file name="Autoload.php" role="test" />
        <file name="CountTest.php" role="test" />
        <file name="ElementTest.php" role="test" />
        <file name="IteratorTest.php" role="test" />
@@ -64,7 +68,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -72,9 +76,9 @@
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0RC1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <extension>
     <name>dom</name>
@@ -83,10 +87,12 @@
  </dependencies>
  <phprelease>
   <filelist>
+   <install as="COPYING" name="doc/Horde/Xml/Element/COPYING" />
    <install as="Horde/Xml/Element.php" name="lib/Horde/Xml/Element.php" />
    <install as="Horde/Xml/Element/Exception.php" name="lib/Horde/Xml/Element/Exception.php" />
    <install as="Horde/Xml/Element/List.php" name="lib/Horde/Xml/Element/List.php" />
    <install as="Horde/Xml/Element/AllTests.php" name="test/Horde/Xml/Element/AllTests.php" />
+   <install as="Horde/Xml/Element/Autoload.php" name="test/Horde/Xml/Element/Autoload.php" />
    <install as="Horde/Xml/Element/CountTest.php" name="test/Horde/Xml/Element/CountTest.php" />
    <install as="Horde/Xml/Element/ElementTest.php" name="test/Horde/Xml/Element/ElementTest.php" />
    <install as="Horde/Xml/Element/IteratorTest.php" name="test/Horde/Xml/Element/IteratorTest.php" />
@@ -105,7 +111,7 @@
     <api>beta</api>
    </stability>
    <date>2011-03-06</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 * Avoid errors when a child node doesn&apos;t exist.
    </notes>
@@ -120,7 +126,7 @@
     <api>alpha</api>
    </stability>
    <date>2011-03-08</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 * First alpha release for Horde 4.
    </notes>
@@ -135,9 +141,93 @@
     <api>beta</api>
    </stability>
    <date>2011-03-16</date>
-   <license uri="http://opensource.org/licenses/bsd-license.php">BSD</license>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 * First beta release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-22</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC2</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2011-03-29</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* Second release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api>
+   </version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api>
+   </stability>
+   <date>2011-04-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First stable release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-08</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* [jan] Fix tests to work with PHPUnit 3.6.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First alpha release for Horde 5.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-06</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* 
    </notes>
   </release>
  </changelog>

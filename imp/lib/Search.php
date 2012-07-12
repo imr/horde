@@ -3,14 +3,14 @@
  * The IMP_Search:: class contains all code related to mailbox searching
  * in IMP.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Search implements ArrayAccess, Iterator, Serializable
@@ -76,121 +76,8 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
      */
     public function init()
     {
-        $this->setFilters($this->getFilters(), false);
-        $this->setVFolders($this->getVFolders(), false);
-    }
-
-    /**
-     * Run a search.
-     *
-     * @param object $ob  An optional search query to add (via 'AND') to the
-     *                    active search (Horde_Imap_Client_Search_Query).
-     * @param string $id  The search query id.
-     *
-     * @return IMP_Indices  An indices object.
-     * @throws Horde_Imap_Client_Exception
-     */
-    public function runSearch($ob, $id)
-    {
-        $id = $this->_strip($id);
-        $mbox = '';
-        $sorted = new IMP_Indices();
-
-        if (!($query_list = $this[$id]->query)) {
-            return $sorted;
-        }
-
-        /* How do we want to sort results? */
-        $sortpref = IMP::$mailbox->getSort(true);
-        if ($sortpref['by'] == Horde_Imap_Client::SORT_THREAD) {
-            $sortpref['by'] = $GLOBALS['prefs']->getValue('sortdate');
-        }
-
-        foreach ($query_list as $mbox => $query) {
-            if (!empty($ob)) {
-                $query->andSearch(array($ob));
-            }
-            $results = $this->imapSearch($mbox, $query, array('reverse' => $sortpref['dir'], 'sort' => array($sortpref['by'])));
-            $sorted->add($mbox, $results['match']);
-        }
-
-        return $sorted;
-    }
-
-    /**
-     * Run a search query not stored in the current session.  Allows custom
-     * queries with custom sorts to be used without affecting cached
-     * mailboxes.
-     *
-     * @param object $query     The search query object
-     *                          (Horde_Imap_Client_Search_Query).
-     * @param string $mailbox   The mailbox to search.
-     * @param integer $sortby   The sort criteria.
-     * @param integer $sortdir  The sort directory.
-     *
-     * @return IMP_Indices  An indices object.
-     */
-    public function runQuery($query, $mailbox, $sortby = null,
-                             $sortdir = null)
-    {
-        try {
-            $results = $this->imapSearch($mailbox, $query, array('sort' => is_null($sortby) ? null : array($sortby)));
-            if ($sortdir) {
-                $results['match']->reverse();
-            }
-            return new IMP_Indices($mailbox, $results['match']);
-        } catch (Horde_Imap_Client_Exception $e) {
-            return new IMP_Indices();
-        }
-    }
-
-    /**
-     * Performs the IMAP search query on the server. Use this function,
-     * instead of directly calling Horde_Imap_Client's search() function,
-     * because certain configuration parameters may need to be dynamically
-     * altered.
-     *
-     * @param IMP_Mailbox $mailbox                   The mailbox to search.
-     * @param Horde_Imap_Client_Search_Query $query  The search query object.
-     * @param array $opts                            Additional options.
-     *
-     * @return array  Search results.
-     */
-    public function imapSearch($mailbox, $query, $opts = array())
-    {
-        $imp_imap = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create();
-
-        /* If doing a from/to search, use display sorting if possible.
-         * Although there is a fallback to a PHP-based display sort, for
-         * performance reasons only do a display sort if it is supported
-         * on the server. */
-        if (($GLOBALS['session']->get('imp', 'protocol') == 'imap') &&
-            !empty($opts['sort'])) {
-            $sort_cap = $imp_imap->queryCapability('SORT');
-
-            if (is_array($sort_cap) && in_array('DISPLAY', $sort_cap)) {
-                $pos = array_search(Horde_Imap_Client::SORT_FROM, $opts['sort']);
-                if ($pos !== false) {
-                    $opts['sort'][$pos] = Horde_Imap_Client::SORT_DISPLAYFROM;
-                }
-
-                $pos = array_search(Horde_Imap_Client::SORT_TO, $opts['sort']);
-                if ($pos !== false) {
-                    $opts['sort'][$pos] = Horde_Imap_Client::SORT_DISPLAYTO;
-                }
-            }
-        }
-
-        /* Make sure we search in the proper charset. */
-        if ($query) {
-            $query = clone $query;
-            $imap_charset = $imp_imap->validSearchCharset('UTF-8')
-                ? 'UTF-8'
-                : 'US-ASCII';
-            $query->charset($imap_charset, array('Horde_String', 'convertCharset'));
-        }
-
-        return $imp_imap->search($mailbox, $query, $opts);
+        $this->_getFilters();
+        $this->_getVFolders();
     }
 
     /**
@@ -198,13 +85,14 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
      *
      * @param array $criteria  The search criteria array.
      * @param array $opts      Additional options:
-     * <pre>
-     * id - (string) Use as the mailbox ID.
-     * label - (string) The label to use for the search results.
-     * mboxes - (array) The list of mailboxes to directly search.
-     * subfolders - (array) The list of mailboxes to do subfolder searches on.
-     * type - (integer) Query type.
-     * </pre>
+     *   - id: (string) Use as the mailbox ID.
+     *   - label: (string) The label to use for the search results.
+     *   - mboxes: (array) The list of mailboxes to directly search. If this
+     *             contains the IMP_Search_Query::ALLSEARCH constant, all
+     *             mailboxes will be searched.
+     *   - subfolders: (array) The list of mailboxes to do subfolder searches
+     *                 on.
+     *   - type: (integer) Query type.
      *
      * @return IMP_Search_Query  Returns the query object.
      * @throws InvalidArgumentException
@@ -218,6 +106,10 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
             'subfolders' => array(),
             'type' => self::CREATE_QUERY
         ), $opts);
+
+        /* Make sure mailbox names are not IMP_Mailbox objects. */
+        $opts['mboxes'] = array_map('strval', $opts['mboxes']);
+        $opts['subfolders'] = array_map('strval', $opts['subfolders']);
 
         switch ($opts['type']) {
         case self::CREATE_FILTER:
@@ -241,6 +133,7 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
 
         $ob = new $cname(array_filter(array(
             'add' => $criteria,
+            'all' => in_array(IMP_Search_Query::ALLSEARCH, $opts['mboxes']),
             'id' => $this->_strip($opts['id']),
             'label' => $opts['label'],
             'mboxes' => $opts['mboxes'],
@@ -262,7 +155,13 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
             /* This will overwrite previous value, if it exists. */
             $this->_search['vfolders'][$ob->id] = $ob;
             $this->setVFolders($this->_search['vfolders']);
+            $GLOBALS['injector']->getInstance('IMP_Imap_Tree')->insert($ob);
             break;
+        }
+
+        /* Reset the sort direction for system queries. */
+        if ($this->isSystemQuery($ob)) {
+            $ob->mbox_ob->setSort(null, null, true);
         }
 
         $this->changed = true;
@@ -271,12 +170,20 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
     }
 
     /**
-     * Obtains the list of filters for the current user.
+     * Saves the list of filters for the current user.
      *
-     * @return array  The list of filters.  Keys are mailbox IDs, values are
-     *                IMP_Search_Filter objects.
+     * @param array $filters  The filter list.
      */
-    public function getFilters()
+    public function setFilters($filters)
+    {
+        $GLOBALS['prefs']->setValue('filter', serialize(array_values($filters)));
+        $this->_getFilters();
+    }
+
+    /**
+     * Loads the list of filters for the current user.
+     */
+    protected function _getFilters()
     {
         $filters = array();
 
@@ -302,21 +209,6 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
                     }
                 }
             }
-        }
-
-        return $filters;
-    }
-
-    /**
-     * Saves the list of filters for the current user.
-     *
-     * @param array $filters  The filter list.
-     * @param boolean $save   Save the filter list to the preference backend?
-     */
-    public function setFilters($filters, $save = true)
-    {
-        if ($save) {
-            $GLOBALS['prefs']->setValue('filter', serialize(array_values($filters)));
         }
 
         $this->_search['filters'] = $filters;
@@ -365,12 +257,19 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
     }
 
     /**
-     * Obtains the list of virtual folders for the current user.
+     * Saves the list of virtual folders for the current user.
      *
-     * @return array  The list of virtual folders.  Keys are mailbox IDs,
-     *                values are IMP_Search_Vfolder objects.
+     * @param array $vfolders  The virtual folder list.
      */
-    public function getVFolders()
+    public function setVFolders($vfolders)
+    {
+        $GLOBALS['prefs']->setValue('vfolder', serialize(array_values($vfolders)));
+    }
+
+    /**
+     * Loads the list of virtual folders for the current user.
+     */
+    protected function _getVFolders()
     {
         $vf = array();
 
@@ -402,31 +301,7 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
             }
         }
 
-        return $vf;
-    }
-
-    /**
-     * Saves the list of virtual folders for the current user.
-     *
-     * @param array $vfolders  The virtual folder list.
-     * @param boolean $save    Save the virtual folder list to the preference
-     *                         backend?
-     */
-    public function setVFolders($vfolders, $save = true)
-    {
-        global $injector, $prefs;
-
-        if ($save) {
-            $GLOBALS['prefs']->setValue('vfolder', serialize(array_values($vfolders)));
-        }
-
-        /* Only update if IMP_Imap_Tree is already initialized; otherwise,
-         * we have a cyclic dependency. */
-        if (IMP_Factory_Imaptree::initialized()) {
-            $injector->getInstance('IMP_Imap_Tree')->updateVFolders($vfolders);
-        }
-
-        $this->_search['vfolders'] = $vfolders;
+        $this->_search['vfolders'] = $vf;
         $this->changed = true;
     }
 
@@ -477,12 +352,26 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
      * @param string $id         The mailbox ID.
      * @param boolean $editable  Is this an editable (i.e. not built-in)
      *                           search query?
+     *
+     * @return boolean  True if a search query.
      */
     public function isQuery($id, $editable = false)
     {
         return (isset($this->_search['query'][$this->_strip($id)]) &&
-                (!$editable ||
-                 !in_array($this[$id]->id, array(self::BASIC_SEARCH, self::DIMP_FILTERSEARCH, self::DIMP_QUICKSEARCH))));
+                (!$editable || !$this->isSystemQuery($id)));
+    }
+
+    /**
+     * Is a mailbox a system (built-in) search query?
+     *
+     * @param string $id  The mailbox ID.
+     *
+     * @return boolean  True if a system search query.
+     */
+    public function isSystemQuery($id)
+    {
+        return (isset($this->_search['query'][$this->_strip($id)]) &&
+                in_array($this[$id]->id, array(self::BASIC_SEARCH, self::DIMP_FILTERSEARCH, self::DIMP_QUICKSEARCH)));
     }
 
     /**
@@ -494,7 +383,7 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
      */
     public function editUrl($id)
     {
-        return Horde::url('search.php')->add(array('edit_query' => $this->createSearchId($id)));
+        return IMP_Mailbox::get($this->createSearchId($id))->url('search.php')->add(array('edit_query' => 1));
     }
 
     /**
@@ -583,6 +472,15 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
         foreach (array_keys($this->_search) as $key) {
             if (isset($this->_search[$key][$id])) {
                 $this->_search[$key][$id] = $value;
+                $this->changed = true;
+
+                if ($key == 'vfolders') {
+                    $this->setVFolders($this->_search['vfolders']);
+
+                    $imaptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
+                    $imaptree->delete($value);
+                    $imaptree->insert($value);
+                }
                 return;
             }
         }
@@ -601,11 +499,13 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
 
         foreach (array_keys($this->_search) as $val) {
             if (isset($this->_search[$val][$id])) {
+                $value = $this->_search[$val][$id];
                 unset($this->_search[$val][$id]);
                 $this->changed = true;
 
                 if ($val == 'vfolders') {
                     $this->setVFolders($this->_search['vfolders']);
+                    $GLOBALS['injector']->getInstance('IMP_Imap_Tree')->delete($value);
                 }
                 break;
             }
@@ -673,11 +573,10 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
      * Set the current iterator filter and reset the internal pointer.
      *
      * @param integer $mask  A mask with the following possible elements:
-     * <pre>
-     * IMP_Search::LIST_FILTER
-     * IMP_Search::LIST_QUERY
-     * IMP_Search::LIST_VFOLDER
-     * </pre>
+     *   - IMP_Search::LIST_DISABLED: List even if disabled.
+     *   - IMP_Search::LIST_FILTER: List filters.
+     *   - IMP_Search::LIST_QUERY: List search queries.
+     *   - IMP_Search::LIST_VFOLDER: List virtual folders.
      */
     public function setIteratorFilter($mask = 0)
     {
@@ -713,7 +612,7 @@ class IMP_Search implements ArrayAccess, Iterator, Serializable
             }
 
             if (($this->_filter & self::LIST_VFOLDER) &&
-                $this->isVfolder($ob)) {
+                $this->isVFolder($ob)) {
                 return true;
             }
         }

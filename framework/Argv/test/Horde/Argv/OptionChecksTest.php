@@ -1,11 +1,11 @@
 <?php
 
-require_once dirname(__FILE__) . '/TestCase.php';
+require_once __DIR__ . '/TestCase.php';
 
 /**
  * @author     Chuck Hagenbuch <chuck@horde.org>
  * @author     Mike Naberezny <mike@maintainable.com>
- * @license    http://opensource.org/licenses/bsd-license.php BSD
+ * @license    http://www.horde.org/licenses/bsd BSD
  * @category   Horde
  * @package    Argv
  * @subpackage UnitTests
@@ -15,6 +15,7 @@ class Horde_Argv_OptionChecksTest extends Horde_Argv_TestCase
 {
     public function setUp()
     {
+        parent::setUp();
         $this->parser = new Horde_Argv_Parser(array('usage' => Horde_Argv_Option::SUPPRESS_USAGE));
     }
 
@@ -28,7 +29,7 @@ class Horde_Argv_OptionChecksTest extends Horde_Argv_TestCase
         try {
             new Horde_Argv_Option();
         } catch (Exception $e) {
-            $this->assertType('InvalidArgumentException', $e);
+            $this->assertInstanceOf('InvalidArgumentException', $e);
             $this->assertEquals("at least one option string must be supplied", $e->getMessage());
             return true;
         }
@@ -78,9 +79,6 @@ class Horde_Argv_OptionChecksTest extends Horde_Argv_TestCase
         $this->assertOptionError(
             "option -b: invalid option type: 'foo'",
             array("-b", array('type' => 'foo')));
-        $this->assertOptionError(
-            "option -b: invalid option type: 'Array'",
-            array("-b", array('type' => array())));
     }
 
     public function testNoTypeForAction()

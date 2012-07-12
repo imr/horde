@@ -1,6 +1,6 @@
 <?php
 /**
- * The Horde_Imsp_Auth_cram_md5 class for IMSP authentication.
+ * IMSP authentication class for CRAM-MD5 authentication.
  *
  * Required parameters:<pre>
  *   'username'  Username to logon to IMSP server as.
@@ -8,34 +8,29 @@
  *   'server'    The hostname of the IMSP server.
  *   'port'      The port of the IMSP server.</pre>
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Michael Rubinsky <mrubinsk@horde.org>
  * @package Horde_Imsp
  */
-class Horde_Imsp_Auth_CramMd5 extends Horde_Imsp_Auth
+class Horde_Imsp_Auth_CramMd5 extends Horde_Imsp_Auth_Base
 {
     /**
      * Private authentication function.  Provides actual authentication code.
      *
-     * @param  mixed $params Hash of IMSP parameters.
-     *
-     * @return Horde_Imsp  Horde_Imsp object connected to server.
-     * @throws Horde_Exception_PermissionDenied
+     * @return boolean
      */
-    protected function _authenticate(array $params)
+    protected function _authenticate()
     {
-        // @TODO: Inject this from Horde_Core_Factory_...
-        $imsp = &Horde_Imsp::singleton('none', $params);
-        $userId = $params['username'];
-        $credentials = $params['password'];
-        $imsp->imspSend('AUTHENTICATE CRAM-MD5');
+        $userId = $this->_params['username'];
+        $credentials = $this->_params['password'];
+        $this->_imsp->send('AUTHENTICATE CRAM-MD5');
 
         /* Get response and decode it. */
-        $server_response = $imsp->imspReceive();
+        $server_response = $this->_imsp->receive();
         $server_response = base64_decode(trim(substr($server_response, 2)));
 
         /* Build and base64 encode the response to the challange. */
@@ -43,15 +38,15 @@ class Horde_Imsp_Auth_CramMd5 extends Horde_Imsp_Auth
         $command_string = base64_encode($response_to_send);
 
         /* Send the response. */
-        $imsp->imspSend($command_string, false);
-        $result = $imsp->imspReceive();
+        $this->_imsp->send($command_string, false);
+        $result = $this->_imsp->receive();
 
         if ($result != 'OK') {
-            $imsp->_logger->err('Login to IMSP host failed.');
-            throw new Horde_Exception_PermissionDenied();
+            $this->_imsp->_logger->err('Login to IMSP host failed.');
+            return false;
         }
 
-        return $imsp;
+        return true;
     }
 
     /**

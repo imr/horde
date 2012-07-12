@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Base for story based package testing.
@@ -9,23 +8,23 @@
  * @package    Components
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Components
  */
 
 /**
  * Base for story based package testing.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category   Horde
  * @package    Components
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Components
  */
 class Components_StoryTestCase
@@ -73,7 +72,7 @@ extends PHPUnit_Extensions_Story_TestCase
             $_SERVER['argv'] = array(
                 'horde-components',
                 '--help',
-                dirname(__FILE__) . '/fixture/empty'
+                __DIR__ . '/fixture/empty'
             );
             $world['output'] = $this->_callStrictComponents();
             break;
@@ -82,7 +81,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 'horde-components',
                 '--updatexml',
                 '--action=print',
-                dirname(__FILE__) . '/fixture/simple'
+                __DIR__ . '/fixture/simple'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
@@ -106,7 +105,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 '--pearrc=' . $this->_getTemporaryDirectory() . DIRECTORY_SEPARATOR . '.pearrc',
                 '--updatexml',
                 '--action=print',
-                dirname(__FILE__) . '/fixture/simple'
+                __DIR__ . '/fixture/simple'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
@@ -116,7 +115,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 '--pearrc=' . $this->_getTemporaryDirectory() . DIRECTORY_SEPARATOR . '.pearrc',
                 '--updatexml',
                 '--action=print',
-                dirname(__FILE__) . '/fixture/changelog'
+                __DIR__ . '/fixture/changelog'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
@@ -128,6 +127,7 @@ extends PHPUnit_Extensions_Story_TestCase
             );
             $world['output'] = $this->_callStrictComponents();
             break;
+/*
         case 'calling the package with the cisetup option and paths':
             $_SERVER['argv'] = array(
                 'horde-components',
@@ -183,7 +183,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 '--cisetup=' . $tmp,
                 '--toolsdir=/DUMMY_TOOLS',
                 '--pearrc=' . $tmp . DIRECTORY_SEPARATOR . '.pearrc',
-                '--templatedir=' . dirname(__FILE__) . '/fixture/templates',
+                '--templatedir=' . __DIR__ . '/fixture/templates',
                 $arguments[0]
             );
             $world['output'] = $this->_callUnstrictComponents();
@@ -194,42 +194,43 @@ extends PHPUnit_Extensions_Story_TestCase
                 'horde-components',
                 '--ciprebuild=' . $tmp,
                 '--toolsdir=/DUMMY_TOOLS',
-                '--templatedir=' . dirname(__FILE__) . '/fixture/templates',
+                '--templatedir=' . __DIR__ . '/fixture/templates',
                 $arguments[0]
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
+*/
         case 'calling the package with the install option and a path to a Horde framework component':
             $_SERVER['argv'] = array(
                 'horde-components',
-                '--channelxmlpath=' . dirname(__FILE__) . '/fixture/channels',
-                '--sourcepath=' . dirname(__FILE__) . '/fixture/packages',
+                '--channelxmlpath=' . __DIR__ . '/fixture/channels',
+                '--sourcepath=' . __DIR__ . '/fixture/packages',
                 '--install=' . $this->_getTemporaryDirectory() . DIRECTORY_SEPARATOR . '.pearrc',
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
         case 'calling the package with the install option, the pretend option and a path to a Horde framework component':
             $_SERVER['argv'] = array(
                 'horde-components',
-                '--channelxmlpath=' . dirname(__FILE__) . '/fixture/channels',
-                '--sourcepath=' . dirname(__FILE__) . '/fixture/packages',
+                '--channelxmlpath=' . __DIR__ . '/fixture/channels',
+                '--sourcepath=' . __DIR__ . '/fixture/packages',
                 '--pretend',
                 '--install=' . $this->_getTemporaryDirectory() . DIRECTORY_SEPARATOR . '.pearrc',
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
         case 'calling the package with the install option, a path to a Horde framework component, and the following include/exclude options':
             $_SERVER['argv'] = array(
                 'horde-components',
-                '--channelxmlpath=' . dirname(__FILE__) . '/fixture/channels',
-                '--sourcepath=' . dirname(__FILE__) . '/fixture/packages',
+                '--channelxmlpath=' . __DIR__ . '/fixture/channels',
+                '--sourcepath=' . __DIR__ . '/fixture/packages',
                 '--pretend',
                 '--include=' . $arguments[0],
                 '--exclude=' . $arguments[1],
                 '--install=' . $this->_getTemporaryDirectory() . DIRECTORY_SEPARATOR . '.pearrc',
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
@@ -237,7 +238,7 @@ extends PHPUnit_Extensions_Story_TestCase
             $_SERVER['argv'] = array(
                 'horde-components',
                 '--list-deps',
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
@@ -246,7 +247,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 'horde-components',
                 '--verbose',
                 '--list-deps',
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
@@ -255,7 +256,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 'horde-components',
                 '--nocolor',
                 '--list-deps',
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
@@ -264,7 +265,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 'horde-components',
                 '--quiet',
                 '--list-deps',
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
@@ -274,7 +275,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 '--verbose',
                 '--snapshot',
                 '--archivedir=' . $this->_getTemporaryDirectory(),
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
@@ -286,7 +287,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 '--verbose',
                 '--snapshot',
                 '--archivedir=' . $this->_getTemporaryDirectory(),
-                dirname(__FILE__) . '/fixture/simple'
+                __DIR__ . '/fixture/simple'
             );
             try {
                 $world['output'] = $this->_callUnstrictComponents();
@@ -301,7 +302,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 'horde-components',
                 '--verbose',
                 '--release',
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $olddir = getcwd();
             chdir($this->_getTemporaryDirectory());
@@ -315,7 +316,7 @@ extends PHPUnit_Extensions_Story_TestCase
                 'horde-components',
                 '--verbose',
                 '--release',
-                dirname(__FILE__) . '/fixture/simple'
+                __DIR__ . '/fixture/simple'
             );
             try {
                 $world['output'] = $this->_callUnstrictComponents();
@@ -328,18 +329,18 @@ extends PHPUnit_Extensions_Story_TestCase
         case 'calling the package with the distribute option and a path to a Horde framework component':
             $_SERVER['argv'] = array(
                 'horde-components',
-                '--templatedir=' . dirname(__FILE__) . '/fixture/templates/distribute/openpkg',
+                '--templatedir=' . __DIR__ . '/fixture/templates/distribute/openpkg',
                 '--distribute=' . $this->_getTemporaryDirectory(),
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;
         case 'calling the package with the document option and a path to a Horde framework component':
             $_SERVER['argv'] = array(
                 'horde-components',
-                '--templatedir=' . dirname(__FILE__) . '/fixture/templates/html',
+                '--templatedir=' . __DIR__ . '/fixture/templates/html',
                 '--document=' . $this->_getTemporaryDirectory(),
-                dirname(__FILE__) . '/fixture/framework/Install'
+                __DIR__ . '/fixture/framework/Install'
             );
             $world['output'] = $this->_callUnstrictComponents();
             break;

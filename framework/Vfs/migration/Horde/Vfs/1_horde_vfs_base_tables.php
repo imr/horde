@@ -4,7 +4,7 @@ class HordeVfsBaseTables extends Horde_Db_Migration_Base
     public function up()
     {
         if (!in_array('horde_vfs', $this->tables())) {
-            $t = $this->createTable('horde_vfs', array('primaryKey' => array('vfs_id')));
+            $t = $this->createTable('horde_vfs', array('autoincrementKey' => array('vfs_id')));
             $t->column('vfs_id', 'int', array('null' => false, 'unsigned' => true));
             $t->column('vfs_type', 'smallint', array('null' => false, 'unsigned' => true));
             $t->column('vfs_path', 'string', array('limit' => 255, 'null' => false));
@@ -17,7 +17,7 @@ class HordeVfsBaseTables extends Horde_Db_Migration_Base
             $this->addIndex('horde_vfs', array('vfs_name'));
         }
         if (!in_array('horde_muvfs', $this->tables())) {
-            $t = $this->createTable('horde_muvfs', array('primaryKey' => array('vfs_id')));
+            $t = $this->createTable('horde_muvfs', array('autoincrementKey' => array('vfs_id')));
             $t->column('vfs_id', 'int', array('null' => false, 'unsigned' => true));
             $t->column('vfs_type', 'smallint', array('null' => false, 'unsigned' => true));
             $t->column('vfs_path', 'string', array('limit' => 255, 'null' => false));
@@ -34,7 +34,12 @@ class HordeVfsBaseTables extends Horde_Db_Migration_Base
 
     public function down()
     {
-        $this->dropTable('horde_muvfs');
-        $this->dropTable('horde_vfs');
+        try {
+            $this->dropTable('horde_muvfs');
+        } catch (Horde_Exception $e) {}
+
+        try {
+            $this->dropTable('horde_vfs');
+        } catch (Horde_Exception $e) {}
     }
 }

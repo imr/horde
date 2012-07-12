@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://www.horde.org/licenses/bsdl.php.
@@ -8,7 +8,7 @@
  * @author Jason M. Felice <jason.m.felice@gmail.com>
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('hermes');
 
 $vars = Horde_Variables::getDefaultVariables();
@@ -52,12 +52,14 @@ case 'hermes_form_export':
             if ($form->isValid()) {
                 $form->getInfo($vars, $info);
                 try {
-                    $hours = $GLOBALS['injector']->getInstance('Hermes_Driver')->getHours($criteria);
+                    $hours = $GLOBALS['injector']
+                        ->getInstance('Hermes_Driver')
+                        ->getHours($criteria);
                     if (is_null($hours) || count($hours) == 0) {
                         $notification->push(_("No time to export!"), 'horde.error');
                     } else {
                         $exportHours = Hermes::makeExportHours($hours);
-                        $data = Horde_Data::factory(array('hermes', $info['format']));
+                        $data = Horde_Data::factory(array('hermes', $info['format']), array('browser' => $browser));
                         $filedata = $data->exportData($exportHours);
                         $browser->downloadHeaders($data->getFilename('export'), $data->getContentType(), false, strlen($filedata));
                         echo $filedata;
@@ -70,7 +72,7 @@ case 'hermes_form_export':
                         exit;
                     }
                 } catch (Horde_Exception $e) {
-                    $notification->push($hours, 'horde.error');
+                    $notification->push($e, 'horde.error');
                 }
             }
         }
@@ -78,20 +80,17 @@ case 'hermes_form_export':
 }
 
 $title = _("Search for Time");
-$print_view = (bool)$vars->get('print');
-if (!$print_view) {
-    Horde::addScriptFile('popup.js', 'horde', true);
-}
-require $registry->get('templates', 'horde') . '/common-header.inc';
-
 if (!($searchVars = $session->get('hermes', 'search_criteria'))) {
     $searchVars = $vars;
 }
 $form = new Hermes_Form_Search($searchVars);
 
-$print_link = Horde::url(Horde_Util::addParameter('search.php', array('print' => 'true')));
-require HERMES_TEMPLATES . '/menu.inc';
-$form->renderActive(new Horde_Form_Renderer(), $searchVars, 'search.php', 'post');
+$page_output->header(array(
+    'title' => $title
+));
+echo Horde::menu();
+$notification->notify(array('listeners' => 'status'));
+$form->renderActive(new Horde_Form_Renderer(), $searchVars, Horde::url('search.php'), 'post');
 echo '<br />';
 
 if ($session->exists('hermes', 'search_criteria')) {
@@ -115,10 +114,8 @@ if ($session->exists('hermes', 'search_criteria')) {
     echo $template->fetch(HERMES_TEMPLATES . '/time/form.html');
 }
 
-if (!$print_view) {
-    echo '<br />';
-    $exportForm = new Hermes_Form_Export($vars);
-    $exportForm->renderActive(new Horde_Form_Renderer(), $vars, 'search.php', 'post');
-}
+echo '<br />';
+$exportForm = new Hermes_Form_Export($vars);
+$exportForm->renderActive(new Horde_Form_Renderer(), $vars, Horde::url('search.php'), 'post');
 
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

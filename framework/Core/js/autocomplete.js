@@ -16,10 +16,10 @@
  * TODO: options = autoSelect, frequency, minChars, onSelect, onShow, onType,
  *                 paramName, tokens
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Core
@@ -78,7 +78,10 @@ Autocompleter.Base = Class.create({
             return;
         }
 
-        this.changed = true;
+        if (!this.changed) {
+            this.oldval = $F(this.elt);
+            this.changed = true;
+        }
 
         if (this.observer) {
             clearTimeout(this.observer);
@@ -114,14 +117,16 @@ Autocompleter.Base = Class.create({
             re = new RegExp(this.getToken(), "i");
 
             choices.each(function(n) {
-                var m = n.match(re),
-                    out = { l: '', v: n };
+                var out = { l: '', v: n },
+                m = n.match(re);
 
-                n.match(re).each(function(m) {
-                    var idx = n.indexOf(m);
-                    out.l += n.substr(0, idx).escapeHTML() + '<strong>' + m.escapeHTML() + '</strong>';
-                    n = n.substr(idx + m.length);
-                });
+                if (m) {
+                    m.each(function(m) {
+                        var idx = n.indexOf(m);
+                        out.l += n.substr(0, idx).escapeHTML() + '<strong>' + m.escapeHTML() + '</strong>';
+                        n = n.substr(idx + m.length);
+                    });
+                }
 
                 if (n.length) {
                     out.l += n.escapeHTML();
@@ -153,9 +158,9 @@ Autocompleter.Base = Class.create({
 
         var entry = this.getToken();
 
-        if (entry.length >= this.opts.minChars) {
-            entry = this.opts.onType(entry);
-        }
+        entry = (entry.length >= this.opts.minChars)
+            ? this.opts.onType(entry)
+            : '';
 
         if (entry.length) {
             if (this.opts.indicator) {
@@ -253,8 +258,6 @@ Autocompleter.Base = Class.create({
             newval += entry + v.substr(bounds[1]);
         }
 
-        this.oldval = newval;
-
         return newval;
     }
 
@@ -318,7 +321,7 @@ Autocompleter.Local = Class.create(Autocompleter.Base, {
 
         choices = o.arr.findAll(function(t) {
             if (i == o.choices) {
-                throw $break;
+                return false;
             }
 
             if (o.ignoreCase) {

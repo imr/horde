@@ -1,14 +1,14 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('kronolith');
 
 if (Kronolith::showAjaxView()) {
@@ -31,8 +31,13 @@ if ($perms->hasAppPermission('max_events') !== true &&
     $url->redirect();
 }
 
-$calendar_id = Horde_Util::getFormData('calendar', 'internal_' . Kronolith::getDefaultCalendar(Horde_Perms::EDIT));
-if ($calendar_id == 'internal_') {
+$calendar_id = Horde_Util::getFormData(
+    'calendar',
+    empty($GLOBALS['display_resource_calendars']) ?
+        'internal_' . Kronolith::getDefaultCalendar(Horde_Perms::EDIT) :
+        'resource_' . $GLOBALS['display_resource_calendars'][0]
+);
+if ($calendar_id == 'internal_' || $calendar_id == 'resource_') {
     $url->redirect();
 }
 
@@ -72,15 +77,16 @@ Horde_Core_Ui_JsCalendar::init(array(
     'full_weekdays' => true
 ));
 
-$title = _("Add a new event");
-$menu = Horde::menu();
-Horde::addScriptFile('edit.js', 'kronolith');
-Horde::addScriptFile('popup.js', 'horde');
+$menu = Kronolith::menu();
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->addScriptFile('edit.js');
+$page_output->addScriptFile('popup.js', 'horde');
+
+$page_output->header(array(
+    'title' => _("Add a new event")
+));
 require KRONOLITH_TEMPLATES . '/javascript_defs.php';
 echo $menu;
 $notification->notify(array('listeners' => 'status'));
 require KRONOLITH_TEMPLATES . '/edit/edit.inc';
-
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

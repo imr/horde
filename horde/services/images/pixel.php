@@ -1,14 +1,14 @@
 <?php
 /**
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../../lib/Application.php';
+require_once __DIR__ . '/../../lib/Application.php';
 
 header('Content-type: image/gif');
 header('Expires: Wed, 21 Aug 1969 11:11:11 GMT');

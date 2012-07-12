@@ -1,14 +1,14 @@
 <?php
 /**
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Michael Slusarz <slusarz@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('ansel');
 
 /* Abort if ecard sending is disabled. */
@@ -96,13 +96,16 @@ $vars->set('image_desc', strlen($image->caption) ? $image->caption : $image->fil
 $form = new Ansel_Form_Ecard($vars, $title);
 $renderer = new Horde_Form_Renderer();
 
-$editor = $injector->getInstance('Horde_Editor')->initialize(array('id' => 'ecard_comments'));
+$editor = $injector->getInstance('Horde_Editor');
 if ($editor->supportedByBrowser()) {
+    $editor->initialize(array('id' => 'ecard_comments'));
     $vars->set('rtemode', 1);
     $form->addHidden('', 'rtemode', 'text', false);
 }
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 $notification->notify(array('listeners' => 'status'));
-$form->renderActive($renderer, $vars, 'ecard.php', 'post', 'multipart/form-data');
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$form->renderActive($renderer, $vars, Horde::url('img/ecard.php'), 'post', 'multipart/form-data');
+$page_output->footer();

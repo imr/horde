@@ -2,10 +2,10 @@
 /**
  * Class to encapsulate the UI for adding/viewing/changing galleries.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  * @author  Michael J. Rubinsky <mrubinsk@horde.org>
@@ -106,22 +106,40 @@ class Ansel_View_GalleryProperties
         $view->url = $this->_params['url'];
         $view->availableThumbs = $this->_thumbStyles();
         $view->galleryViews = $this->_galleryViewStyles();
+        $js = array('$("gallery_name").focus()');
+        if ($GLOBALS['conf']['image']['type'] != 'png') {
+            $js[] = 'function checkStyleSelection()
+                {
+                    var s, bg = $F("background_color");
+                    $A($("thumbnail_style").options).each(function(o) {
+                        if (o.value == "Thumb" && o.selected == "1") {
+                           s = true;
+                        }
+                    });
+                    if (bg == "none" && !s) {
+                        alert("' . _("Your server does not support thumbnails with transparent backgrounds.  Either select a background color or use the 'Basic Thumbnail' type. Please contact your server administrator for more information.") . '");
+                        $A($("thumbnail_style").options).each(function(o) {
+                            if (o.value == "Thumb") {
+                                o.selected = "1";
+                            }
+                        })
+                    }
+                }';
+            $js[] = '$("background_color").observe("change", checkStyleSelection); $("thumbnail_style").observe("change", checkStyleSelection);';
+        }
 
-        Horde::addInlineScript(array('$("gallery_name").focus()'), 'dom');
-        Horde::addScriptFile('stripe.js', 'horde');
-        Horde::addScriptFile('popup.js', 'horde');
-
-        /* Attach the slug check action to the form */
-        $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create(array('ansel', 'GallerySlugCheck'), array(
-            'bindTo' => 'gallery_slug',
-            'slug' => $this->_properties['slug']
+        global $page_output;
+        $page_output->addInlineScript($js, true);
+        $page_output->addScriptFile('stripe.js', 'horde');
+        $page_output->addScriptFile('popup.js', 'horde');
+        $page_output->addScriptFile('slugcheck.js');
+        $page_output->addInlineJsVars(array(
+            'AnselSlugCheck.text' => $this->_properties['slug']
         ));
 
-        require $GLOBALS['registry']->get('templates', 'horde') . '/common-header.inc';
-        echo Horde::menu();
-        $GLOBALS['notification']->notify(array('listeners' => 'status'));
+        $page_output->header();
         echo $view->render('properties');
-        require $GLOBALS['registry']->get('templates', 'horde') . '/common-footer.inc';
+        $page_output->footer();
     }
 
     /**
@@ -193,8 +211,8 @@ class Ansel_View_GalleryProperties
                 'download' => $gallery->get('download'),
                 'mode' => $gallery->get('view_mode'),
                 'passwd' => $gallery->get('passwd'),
-                'parent' => !is_null($parent) ? $parent->getId() : $parent,
-                'id' => $gallery->getId(),
+                'parent' => !is_null($parent) ? $parent->id : $parent,
+                'id' => $gallery->id,
                 'owner' => $gallery->get('owner'),
                 'style' => $gallery->getStyle()
             );
@@ -268,7 +286,7 @@ class Ansel_View_GalleryProperties
                     $gallery->set('name', $gallery_name);
                 }
                 $gallery->set('desc', $gallery_desc);
-                $gallery->setTags(!empty($gallery_tags) ? explode(',', $gallery_tags) : '');
+                $gallery->setTags(!empty($gallery_tags) ? explode(',', $gallery_tags) : array());
                 $gallery->set('style', $style);
                 $gallery->set('slug', $gallery_slug);
                 $gallery->set('age', $gallery_age);
@@ -282,7 +300,7 @@ class Ansel_View_GalleryProperties
                 // Did the parent change?
                 $old_parent = $gallery->getParent();
                 if (!is_null($old_parent)) {
-                    $old_parent_id = $old_parent->getId();
+                    $old_parent_id = $old_parent->id;
                 } else {
                     $old_parent_id = null;
                 }
@@ -338,7 +356,6 @@ class Ansel_View_GalleryProperties
 
             // Create the new gallery.
             $perm = (!empty($parent)) ? $parent->getPermission() : null;
-            $parent = (!empty($gallery_parent)) ? $gallery_parent : null;
 
             try {
                 $gallery = $GLOBALS['injector']->getInstance('Ansel_Storage')->createGallery(
@@ -352,9 +369,9 @@ class Ansel_View_GalleryProperties
                               'view_mode' => $gallery_mode,
                               'passwd' => $gallery_passwd,
                               ),
-                        $perm, $parent);
+                        $perm, $gallery_parent);
 
-                $galleryId = $gallery->getId();
+                $galleryId = $gallery->id;
                 $msg = sprintf(_("The gallery \"%s\" was created successfully."), $gallery_name);
                 Horde::logMessage($msg, 'DEBUG');
                 $GLOBALS['notification']->push($msg, 'horde.success');
@@ -371,7 +388,9 @@ class Ansel_View_GalleryProperties
 
         // Make sure that the style hash is recorded, ignoring non-styled thumbs
         if ($style->thumbstyle != 'Thumb') {
-            $GLOBALS['injector']->getInstance('Ansel_Storage')->ensureHash($gallery->getStyle()->getHash('thumb'));
+            $GLOBALS['injector']->
+                getInstance('Ansel_Storage')
+                ->ensureHash($gallery->getStyle()->getHash('thumb'));
         }
 
         // Clear the OtherGalleries widget cache
@@ -406,7 +425,9 @@ class Ansel_View_GalleryProperties
         foreach ($files as $file) {
             if (substr($file, -9) == 'Thumb.php') {
                 try {
-                    $generator = Ansel_ImageGenerator::factory(substr($file, 0, -4), array('style' => ''));
+                    $generator = Ansel_ImageGenerator::factory(
+                        substr($file, 0, -4),
+                        array('style' => Ansel::getStyleDefinition('ansel_default')));
                     $thumbs[substr($file, 0, -4)] = $generator->title;
                 } catch (Ansel_Exception $e) {}
             }

@@ -1,15 +1,15 @@
 <?php
 /**
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  * @author Jan Schneider <jan@horde.org>
  */
 
-require_once dirname(__FILE__) . '/lib/base.php';
+require_once __DIR__ . '/lib/base.php';
 
 $shares = $injector->getInstance('Horde_Core_Factory_Share')->create();
 $groups = $injector->getInstance('Horde_Group');
@@ -235,15 +235,17 @@ if ($auth->hasCapability('list')) {
 
 $groupList = array();
 try {
-    $groupList = empty($conf['share']['any_group'])
-        ? $groups->listGroups($registry->getAuth())
-        : $groups->listAll();
+    $groupList = $groups->listAll(empty($conf['share']['any_group'])
+                                  ? $registry->getAuth()
+                                  : null);
     asort($groupList);
 } catch (Horde_Group_Exception $e) {
     Horde::logMessage($e, 'NOTICE');
 }
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 $notification->notify(array('listeners' => 'status'));
 require $registry->get('templates', 'horde') . '/shares/edit.inc';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

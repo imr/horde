@@ -14,18 +14,22 @@ class Horde_Core_Factory_Mail extends Horde_Core_Factory_Injector
             ? $GLOBALS['conf']['mailer']['params']
             : array();
 
-        if (($transport == 'smtp') &&
+        if ((strcasecmp($transport, 'smtp') == 0) &&
             $params['auth'] &&
             empty($params['username'])) {
             $params['username'] = $GLOBALS['registry']->getAuth();
             $params['password'] = $GLOBALS['registry']->getAuthCredential('password');
         }
 
-        $class = 'Horde_Mail_Transport_' . ucfirst($transport);
-        if (class_exists($class)) {
-            return new $class($params);
+        $class = $this->_getDriverName($transport, 'Horde_Mail_Transport');
+        $ob = new $class($params);
+
+        if (!empty($params['sendmail_eol']) &&
+            (strcasecmp($transport, 'sendmail') == 0)) {
+            $ob->sep = $params['sendmail_eol'];
         }
-        throw new Horde_Exception('Unable to find class for transport ' . $transport);
+
+        return new $class($params);
     }
 
 }

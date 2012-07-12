@@ -2,11 +2,11 @@
 /**
  * Base class for all Horde_Share drivers.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  * Copyright 2002-2007 Infoteck Internet <webmaster@infoteck.qc.ca>
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Joel Vandal <joel@scopserv.com>
  * @author  Mike Cochrame <mike@graftonhall.co.nz>
@@ -72,7 +72,7 @@ abstract class Horde_Share_Base
     /**
      * The Horde_Perms object
      *
-     * @var Horde_Perms
+     * @var Horde_Perms_Base
      */
     protected $_permsObject;
 
@@ -258,9 +258,7 @@ abstract class Horde_Share_Base
     {
         $all_shares = $missing_ids = array();
         foreach ($cids as $cid) {
-            if (isset($this->_shareMap[$cid])) {
-                $all_shares[$this->_shareMap[$cid]] = $this->_cache[$this->_shareMap[$cid]];
-            } else {
+            if (!isset($this->_shareMap[$cid])) {
                 $missing_ids[] = $cid;
             }
         }
@@ -270,8 +268,11 @@ abstract class Horde_Share_Base
             foreach (array_keys($shares) as $key) {
                 $this->_cache[$key] = $shares[$key];
                 $this->_shareMap[$shares[$key]->getId()] = $key;
-                $all_shares[$key] = $this->_cache[$key];
             }
+        }
+
+        foreach ($cids as $cid) {
+            $all_shares[$this->_shareMap[$cid]] = $this->_cache[$this->_shareMap[$cid]];
         }
 
         return $all_shares;
@@ -468,6 +469,36 @@ abstract class Horde_Share_Base
     abstract protected function _addShare(Horde_Share_Object $share);
 
     /**
+     * Renames a share in the shares system.
+     *
+     * @param Horde_Share_Object $share  The share to rename.
+     * @param string $name               The share's new name.
+     *
+     * @throws Horde_Share_Exception
+     */
+    public function renameShare(Horde_Share_Object $share, $name)
+    {
+        /* Move share in the caches. */
+        unset($this->_cache[$share->getName()]);
+        $this->_cache[$name] = $share;
+
+        /* Reset caches that depend on unknown criteria. */
+        $this->expireListCache();
+
+        $this->_renameShare($share, $name);
+    }
+
+    /**
+     * Renames a share in the shares system.
+     *
+     * @param Horde_Share_Object $share  The share to rename.
+     * @param string $name               The share's new name.
+     *
+     * @throws Horde_Share_Exception
+     */
+    abstract protected function _renameShare(Horde_Share_Object $share, $name);
+
+    /**
      * Removes a share from the shares system permanently.
      *
      * @param Horde_Share_Object $share  The share to remove.
@@ -587,7 +618,7 @@ abstract class Horde_Share_Base
     /**
      * Getter for Horde_Perms object
      *
-     * @return Horde_Perms
+     * @return Horde_Perms_Base
      */
     public function getPermsObject()
     {

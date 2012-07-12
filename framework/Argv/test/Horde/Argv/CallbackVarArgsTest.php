@@ -1,12 +1,12 @@
 <?php
 
-require_once dirname(__FILE__) . '/TestCase.php';
-require_once dirname(__FILE__) . '/InterceptingParser.php';
+require_once __DIR__ . '/TestCase.php';
+require_once __DIR__ . '/InterceptingParser.php';
 
 /**
  * @author     Chuck Hagenbuch <chuck@horde.org>
  * @author     Mike Naberezny <mike@maintainable.com>
- * @license    http://opensource.org/licenses/bsd-license.php BSD
+ * @license    http://www.horde.org/licenses/bsd BSD
  * @category   Horde
  * @package    Argv
  * @subpackage UnitTests
@@ -16,6 +16,7 @@ class Horde_Argv_CallbackVarArgsTest extends Horde_Argv_TestCase
 {
     public function setUp()
     {
+        parent::setUp();
         $options = array(
             $this->makeOption('-a', array('type' => 'int', 'nargs' => 2, 'dest' => 'a')),
             $this->makeOption('-b', array('action' => 'store_true', 'dest' => 'b')),

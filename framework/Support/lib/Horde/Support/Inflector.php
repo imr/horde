@@ -1,21 +1,15 @@
 <?php
 /**
- * @category   Horde
- * @package    Support
- * @copyright  2007-2010 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
- */
-
-/**
  * Horde Inflector class.
  *
- * @TODO add the locale-bubbling pattern from
- * Horde_Date_Parser/Horde_Support_Numerizer
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
+ *
+ * @todo Add the locale-bubbling pattern from
+ *       Horde_Date_Parser/Horde_Support_Numerizer
  *
  * @category   Horde
  * @package    Support
- * @copyright  2007-2010 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  */
 class Horde_Support_Inflector
 {

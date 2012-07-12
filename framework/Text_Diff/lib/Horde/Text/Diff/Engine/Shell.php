@@ -5,10 +5,10 @@
  * This class uses the Unix `diff` program via shell_exec to compute the
  * differences between the two input arrays.
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you did
- * not receive this file, see http://opensource.org/licenses/lgpl-license.php.
+ * not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Milian Wolff <mail@milianw.de>
  * @package Text_Diff
@@ -36,8 +36,8 @@ class Horde_Text_Diff_Engine_Shell
         array_walk($to_lines, array('Horde_Text_Diff', 'trimNewlines'));
 
         // Execute gnu diff or similar to get a standard diff file.
-        $from_file = tempnam(null, 'Horde_Text_Diff');
-        $to_file = tempnam(null, 'Horde_Text_Diff');
+        $from_file = Horde_Util::getTempFile('Horde_Text_Diff');
+        $to_file = Horde_Util::getTempFile('Horde_Text_Diff');
         $fp = fopen($from_file, 'w');
         fwrite($fp, implode("\n", $from_lines));
         fclose($fp);

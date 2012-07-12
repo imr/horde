@@ -2,18 +2,18 @@
 /**
  * The Agora script to moderate any outstanding messages requiring moderation.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('agora');
 
 /* Set up the messages object. */
 $scope = Horde_Util::getGet('scope', 'agora');
-$messages = &Agora_Messages::singleton($scope);
+$messages = $injector->getInstance('Agora_Factory_Driver')->create($scope);
 
 /* Which page are we on? Default to page 0. */
 $messages_page = Horde_Util::getFormData('page', 0);
@@ -52,7 +52,6 @@ if ($messages_list instanceof PEAR_Error) {
     $messages_list = array_slice($messages_list, $messages_start, $messages_per_page);
 }
 
-
 /* Set up the column headers. */
 $col_headers = array('forum_id' => _("Forum"), 'message_subject' => _("Subject"), 'message_author' => _("Posted by"), 'message_body' => _("Body"), 'message_timestamp' => _("Date"));
 $col_headers = Agora::formatColumnHeaders($col_headers, $sort_by, $sort_dir, 'moderate');
@@ -75,12 +74,12 @@ $pager_ob->preserve('agora', Horde_Util::getFormData('agora'));
 $view->pager = $pager_ob->render();
 
 if (isset($api_call)) {
-    return $view->render('moderate.html.php');
-} else {
-    $title = _("Messages Awaiting Moderation");
-    $view->menu = Horde::menu();
-    Horde::addScriptFile('stripe.js', 'horde', true);
-    require $registry->get('templates', 'horde') . '/common-header.inc';
-    echo $view->render('moderate.html.php');
-    require $registry->get('templates', 'horde') . '/common-footer.inc';
+    return $view->render('moderate');
 }
+
+$view->menu = Horde::menu();
+$page_output->header(array(
+    'title' => _("Messages Awaiting Moderation")
+));
+echo $view->render('moderate');
+$page_output->footer();

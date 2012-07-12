@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://cvs.horde.org/co.php/jonah/LICENSE.
@@ -49,7 +49,7 @@ function _mail($story_part, $from, $recipients, $subject, $note)
     return $mail->send(Horde::getMailerConfig());
 }
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('jonah', array(
     'authentication' => 'none',
     'session_control' => 'readonly'
@@ -131,13 +131,15 @@ $share_template = new Horde_Template();
 
 // Buffer the form and notifications and send to the template
 Horde::startBuffer();
-$form->renderActive(null, $vars, 'share.php', 'post');
+$form->renderActive(null, $vars, Horde::url('stories/share.php'), 'post');
 $share_template->set('main', Horde::endBuffer());
 
 Horde::startBuffer();
 $GLOBALS['notification']->notify(array('listeners' => 'status'));
-$template->set('notify', Horde::endBuffer());
+$share_template->set('notify', Horde::endBuffer());
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 echo $share_template->fetch(JONAH_TEMPLATES . '/stories/share.html');
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

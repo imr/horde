@@ -5,7 +5,7 @@
  * Copyright Obala d.o.o. (www.obala.si)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Duck <duck@obala.net>
  * @package Folks
@@ -14,7 +14,7 @@
 // Disabled by default
 exit;
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('folks', array('cli' => true));
 
 try {

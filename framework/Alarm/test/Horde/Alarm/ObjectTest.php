@@ -1,7 +1,7 @@
 <?php
 /**
  * @author     Jan Schneider <jan@horde.org>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @category   Horde
  * @package    Alarm
  * @subpackage UnitTests
@@ -50,7 +50,7 @@ class Horde_Alarm_ObjectTest extends PHPUnit_Framework_TestCase
     public function testGet()
     {
         $alarm = self::$alarm->get('personalalarm', 'john');
-        $this->assertType('array', $alarm);
+        $this->assertInternalType('array', $alarm);
         $this->assertEquals('personalalarm', $alarm['id']);
         $this->assertEquals('john', $alarm['user']);
         $this->assertEquals(array(), $alarm['methods']);

@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * The cached variant for the Kolab storage handler [the default].
  *
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Cached
@@ -42,17 +42,15 @@ extends Horde_Kolab_Storage_Base
      *                                                 driver.
      * @param Horde_Kolab_Storage_QuerySet $query_set  The query handler.
      * @param Horde_Kolab_Storage_Factory  $factory    The factory.
-.
      * @param Horde_Kolab_Storage_Cache    $cache      The cache.
      * @param array                        $params     Additional parameters.
      */
-    public function __construct(
-        Horde_Kolab_Storage_Driver $master,
-        Horde_Kolab_Storage_QuerySet $query_set,
-        Horde_Kolab_Storage_Factory $factory,
-        Horde_Kolab_Storage_Cache $cache,
-        array $params = array()
-    ) {
+    public function __construct(Horde_Kolab_Storage_Driver $master,
+                                Horde_Kolab_Storage_QuerySet $query_set,
+                                Horde_Kolab_Storage_Factory $factory,
+                                Horde_Kolab_Storage_Cache $cache,
+                                array $params = array())
+    {
         parent::__construct($master, $query_set, $factory, $params);
         $this->_cache = $cache;
     }
@@ -66,10 +64,9 @@ extends Horde_Kolab_Storage_Base
      * @return Horde_Kolab_Storage_List The handler for the list of folders
      *                                  present in the Kolab backend.
      */
-    protected function _createList(
-        Horde_Kolab_Storage_Driver $master,
-        Horde_Kolab_Storage_Factory $factory
-    ) {
+    protected function _createList(Horde_Kolab_Storage_Driver $master,
+                                   Horde_Kolab_Storage_Factory $factory)
+    {
         $decorated_list = new Horde_Kolab_Storage_List_Base($master, $factory);
         $list_cache = $this->_cache->getListCache(
             $decorated_list->getIdParameters()
@@ -98,22 +95,19 @@ extends Horde_Kolab_Storage_Base
      *
      * @return Horde_Kolab_Data The data object.
      */
-    protected function _createData(
-        $folder,
-        Horde_Kolab_Storage_Driver $master,
-        Horde_Kolab_Storage_Factory $factory,
-        $object_type = null,
-        $data_version = 1
-    ) {
-        $data = new Horde_Kolab_Storage_Data_Base(
+    protected function _createData($folder,
+                                   Horde_Kolab_Storage_Driver $master,
+                                   Horde_Kolab_Storage_Factory $factory,
+                                   $object_type = null,
+                                   $data_version = 1)
+    {
+        return new Horde_Kolab_Storage_Data_Cached(
             $folder,
             $master,
             $factory,
+            $this->_cache,
             $object_type,
             $data_version
-        );
-        return new Horde_Kolab_Storage_Data_Decorator_Cache(
-            $data, $this->_cache->getDataCache($data->getIdParameters())
         );
     }
 }

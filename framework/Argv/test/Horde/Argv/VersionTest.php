@@ -1,11 +1,11 @@
 <?php
 
-require_once dirname(__FILE__) . '/TestCase.php';
+require_once __DIR__ . '/TestCase.php';
 
 /**
  * @author     Chuck Hagenbuch <chuck@horde.org>
  * @author     Mike Naberezny <mike@maintainable.com>
- * @license    http://opensource.org/licenses/bsd-license.php BSD
+ * @license    http://www.horde.org/licenses/bsd BSD
  * @category   Horde
  * @package    Argv
  * @subpackage UnitTests
@@ -13,6 +13,18 @@ require_once dirname(__FILE__) . '/TestCase.php';
 
 class Horde_Argv_VersionTest extends Horde_Argv_TestCase
 {
+    public function setUp()
+    {
+        if (!isset($_SERVER['argv'])) {
+            $_SERVER['argv'] = array('test');
+        }
+    }
+
+    public function tearDown()
+    {
+        unset($_SERVER['argv']);
+    }
+
     public function testVersion()
     {
         $this->parser = new Horde_Argv_InterceptingParser(array(
@@ -20,7 +32,7 @@ class Horde_Argv_VersionTest extends Horde_Argv_TestCase
             'version' => "%prog 0.1"));
         $saveArgv = $_SERVER['argv'];
         try {
-            $_SERVER['argv'][0] = dirname(__FILE__) . '/foo/bar';
+            $_SERVER['argv'][0] = __DIR__ . '/foo/bar';
             $this->assertOutput(array("--version"), "bar 0.1\n");
         } catch (Exception $e) {
             $_SERVER['argv'] = $saveArgv;

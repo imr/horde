@@ -2,7 +2,7 @@
 /**
  * Horde specific wrapper for Horde_Share drivers. Adds Horde hook calls etc...
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you did
  * not receive this file, see http://opensource.org/licenses/lgpl-2.1.php
@@ -43,9 +43,8 @@ class Horde_Core_Share_Driver
         $this->_share->addCallback('remove', array($this, 'shareRemoveCallback'));
         $this->_share->addCallback('list', array($this, 'shareListCallback'));
 
-        try {
+        if (Horde::hookExists('share_init')) {
             Horde::callHook('share_init', array($this, $this->_share->getApp()));
-        } catch (Horde_Exception_HookNotSet $e) {
         }
     }
 
@@ -90,7 +89,7 @@ class Horde_Core_Share_Driver
             try {
                 $result = $locks->getLocks($this->_share->getShareOb()->getApp(), $shareid, $locktype);
             } catch (Horde_Lock_Exception $e) {
-                throw new Horde_Exception_Prior($e);
+                throw new Horde_Exception_Wrapped($e);
             }
             if (!empty($result)) {
                 // Lock found.
@@ -108,7 +107,7 @@ class Horde_Core_Share_Driver
             try {
                 $result = $locks->getLocks($itemscope, null, $locktype);
             } catch (Horde_Lock_Exception $e) {
-                throw new Horde_Exception_Prior($e);
+                throw new Horde_Exception_Wrapped($e);
             }
             if (!empty($result)) {
                 // Lock found.
@@ -161,7 +160,7 @@ class Horde_Core_Share_Driver
             $result = $locks->getLocks($this->_share->getShareOb()->getApp(), $shareid, $locktype);
         } catch (Horde_Lock_Exception $e) {
             Horde::logMessage($e, 'ERR');
-            throw new Horde_Exception_Prior($e);
+            throw new Horde_Exception_Wrapped($e);
         }
 
         if (empty($result) && !empty($item_uid)) {
@@ -196,10 +195,9 @@ class Horde_Core_Share_Driver
      */
     public function shareListCallback($userid, $shares, $params = array())
     {
-        try {
+        if (Horde::hookExists('share_list')) {
             $params = new Horde_Support_Array($params);
             return Horde::callHook('share_list', array($userid, $params['perm'], $params['attributes'], $shares));
-        } catch (Horde_Exception_HookNotSet $e) {
         }
 
         return $shares;

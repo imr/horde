@@ -3,17 +3,17 @@
  * This class contains code related to generating and handling a mailbox
  * message list.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
-class IMP_Mailbox_List implements Countable, Serializable
+class IMP_Mailbox_List implements ArrayAccess, Countable, Iterator, Serializable
 {
     /* Serialized version. */
     const VERSION = 2;
@@ -55,11 +55,18 @@ class IMP_Mailbox_List implements Countable, Serializable
     protected $_sortedMbox = array();
 
     /**
-     * The thread object for the mailbox.
+     * The thread object representation(s) for the mailbox.
      *
-     * @var Horde_Imap_Client_Data_Thread
+     * @var array
      */
-    protected $_threadob = null;
+    protected $_thread = array();
+
+    /**
+     * The thread tree UI cached data.
+     *
+     * @var array
+     */
+    protected $_threadui = array();
 
     /**
      * Constructor.
@@ -74,38 +81,35 @@ class IMP_Mailbox_List implements Countable, Serializable
     /**
      * Build the array of message information.
      *
-     * @param array $msgnum   An array of message sequence numbers.
+     * @param array $msgnum   An array of index numbers.
      * @param array $options  Additional options:
-     * <pre>
-     * headers - (boolean) Return info on the non-envelope headers
-     *           'Importance', 'List-Post', and 'X-Priority'.
-     *           DEFAULT: false (only envelope headers returned)
-     * preview - (mixed) Include preview information?  If empty, add no
-     *                   preview information. If 1, uses value from prefs.
-     *                   If 2, forces addition of preview info.
-     *                   DEFAULT: No preview information.
-     * type - (boolean) Return info on the MIME Content-Type of the base
-     *        message part ('Content-Type' header).
-     *        DEFAULT: false
-     * </pre>
+     *   - headers: (boolean) Return info on the non-envelope headers
+     *              'Importance', 'List-Post', and 'X-Priority'.
+     *              DEFAULT: false (only envelope headers returned)
+     *   - preview: (mixed) Include preview information?  If empty, add no
+     *              preview information. If 1, uses value from prefs.
+     *              If 2, forces addition of preview info.
+     *              DEFAULT: No preview information.
+     *   - type: (boolean) Return info on the MIME Content-Type of the base
+     *           message part ('Content-Type' header).
+     *           DEFAULT: false
      *
      * @return array  An array with the following keys:
-     * <pre>
-     * overview - (array) The overview information. Contains the following:
-     *     envelope - (Horde_Imap_Client_Data_Envelope) Envelope information
-     *                returned from the IMAP server.
-     *     flags - (array) The list of IMAP flags returned from the server.
-     *     headers - (array) Horde_Mime_Headers objects containing header data
-     *               if either $options['headers'] or $options['type'] are
-     *               true.
-     *     mailbox - (string) The mailbox containing the message.
-     *     preview - (string) If requested in $options['preview'], the preview
-     *               text.
-     *     previewcut - (boolean) Has the preview text been cut?
-     *     size - (integer) The size of the message in bytes.
-     *     uid - (string) The unique ID of the message.
-     * uids - (IMP_Indices) An indices object.
-     * </pre>
+     *   - overview: (array) The overview information. Contains the following:
+     *   - envelope: (Horde_Imap_Client_Data_Envelope) Envelope information
+     *               returned from the IMAP server.
+     *   - flags: (array) The list of IMAP flags returned from the server.
+     *   - headers: (array) Horde_Mime_Headers objects containing header data
+     *              if either $options['headers'] or $options['type'] are
+     *              true.
+     *   - idx: (integer) Array index of this message.
+     *   - mailbox: (string) The mailbox containing the message.
+     *   - preview: (string) If requested in $options['preview'], the preview
+     *              text.
+     *   - previewcut: (boolean) Has the preview text been cut?
+     *   - size: (integer) The size of the message in bytes.
+     *   - uid: (string) The unique ID of the message.
+     *   - uids: (IMP_Indices) An indices object.
      */
     public function getMailboxArray($msgnum, $options = array())
     {
@@ -123,7 +127,7 @@ class IMP_Mailbox_List implements Countable, Serializable
                     ? $this->_sortedMbox[$i - 1]
                     : strval($this->_mailbox);
 
-                // $uids - KEY: UID, VALUE: sequence number
+                // $uids - KEY: UID, VALUE: array index
                 $to_process[$mboxname][$this->_sorted[$i - 1]] = $i;
             }
         }
@@ -166,7 +170,7 @@ class IMP_Mailbox_List implements Countable, Serializable
         foreach ($to_process as $mbox => $ids) {
             try {
                 $fetch_res = $imp_imap->fetch($mbox, $fetch_query, array(
-                    'ids' => new Horde_Imap_Client_Ids(array_keys($ids))
+                    'ids' => $imp_imap->getIdsOb(array_keys($ids))
                 ));
 
                 if ($options['preview']) {
@@ -174,16 +178,16 @@ class IMP_Mailbox_List implements Countable, Serializable
                     if ($cache) {
                         try {
                             $preview_info = $cache->get($mbox, array_keys($ids), array('IMPpreview', 'IMPpreviewc'));
-                        } catch (Horde_Imap_Client_Exception $e) {}
+                        } catch (IMP_Imap_Exception $e) {}
                     }
                 }
 
-                reset($fetch_res);
-                while (list($k, $f) = each($fetch_res)) {
+                foreach ($fetch_res as $k => $f) {
                     $v = array(
                         'envelope' => $f->getEnvelope(),
                         'flags' => $f->getFlags(),
                         'headers' => $f->getHeaders('imp', Horde_Imap_Client_Data_Fetch::HEADER_PARSE),
+                        'idx' => $ids[$f->getUid()],
                         'mailbox' => $mbox,
                         'size' => $f->getSize(),
                         'uid' => $f->getUid()
@@ -213,13 +217,13 @@ class IMP_Mailbox_List implements Countable, Serializable
                     $overview[] = $v;
                 }
 
-                $uids[$mbox] = array_keys($fetch_res);
+                $uids[$mbox] = $fetch_res->ids();
 
                 if (!is_null($cache) && !empty($tostore)) {
                     $status = $imp_imap->status($mbox, Horde_Imap_Client::STATUS_UIDVALIDITY);
                     $cache->set($mbox, $tostore, $status['uidvalidity']);
                 }
-            } catch (Horde_Imap_Client_Exception $e) {}
+            } catch (IMP_Imap_Exception $e) {}
         }
 
         return array(
@@ -249,43 +253,61 @@ class IMP_Mailbox_List implements Countable, Serializable
 
         $this->changed = true;
         $this->_sorted = $this->_sortedMbox = array();
-        $query = null;
+
+        $imp_imap = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create();
+        $imp_search = $query_ob = null;
+        $sortpref = $this->_mailbox->getSort(true);
+        $thread_sort = ($sortpref->sortby == Horde_Imap_Client::SORT_THREAD);
 
         if ($this->_mailbox->search) {
-            if ($this->_mailbox->hideDeletedMsgs()) {
-                $query = new Horde_Imap_Client_Search_Query();
-                $query->flag(Horde_Imap_Client::FLAG_DELETED, false);
+            $imp_search = $GLOBALS['injector']->getInstance('IMP_Search');
+            $query_ob = $imp_search[strval($this->_mailbox)]->query;
+        }
+
+        if ($this->_mailbox->hideDeletedMsgs()) {
+            $delete_query = new Horde_Imap_Client_Search_Query();
+            $delete_query->flag(Horde_Imap_Client::FLAG_DELETED, false);
+
+            if (is_null($query_ob))  {
+                $query_ob = array(strval($this->_mailbox) => $delete_query);
+            } else {
+                foreach ($query_ob as $val) {
+                    $val->andSearch($delete_query);
+                }
+            }
+        }
+
+        if (is_null($query_ob)) {
+            $query_ob = array(strval($this->_mailbox) => null);
+        }
+
+        if ($thread_sort) {
+            $this->_thread = $this->_threadui = array();
+            $opts = array(
+                'criteria' => $GLOBALS['session']->get('imp', 'imap_thread')
+            );
+        }
+
+        foreach ($query_ob as $mbox => $val) {
+            if ($thread_sort) {
+                $this->_thread[$mbox] = $imp_imap->thread($mbox, $val ? array_merge($opts, array('search' => $val)) : $opts);
+                $sorted = $this->_thread[$mbox]->messageList();
+                if ($sortpref->sortdir) {
+                    $sorted = array_reverse($sorted);
+                }
+            } else {
+                $res = $imp_imap->search($mbox, $val, array(
+                    'sort' => array($sortpref->sortby)
+                ));
+                if ($sortpref->sortdir) {
+                    $res['match']->reverse();
+                }
+                $sorted = $res['match']->ids;
             }
 
-            try {
-                foreach ($GLOBALS['injector']->getInstance('IMP_Search')->runSearch($query, $this->_mailbox) as $ob) {
-                    $this->_sorted = array_merge($this->_sorted, $ob->uids);
-                    $this->_sortedMbox = array_merge($this->_sortedMbox, array_fill(0, count($ob->uids), strval($ob->mbox)));
-                }
-            } catch (Horde_Imap_Client_Exception $e) {
-                $GLOBALS['notification']->push(_("Mailbox listing failed") . ': ' . $e->getMessage(), 'horde.error');
-            }
-        } else {
-            $sortpref = $this->_mailbox->getSort(true);
-            if ($sortpref['by'] == Horde_Imap_Client::SORT_THREAD) {
-                $this->_threadob = null;
-                $threadob = $this->getThreadOb();
-                $this->_sorted = $threadob->messageList((bool)$sortpref['dir']);
-            } else {
-                if (($GLOBALS['session']->get('imp', 'protocol') != 'pop') &&
-                    $this->_mailbox->hideDeletedMsgs()) {
-                    $query = new Horde_Imap_Client_Search_Query();
-                    $query->flag(Horde_Imap_Client::FLAG_DELETED, false);
-                }
-                try {
-                    $res = $GLOBALS['injector']->getInstance('IMP_Search')->imapSearch($this->_mailbox, $query, array('sort' => array($sortpref['by'])));
-                    if ($sortpref['dir']) {
-                        $res['match']->reverse();
-                    }
-                    $this->_sorted = $res['match']->ids;
-                } catch (Horde_Imap_Client_Exception $e) {
-                    $GLOBALS['notification']->push(_("Mailbox listing failed") . ': ' . $e->getMessage(), 'horde.error');
-                }
+            $this->_sorted = array_merge($this->_sorted, $sorted);
+            if ($imp_search && count($sorted)) {
+                $this->_sortedMbox = array_merge($this->_sortedMbox, array_fill(0, count($sorted), $mbox));
             }
         }
     }
@@ -310,7 +332,7 @@ class IMP_Mailbox_List implements Countable, Serializable
      * Get the list of unseen messages in the mailbox (IMAP UNSEEN flag, with
      * UNDELETED if we're hiding deleted messages).
      *
-     * @param integer $results  A Horde_Imap_Client::SORT_RESULTS_* constant
+     * @param integer $results  A Horde_Imap_Client::SEARCH_RESULTS_* constant
      *                          that indicates the desired return type.
      * @param boolean $uid      Return UIDs instead of sequence numbers (for
      *                          $results queries that return message lists).
@@ -326,7 +348,7 @@ class IMP_Mailbox_List implements Countable, Serializable
      * Do a search on a mailbox in the most efficient way available.
      *
      * @param string $type      The search type - either 'recent' or 'unseen'.
-     * @param integer $results  A Horde_Imap_Client::SORT_RESULTS_* constant
+     * @param integer $results  A Horde_Imap_Client::SEARCH_RESULTS_* constant
      *                          that indicates the desired return type.
      * @param boolean $uid      Return UIDs instead of sequence numbers (for
      *                          $results queries that return message lists).
@@ -335,7 +357,7 @@ class IMP_Mailbox_List implements Countable, Serializable
      */
     protected function _msgFlagSearch($type, $results, $uid)
     {
-        $count = ($results == Horde_Imap_Client::SORT_RESULTS_COUNT);
+        $count = ($results == Horde_Imap_Client::SEARCH_RESULTS_COUNT);
 
         if ($this->_mailbox->search || empty($this->_sorted)) {
             if ($count &&
@@ -356,7 +378,7 @@ class IMP_Mailbox_List implements Countable, Serializable
             try {
                 $status_res = $imp_imap->status($this->_mailbox, $type == 'recent' ? Horde_Imap_Client::STATUS_RECENT : Horde_Imap_Client::STATUS_UNSEEN);
                 return $status_res[$type];
-            } catch (Horde_Imap_Client_Exception $e) {
+            } catch (IMP_Imap_Exception $e) {
                 return 0;
             }
         }
@@ -368,9 +390,12 @@ class IMP_Mailbox_List implements Countable, Serializable
         }
 
         try {
-            $res = $imp_imap->search($this->_mailbox, $criteria, array('results' => array($results), 'sequence' => !$uid));
+            $res = $imp_imap->search($this->_mailbox, $criteria, array(
+                'results' => array($results),
+                'sequence' => !$uid
+            ));
             return $count ? $res['count'] : $res;
-        } catch (Horde_Imap_Client_Exception $e) {
+        } catch (IMP_Imap_Exception $e) {
             return $count ? 0 : array();
         }
     }
@@ -383,17 +408,15 @@ class IMP_Mailbox_List implements Countable, Serializable
      * @param integer $start  The starting message number.
      *
      * @return array  An array with the following fields:
-     * <pre>
-     * 'anymsg' - (boolean) Are there any messages at all in mailbox? E.g. If
-     *            'msgcount' is 0, there may still be hidden deleted messages.
-     * 'begin' - (integer) The beginning message sequence number of the page.
-     * 'end' - (integer) The ending message sequence number of the page.
-     * 'index' - (integer) The index of the starting message.
-     * 'msgcount' - (integer) The number of viewable messages in the current
-     *              mailbox.
-     * 'page' - (integer) The current page number.
-     * 'pagecount' - (integer) The number of pages in this mailbox.
-     * </pre>
+     *   anymsg: (boolean) Are there any messages at all in mailbox? E.g. If
+     *           'msgcount' is 0, there may still be hidden deleted messages.
+     *   begin: (integer) The beginning message sequence number of the page.
+     *   end: (integer) The ending message sequence number of the page.
+     *   index: (integer) The index of the starting message.
+     *   msgcount: (integer) The number of viewable messages in the current
+     *             mailbox.
+     *   page: (integer) The current page number.
+     *   pagecount: (integer) The number of pages in this mailbox.
      */
     public function buildMailboxPage($page = 0, $start = 0, $opts = array())
     {
@@ -401,7 +424,7 @@ class IMP_Mailbox_List implements Countable, Serializable
 
         $ret = array('msgcount' => count($this->_sorted));
 
-        $page_size = $GLOBALS['prefs']->getValue('max_msgs');
+        $page_size = max($GLOBALS['prefs']->getValue('max_msgs'), 1);
 
         if ($ret['msgcount'] > $page_size) {
             $ret['pagecount'] = ceil($ret['msgcount'] / $page_size);
@@ -453,7 +476,7 @@ class IMP_Mailbox_List implements Countable, Serializable
             try {
                 $status = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->status($this->_mailbox, Horde_Imap_Client::STATUS_MESSAGES);
                 $ret['anymsg'] = (bool)$status['messages'];
-            } catch (Horde_Imap_Client_Exception $e) {
+            } catch (IMP_Imap_Exception $e) {
                 $ret['anymsg'] = false;
             }
         }
@@ -486,28 +509,38 @@ class IMP_Mailbox_List implements Countable, Serializable
             return $total;
 
         case IMP::MAILBOX_START_FIRSTUNSEEN:
+            if (!$this->_mailbox->access_sort) {
+                return 1;
+            }
+
             $sortpref = $this->_mailbox->getSort();
 
             /* Optimization: if sorting by sequence then first unseen
              * information is returned via a SELECT/EXAMINE call. */
-            if ($sortpref['by'] == Horde_Imap_Client::SORT_SEQUENCE) {
+            if ($sortpref->sortby == Horde_Imap_Client::SORT_SEQUENCE) {
                 try {
-                    $res = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->status($this->_mailbox, Horde_Imap_Client::STATUS_FIRSTUNSEEN);
+                    $res = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->status($this->_mailbox, Horde_Imap_Client::STATUS_FIRSTUNSEEN | Horde_Imap_Client::STATUS_MESSAGES);
                     if (!is_null($res['firstunseen'])) {
-                        return $res['firstunseen'];
+                        return $sortpref->sortdir
+                            ? ($res['messages'] - $res['firstunseen'] + 1)
+                            : $res['firstunseen'];
                     }
-                } catch (Horde_Imap_Client_Exception $e) {}
+                } catch (IMP_Imap_Exception $e) {}
 
                 return 1;
             }
 
-            $unseen_msgs = $this->unseenMessages(Horde_Imap_Client::SORT_RESULTS_MIN, true);
+            $unseen_msgs = $this->unseenMessages(Horde_Imap_Client::SEARCH_RESULTS_MIN, true);
             return empty($unseen_msgs['min'])
                 ? 1
                 : ($this->getArrayIndex($unseen_msgs['min']) + 1);
 
         case IMP::MAILBOX_START_LASTUNSEEN:
-            $unseen_msgs = $this->unseenMessages(Horde_Imap_Client::SORT_RESULTS_MAX, true);
+            if (!$this->_mailbox->access_sort) {
+                return 1;
+            }
+
+            $unseen_msgs = $this->unseenMessages(Horde_Imap_Client::SEARCH_RESULTS_MAX, true);
             return empty($unseen_msgs['max'])
                 ? 1
                 : ($this->getArrayIndex($unseen_msgs['max']) + 1);
@@ -515,45 +548,20 @@ class IMP_Mailbox_List implements Countable, Serializable
     }
 
     /**
-     * Get the thread object for the current mailbox.
-     *
-     * @return Horde_Imap_Client_Data_Thread  The thread object for the
-     *                                        current mailbox.
+     * Rebuilds the mailbox.
      */
-    public function getThreadOb()
+    public function rebuild()
     {
-        if (is_null($this->_threadob)) {
-            try {
-                $this->_threadob = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->thread($this->_mailbox, array('criteria' => $GLOBALS['session']->get('imp', 'imap_thread')));
-            } catch (Horde_Imap_Client_Exception $e) {
-                $GLOBALS['notification']->push($e);
-                return new Horde_Imap_Client_Data_Thread(array(), 'uid');
-            }
-        }
-
-        return $this->_threadob;
-    }
-
-    /**
-     * Determines if a rebuild is needed, and, if necessary, performs
-     * the rebuild.
-     *
-     * @param boolean $force  Force a rebuild?
-     */
-    protected function _rebuild($force = false)
-    {
-        if ($force) {
-            $this->_sorted = null;
-            $this->_buildMailbox();
-        }
+        $this->_sorted = null;
+        $this->_buildMailbox();
     }
 
     /**
      * Returns the array index of the given message UID.
      *
-     * @param integer $uid   The message UID.
-     * @param integer $mbox  The message mailbox (defaults to the current
-     *                       mailbox).
+     * @param integer $uid  The message UID.
+     * @param string $mbox  The message mailbox (defaults to the current
+     *                      mailbox).
      *
      * @return mixed  The array index of the location of the message UID in
      *                the current mailbox. Returns null if not found.
@@ -566,7 +574,7 @@ class IMP_Mailbox_List implements Countable, Serializable
 
         if ($this->_mailbox->search) {
             if (is_null($mbox)) {
-                $mbox = IMP::$thismailbox;
+                $mbox = IMP::mailbox(true);
             }
 
             /* Need to compare both mbox name and message UID to obtain the
@@ -588,28 +596,29 @@ class IMP_Mailbox_List implements Countable, Serializable
     }
 
     /**
-     * Returns a raw sorted list of the mailbox.
+     * Generate an IMP_Indices object out of the contents of this mailbox.
      *
-     * @return array  An array with two keys: 's' = sorted UIDS list, 'm' =
-     *                sorted mailboxes list.
+     * @return IMP_Indices  An indices object.
      */
-    public function getSortedList()
+    public function getIndicesOb()
     {
         $this->_buildMailbox();
+        $ob = new IMP_Indices();
 
-        /* For exterior use, the array needs to begin numbering at 1. */
-        $s = $this->_sorted;
-        array_unshift($s, 0);
-        unset($s[0]);
-        $m = $this->_sortedMbox;
-        array_unshift($m, 0);
-        unset($m[0]);
+        if ($this->_mailbox->search) {
+            reset($this->_sorted);
+            while (list($k, $v) = each($this->_sorted)) {
+                $ob->add($this->_sortedMbox[$k], $v);
+            }
+        } else {
+            $ob->add($this->_mailbox, $this->_sorted);
+        }
 
-        return array('s' => $s, 'm' => $m);
+        return $ob;
     }
 
     /**
-     * Returns the current sorted array without the given messages.
+     * Removes messages from the mailbox.
      *
      * @param mixed $indices  An IMP_Indices object or true to remove all
      *                        messages in the mailbox.
@@ -619,7 +628,7 @@ class IMP_Mailbox_List implements Countable, Serializable
     public function removeMsgs($indices)
     {
         if ($indices === true) {
-            $this->_rebuild(true);
+            $this->rebuild();
             return false;
         }
 
@@ -643,9 +652,140 @@ class IMP_Mailbox_List implements Countable, Serializable
         if ($this->_mailbox->search) {
             $this->_sortedMbox = array_values($this->_sortedMbox);
         }
-        $this->_threadob = null;
+
+        if (isset($this->_thread[strval($ob->mbox)])) {
+            unset($this->_thread[strval($ob->mbox)], $this->_threadui[strval($ob->mbox)]);
+        }
 
         return true;
+    }
+
+    /**
+     * Returns the list of UIDs for an entire thread given one message in
+     * that thread.
+     *
+     * @param integer $uid  The message UID.
+     * @param string $mbox  The message mailbox (defaults to the current
+     *                      mailbox).
+     *
+     * @return IMP_Indices  An indices object.
+     */
+    public function getFullThread($uid, $mbox = null)
+    {
+        if (empty($this->_thread)) {
+            $this->_rebuild();
+        }
+
+        return new IMP_Indices($mbox, $this->_thread[strval($mbox)]->getThread($uid));
+    }
+
+    /**
+     * Returns a thread object for a message.
+     *
+     * @param integer $uid  The message UID.
+     * @param string $mbox  The message mailbox (defaults to the current
+     *                      mailbox).
+     *
+     * @return IMP_Mailbox_List_Thread  The thread object.
+     */
+    protected function _getThreadOb($uid, $mbox)
+    {
+        $mbox = strval($mbox);
+
+        if (!isset($this->_threadui[$mbox][$uid])) {
+            $thread_level = array();
+            $t_ob = $this->_thread[$mbox];
+
+            foreach ($t_ob->getThread($uid) as $val) {
+                $this->_threadui[$mbox][$val] = '';
+
+                $indentBase = $t_ob->getThreadBase($val);
+                if (empty($indentBase)) {
+                    continue;
+                }
+
+                $lastinlevel = $t_ob->lastInLevel($val);
+                if ($lastinlevel && ($indentBase == $val)) {
+                    continue;
+                }
+
+                $indentLevel = $t_ob->getThreadIndent($val);
+
+                if ($lastinlevel) {
+                    $join = IMP_Mailbox_List_Thread::JOINBOTTOM;
+                } else {
+                    $join = (($indentLevel == 1) && ($indentBase == $val))
+                        ? IMP_Mailbox_List_Thread::JOINBOTTOM_DOWN
+                        : IMP_Mailbox_List_Thread::JOIN;
+                }
+
+                $thread_level[$indentLevel] = $lastinlevel;
+                $line = '';
+
+                for ($i = 1; $i < $indentLevel; ++$i) {
+                    $line .= (isset($thread_level[$i]) && !$thread_level[$i])
+                        ? IMP_Mailbox_List_Thread::LINE
+                        : IMP_Mailbox_List_Thread::BLANK;
+                }
+
+                $this->_threadui[$mbox][$val] = $line . $join;
+            }
+        }
+
+        return new IMP_Mailbox_List_Thread($this->_threadui[$mbox][$uid]);
+    }
+
+    /* ArrayAccess methods. */
+
+    /**
+     * @param integer $offset  Sequence number of message.
+     */
+    public function offsetExists($offset)
+    {
+        return isset($this->_sorted[$offset - 1]);
+    }
+
+    /**
+     * @param integer $offset  Sequence number of message.
+     *
+     * @return array  Three-element array:
+     *   - m: (IMP_Mailbox) Mailbox of message.
+     *   - t: (IMP_Mailbox_List_Thread) Thread object (if thread sort is
+     *        active).
+     *   - u: (string) UID of message.
+     */
+    public function offsetGet($offset)
+    {
+        if (!isset($this->_sorted[$offset - 1])) {
+            return null;
+        }
+
+        $ret = array(
+            'm' => (empty($this->_sortedMbox) ? $this->_mailbox : IMP_Mailbox::get($this->_sortedMbox[$offset - 1])),
+            'u' => $this->_sorted[$offset - 1]
+        );
+
+        if (!empty($this->_thread)) {
+            $ret['t'] = $this->_getThreadOb($ret['u'], $ret['m']);
+        }
+
+        return $ret;
+    }
+
+    /**
+     * @throws BadMethodCallException
+     */
+    public function offsetSet($offset, $value)
+    {
+        throw new BadMethodCallException('Not supported');
+    }
+
+    /**
+     * @throws BadMethodCallException
+     */
+    public function offsetUnset($offset)
+    {
+        throw new BadMethodCallException('Not supported');
     }
 
     /* Countable methods. */
@@ -659,6 +799,49 @@ class IMP_Mailbox_List implements Countable, Serializable
     {
         $this->_buildMailbox();
         return count($this->_sorted);
+    }
+
+    /* Iterator methods. */
+
+    /**
+     * @return array  Three-element array:
+     *   - m: (IMP_Mailbox) Mailbox of message.
+     *   - t: (IMP_Mailbox_List_Thread) Thread object (if thread sort is
+     *        active).
+     *   - u: (string) UID of message.
+     */
+    public function current()
+    {
+        return $this[key($this->_sorted) + 1];
+    }
+
+    /**
+     * @return integer  Sequence number of message.
+     */
+    public function key()
+    {
+        return (key($this->_sorted) + 1);
+    }
+
+    /**
+     */
+    public function next()
+    {
+        next($this->_sorted);
+    }
+
+    /**
+     */
+    public function rewind()
+    {
+        reset($this->_sorted);
+    }
+
+    /**
+     */
+    public function valid()
+    {
+        return (key($this->_sorted) !== null);
     }
 
     /* Serializable methods. */
@@ -698,7 +881,7 @@ class IMP_Mailbox_List implements Countable, Serializable
      */
     public function unserialize($data)
     {
-        $data = @unserialize($data, true);
+        $data = @unserialize($data);
         if (!is_array($data) ||
             !isset($data['v']) ||
             ($data['v'] != self::VERSION)) {

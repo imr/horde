@@ -10,8 +10,10 @@
       <configstring name="table" desc="Database
        table">kronolith_events</configstring>
      </configsql>
-     <configboolean name="utc" desc="Store the dates in UTC
-     format?">true</configboolean>
+     <configboolean name="utc" desc="Store the dates in UTC format?
+     &lt;strong&gt;WARNING: if you are upgrading from Kronolith before version
+     3, you must convert the old events to UTC before activating this. See the
+     documentation in UPGRADING.&lt;/strong&gt;">true</configboolean>
     </configsection>
    </case>
    <case name="kolab" desc="Kolab" />
@@ -85,15 +87,6 @@
   <configheader>Menu Settings</configheader>
   <configboolean name="import_export" desc="Should we display an Import/Export
    link in the Horde application menus?">true</configboolean>
-  <configmultienum name="apps" desc="Select any applications that should be
-   linked in Kronolith's menu" required="false">horde
-   <values>
-    <configspecial application="horde" name="apps" />
-   </values>
-  </configmultienum>
-  <configboolean name="apps_iframe" desc="Should linked applications be loaded
-  in an IFRAME within the Ajax interface?"
-  required="false">false</configboolean>
  </configsection>
 
  <configsection name="maps">
@@ -123,7 +116,7 @@
     use for storing geolocation information?">
      <values>
       <value desc="None" default="true">false</value>
-      <value desc="MySql spatial extensions">Mysql</value>
+      <value desc="MySQL spatial extensions">Mysql</value>
       <value desc="General SQL (no spatial index support)">Sql</value>
      </values>
     </configenum> 

@@ -2,12 +2,16 @@
 /**
  * Ingo base class.
  *
- * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
- * @author  Mike Cochrane <mike@graftonhall.co.nz>
- * @author  Jan Schneider <jan@horde.org>
- * @package Ingo
+ * See the enclosed file LICENSE for license information (ASL).  If you
+ * did not receive this file, see http://www.horde.org/licenses/apache.
+ *
+ * @author   Mike Cochrane <mike@graftonhall.co.nz>
+ * @author   Jan Schneider <jan@horde.org>
+ * @category Horde
+ * @license  http://www.horde.org/licenses/apache ASL
+ * @package  Ingo
  */
 class Ingo
 {
@@ -30,118 +34,49 @@ class Ingo
     static private $_shareCache = null;
 
     /**
-     * Create an ingo session.
-     *
-     * Creates the $ingo session variable with the following entries:
-     * <pre>
-     * 'backend' (array) - The backend configuration to use.
-     * 'change' (integer) - The timestamp of the last time the rules were
-     *                      altered.
-     * 'storage' (array) - Used by Ingo_Storage:: for caching data.
-     * 'script_categories' (array) - The list of available categories for the
-     *                               Ingo_Script driver in use.
-     * 'script_generate' (boolean) - Is the Ingo_Script::generate() call
-     *                               available?
-     * </pre>
-     *
-     * @throws Ingo_Exception
-     */
-    static public function createSession()
-    {
-        global $prefs, $session;
-
-        $session->remove('ingo');
-        if ($session->exists('ingo', 'script_generate')) {
-            return;
-        }
-
-        /* getBackend() and loadIngoScript() will both throw Exceptions, so
-         * do these first as errors are fatal. */
-        foreach (self::getBackend() as $key => $val) {
-            if ($val) {
-                $session->set('ingo', 'backend/' . $key, $val);
-            }
-        }
-
-        $ingo_script = self::loadIngoScript();
-        $session->set('ingo', 'script_generate', $ingo_script->generateAvailable());
-
-        /* Disable categories as specified in preferences */
-        $categories = array_merge($ingo_script->availableActions(), $ingo_script->availableCategories());
-        if ($prefs->isLocked('blacklist')) {
-            unset($categories[Ingo_Storage::ACTION_BLACKLIST]);
-        }
-        if ($prefs->isLocked('whitelist')) {
-            unset($categories[Ingo_Storage::ACTION_WHITELIST]);
-        }
-        if ($prefs->isLocked('vacation')) {
-            unset($categories[Ingo_Storage::ACTION_VACATION]);
-        }
-        if ($prefs->isLocked('forward')) {
-            unset($categories[Ingo_Storage::ACTION_FORWARD]);
-        }
-        if ($prefs->isLocked('spam')) {
-            unset($categories[Ingo_Storage::ACTION_SPAM]);
-        }
-
-        /* Set the list of categories this driver supports. */
-        $session->set('ingo', 'script_categories', $categories);
-    }
-
-    /**
      * Generates a folder widget.
-     * If an application is available that provides a folderlist method
+     *
+     * If an application is available that provides a mailboxList method
      * then a &lt;select&gt; input is created. Otherwise a simple text field
      * is returned.
      *
      * @param string $value    The current value for the field.
      * @param string $form     The form name for the newFolderName() call.
      * @param string $tagname  The label for the select tag.
-     * @param string $onchange Javascript code to execute onchange.
      *
      * @return string  The HTML to render the field.
      */
     static public function flistSelect($value = null, $form = null,
-                                       $tagname = 'actionvalue',
-                                       $onchange = null)
+                                       $tagname = 'actionvalue')
     {
-        global $conf, $registry;
+        global $conf, $page_output, $registry;
 
-        if ($registry->hasMethod('mail/folderlist')) {
-            $createfolder = $registry->hasMethod('mail/createFolder');
-
+        if ($registry->hasMethod('mail/mailboxList')) {
             try {
-                $mailboxes = $registry->call('mail/folderlist');
+                $mailboxes = $registry->call('mail/mailboxList');
 
-                $text = '<select id="' . $tagname . '" name="' . $tagname . '"';
-                if ($createfolder || $onchange) {
-                    $text .= ' onchange="';
-                    if ($onchange) {
-                        $text .= $onchange . ';';
-                    }
-                    if ($createfolder) {
-                        $text .= 'IngoNewFolder.newFolderName(\'' . $form . '\', \'' .
-                            $tagname . '\');';
-                    }
-                    $text .= '"';
+                $text = '<select class="flistSelect" id="' . $tagname . '" name="' . $tagname . '">' .
+                    '<option value="">' . _("Select target folder:") . '</option>' .
+                    '<option disabled="disabled">- - - - - - - - - -</option>';
+
+                if ($registry->hasMethod('mail/createMailbox')) {
+                    $text .= '<option class="flistCreate" value="">' . _("Create new folder") . '</option>' .
+                        '<option disabled="disabled">- - - - - - - - - -</option>';
                 }
 
-                $text .= '<option value="">' . _("Select target folder:") . '</option>' .
-                    '<option value="" disabled="disabled">- - - - - - - - - -</option>';
-
-                if ($createfolder) {
-                    $text .= '<option value="">' . _("Create new folder") . '</option>' .
-                        '<option value="" disabled="disabled">- - - - - - - - - -</option>';
-                }
-
-                foreach ($mailboxes as $key => $val) {
+                foreach ($mailboxes as $val) {
                     $text .= sprintf(
                         "<option value=\"%s\"%s>%s</option>\n",
-                        htmlspecialchars($key),
+                        htmlspecialchars($val['ob']->utf7imap),
                         ($key === $value) ? ' selected="selected"' : '',
                         str_repeat('&nbsp;', $val['level'] * 2) . htmlspecialchars($val['label'])
                     );
                 }
+
+                $page_output->addScriptFile('new_folder.js');
+                $page_output->addInlineJsVars(array(
+                    'IngoNewFolder.folderprompt' => _("Please enter the name of the new folder:")
+                ));
 
                 return $text . '</select>';
             } catch (Horde_Exception $e) {}
@@ -151,18 +86,28 @@ class Ingo
     }
 
     /**
-     * Creates a new IMAP folder via an api call.
+     * Validates an IMAP mailbox provided by user input.
      *
-     * @param string $folder  The name of the folder to create.
+     * @param Horde_Variables $vars  An variables object.
+     * @param string $name           The form name of the folder input.
      *
-     * @return boolean  True on success, false if not created.
+     * @return string  The IMAP mailbox name.
      * @throws Horde_Exception
      */
-    static public function createFolder($folder)
+    static public function validateFolder(Horde_Variables $vars, $name)
     {
-        return $GLOBALS['registry']->hasMethod('mail/createFolder')
-            ? $GLOBALS['registry']->call('mail/createFolder', array('folder' => Horde_String::convertCharset($folder, 'UTF-8', 'UTF7-IMAP')))
-            : false;
+        $new_id = $name . '_new';
+
+        if (isset($vars->$new_id)) {
+            if ($GLOBALS['registry']->hasMethod('mail/createMailbox') &&
+                $GLOBALS['registry']->call('mail/createMailbox', $vars->$new_id)) {
+                return $vars->$new_id;
+            }
+        } elseif (isset($vars->$name) && strlen($vars->$name)) {
+            return $vars->$name;
+        }
+
+        throw new Ingo_Exception(_("Could not validate IMAP mailbox."));
     }
 
     /**
@@ -177,11 +122,10 @@ class Ingo
         if (empty($GLOBALS['ingo_shares'])) {
             $baseuser = ($full ||
                         ($GLOBALS['session']->get('ingo', 'backend/hordeauth') === 'full'));
-            $user = $GLOBALS['registry']->getAuth($baseuser ? null : 'bare');
-        } else {
-            list(, $user) = explode(':', $GLOBALS['session']->get('ingo', 'current_share'), 2);
+            return $GLOBALS['registry']->getAuth($baseuser ? null : 'bare');
         }
 
+        list(, $user) = explode(':', $GLOBALS['session']->get('ingo', 'current_share'), 2);
         return $user;
     }
 
@@ -207,59 +151,48 @@ class Ingo
      * @param string $script       The script to set active.
      * @param boolean $deactivate  If true, notification will identify the
      *                             script as deactivated instead of activated.
+     * @param array $additional    Any additional scripts that need to uploaded.
      *
-     * @return boolean  True on success, false on failure.
+     * @throws Ingo_Exception
      */
-    static public function activateScript($script, $deactivate = false)
+    static public function activateScript($script, $deactivate = false,
+                                          $additional = array())
     {
-        $transport = self::getTransport();
-
         try {
-            $res = $transport->setScriptActive($script);
+            $GLOBALS['injector']
+                ->getInstance('Ingo_Transport')
+                ->setScriptActive($script, $additional);
         } catch (Ingo_Exception $e) {
-            $msg = ($deactivate)
+            $msg = $deactivate
               ? _("There was an error deactivating the script.")
               : _("There was an error activating the script.");
-            $GLOBALS['notification']->push($msg . ' ' . _("The driver said: ") . $e->getMessage(), 'horde.error');
-            return false;
-        }
-
-        if ($res === false) {
-            return false;
+            throw new Ingo_Exception(sprintf(_("%s The driver said: %s"), $msg, $e->getMessage()));
         }
 
         $msg = ($deactivate)
             ? _("Script successfully deactivated.")
             : _("Script successfully activated.");
         $GLOBALS['notification']->push($msg, 'horde.success');
-
-        return true;
-    }
-
-    /**
-     * Connects to the backend and returns the currently active script.
-     *
-     * @return string  The currently active script.
-     */
-    static public function getScript()
-    {
-        return self::getTransport()->getScript();
     }
 
     /**
      * Does all the work in updating the script on the server.
+     *
+     * @throws Ingo_Exception
      */
     static public function updateScript()
     {
         if ($GLOBALS['session']->get('ingo', 'script_generate')) {
             try {
-                $ingo_script = self::loadIngoScript();
+                $ingo_script = $GLOBALS['injector']->getInstance('Ingo_Script');
 
                 /* Generate and activate the script. */
-                $script = $ingo_script->generate();
-                self::activateScript($script);
+                self::activateScript(
+                    $ingo_script->generate(),
+                    false,
+                    $ingo_script->additionalScripts());
             } catch (Ingo_Exception $e) {
-                $GLOBALS['notification']->push(_("Script not updated."), 'horde.error');
+                throw new Ingo_Exception(sprintf(_("Script not updated: %s"), $e->getMessage()));
             }
         }
     }
@@ -327,43 +260,6 @@ class Ingo
     }
 
     /**
-     * Loads a Ingo_Script:: backend and checks for errors.
-     *
-     * @return Ingo_Script  Script object on success.
-     * @throws Ingo_Exception
-     */
-    static public function loadIngoScript()
-    {
-        return Ingo_Script::factory(
-            $GLOBALS['session']->get('ingo', 'backend/script'),
-            $GLOBALS['session']->get('ingo', 'backend/scriptparams', Horde_Session::TYPE_ARRAY)
-        );
-    }
-
-    /**
-     * Returns an instance of the configured transport driver.
-     *
-     * @return Ingo_Transport  The configured driver.
-     * @throws Ingo_Exception
-     */
-    static public function getTransport()
-    {
-        global $registry, $session;
-
-        $params = $session->get('ingo', 'backend/params');
-
-        // Set authentication parameters.
-        if (($hordeauth = $session->get('ingo', 'backend/hordeauth')) ||
-            !isset($params['username']) ||
-            !isset($params['password'])) {
-            $params['username'] = $registry->getAuth(($hordeauth === 'full') ? null : 'bare');
-            $params['password'] = $registry->getAuthCredential('password');
-        }
-
-        return Ingo_Transport::factory($GLOBALS['session']->get('ingo', 'backend/transport'), $params);
-    }
-
-    /**
      * Returns all rulesets a user has access to, according to several
      * parameters/permission levels.
      *
@@ -406,17 +302,33 @@ class Ingo
     }
 
     /**
-     * Returns whether an address is empty or only contains a "@".
-     * Helper function for array_filter().
+     * Returns the vacation reason with all placeholder replaced.
      *
-     * @param string $address  An email address to test.
+     * @param string $reason  The vacation reason including placeholders.
+     * @param integer $start  The vacation start timestamp.
+     * @param integer $end    The vacation end timestamp.
      *
-     * @return boolean  True if the address is not empty.
+     * @return string  The vacation reason suitable for usage in the filter
+     *                 scripts.
      */
-    static public function filterEmptyAddress($address)
+    static public function getReason($reason, $start, $end)
     {
-        $address = trim($address);
-        return !empty($address) && ($address != '@');
+        $identity = $GLOBALS['injector']
+            ->getInstance('Horde_Core_Factory_Identity')
+            ->create(Ingo::getUser());
+        $format = $GLOBALS['prefs']->getValue('date_format');
+
+        return str_replace(array('%NAME%',
+                                 '%EMAIL%',
+                                 '%SIGNATURE%',
+                                 '%STARTDATE%',
+                                 '%ENDDATE%'),
+                           array($identity->getName(),
+                                 $identity->getDefaultFromAddress(),
+                                 $identity->getValue('signature'),
+                                 $start ? strftime($format, $start) : '',
+                                 $end ? strftime($format, $end) : ''),
+                           $reason);
     }
 
     /**
@@ -426,7 +338,25 @@ class Ingo
      */
     static public function menu()
     {
+        global $injector;
+
+        $sidebar = Horde::menu(array('menu_ob' => true))->render();
+        $perms = $injector->getInstance('Horde_Core_Perms');
+        $actions = $injector->getInstance('Ingo_Script') ->availableActions();
+        $filters = $injector->getInstance('Ingo_Factory_Storage')
+            ->create()
+            ->retrieve(Ingo_Storage::ACTION_FILTERS)
+            ->getFilterList();
+
+        if (!empty($actions) &&
+            ($perms->hasAppPermission('allow_rules') &&
+             ($perms->hasAppPermission('max_rules') === true ||
+              $perms->hasAppPermission('max_rules') > count($filters)))) {
+            $sidebar->addNewButton(_("New Rule"), Horde::url('rule.php'));
+        }
+
         $t = $GLOBALS['injector']->createInstance('Horde_Template');
+        $t->set('form_url', Horde::url('filters.php'));
         $t->set('forminput', Horde_Util::formInput());
 
         if (!empty($GLOBALS['ingo_shares']) &&
@@ -442,36 +372,77 @@ class Ingo
             $t->set('options', $options);
         }
 
-        $t->set('menu_string', Horde::menu(array('menu_ob' => true))->render());
+        $t->set('menu_string', $sidebar->render());
 
         $menu = $t->fetch(INGO_TEMPLATES . '/menu/menu.html');
 
-        /* Need to buffer sidebar output here, because it may add things like
-         * cookies which need to be sent before output begins. */
-        Horde::startBuffer();
-        require HORDE_BASE . '/services/sidebar.php';
-        return $menu . Horde::endBuffer();
+        return $GLOBALS['injector']
+            ->getInstance('Horde_View_Topbar')
+            ->render()
+            . $menu;
     }
 
     /**
-     * Outputs IMP's status/notification bar.
+     * Outputs Ingo's status/notification bar.
      */
     static public function status()
     {
-        $GLOBALS['notification']->notify(array('listeners' => array('status', 'audio')));
+        $GLOBALS['notification']->notify(array(
+            'listeners' => array('status', 'audio')
+        ));
     }
 
     /**
-     * Add new_folder.js to the list of output javascript files.
+     * Updates a list (blacklist/whitelist) filter.
+     *
+     * @param mixed $addresses  Addresses of the filter.
+     * @param integer $type     Type of filter.
+     *
+     * @return Horde_Storage_Rule  The filter object.
      */
-    static public function addNewFolderJs()
+    static public function updateListFilter($addresses, $type)
     {
-        if ($GLOBALS['registry']->hasMethod('mail/createFolder')) {
-            Horde::addScriptFile('new_folder.js', 'ingo');
-            Horde::addInlineJsVars(array(
-                'IngoNewFolder.folderprompt' => _("Please enter the name of the new folder:")
-            ));
+        global $injector;
+
+        $storage = $injector->getInstance('Ingo_Factory_Storage')->create();
+        $rule = $storage->retrieve($type);
+
+        switch ($type) {
+        case $storage::ACTION_BLACKLIST:
+            $rule->setBlacklist($addresses);
+            $addr = $rule->getBlacklist();
+
+            $rule2 = $storage->retrieve($storage::ACTION_WHITELIST);
+            $addr2 = $rule2->getWhitelist();
+            break;
+
+        case $storage::ACTION_WHITELIST:
+            $rule->setWhitelist($addresses);
+            $addr = $rule->getWhitelist();
+
+            $rule2 = $storage->retrieve($storage::ACTION_BLACKLIST);
+            $addr2 = $rule2->getBlacklist();
+            break;
         }
+
+        /* Filter out the rule's addresses in the opposite filter. */
+        $ob = new Horde_Mail_Rfc822_List($addr2);
+        $ob->setIteratorFilter(0, $addr);
+
+        switch ($type) {
+        case $storage::ACTION_BLACKLIST:
+            $rule2->setWhitelist($ob->bare_addresses);
+            break;
+
+        case $storage::ACTION_WHITELIST:
+            $rule2->setBlacklist($ob->bare_addresses);
+            break;
+        }
+
+        $storage->store($rule);
+        $storage->store($rule2);
+
+        return $rule;
     }
 
 }

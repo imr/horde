@@ -3,10 +3,10 @@
  * Pastie_Driver:: defines an API for implementing storage backends for
  * Pastie.
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
- * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * See the enclosed file LICENSE for license information (BSD). If you
+ * did not receive this file, see http://www.horde.org/licenses/bsd.
  *
  * @author  Ben Klang <ben@alkaloid.net>
  * @package Pastie

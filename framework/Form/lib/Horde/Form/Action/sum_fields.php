@@ -6,10 +6,10 @@
  * The params array should contain the names of the fields which will be
  * summed.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Matt Kynaston <matt@kynx.org>
  * @package Form
@@ -20,7 +20,7 @@ class Horde_Form_Action_sum_fields extends Horde_Form_Action {
 
     function getActionScript(&$form, $renderer, $varname)
     {
-        Horde::addScriptFile('form_helpers.js', 'horde');
+        $GLOBALS['injector']->getInstance('Horde_PageOutput')->addScriptFile('form_helpers.js', 'horde');
 
         $form_name = $form->getName();
         $fields = "'" . implode("','", $this->_params) . "'";

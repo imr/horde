@@ -243,16 +243,16 @@ Example for `LGPL`_'ed Horde code::
      * The Horde_Foo class provides an API for various foo
      * techniques that can be used by Horde applications.
      *
-     * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+     * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
      *
      * See the enclosed file COPYING for license information (LGPL). If you
-     * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+     * did not receive this file, see http://www.horde.org/licenses/lgpl21.
      *
      * @author   Original Author <author@example.com>
      * @author   Your Name <you@example.com>
      * @category Horde
      * @package  Package
-     * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+     * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
      * @since    Horde 4.0.1 [only if needed]
      */
 
@@ -264,16 +264,16 @@ Example for `GPL`_'ed application code::
      * The App_Bar class contains all functions related to handling
      * bars in App.
      *
-     * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+     * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
      *
      * See the enclosed file COPYING for license information (GPL). If you
-     * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+     * did not receive this file, see http://www.horde.org/licenses/gpl.
      *
      * @author   Original Author <author@example.com>
      * @author   Your Name <you@example.com>
      * @category Horde
      * @package  App
-     * @license  http://www.fsf.org/copyleft/gpl.html GPL
+     * @license  http://www.horde.org/licenses/gpl GPL
      * @since    App 1.0.1 [only if needed]
      */
 
@@ -330,11 +330,11 @@ directory.
 
 
 HTML 4 Compliance
-====================
+=================
 
 All Horde libraries and applications that generate content to be sent to a web
-browser are expected to generate HTML 4 compliant syntax.  This is a change from
-earlier mandates to use XHTML 1.0.
+browser are expected to generate HTML 4 compliant syntax.  This is a change
+from earlier mandates to use XHTML 1.0.
 
 All tag names and parameters must be lower case including javascript event
 handlers::
@@ -405,51 +405,13 @@ tablename_fieldname.
 Other general guidelines: Table names should be plural (users); field names
 should be singular (user_name).
 
-Try to use portable data types and avoid RDBMS specific SQL scripts as much as
-possible. Portable types are INTEGER, SMALLINT, NUMERIC(4,0) (for TINYINT),
-NUMERIC(p,s), VARCHAR(n), CHAR(n), FLOAT, and REAL. See
-http://home.fnal.gov/~dbox/SQL_API_Portability.html and
-http://articles.techrepublic.com.com/5100-10878_11-1045051.html for more
-information.
-
-Other portability guidlines: Always use the database abstraction layer's
-capabilities for result set pagination ('LIMIT' is not portable). Also, do not
-use the 'AS' keyword for table aliases.
+Use Horde_Db for any SQL schema management and for queries, especially for
+result set pagination ('LIMIT' is not portable). Also, do not use the 'AS'
+keyword for table aliases.
 
 In SQL queries, keywords should be capitalized.
 
-In table creation statements, SQL keywords and datatypes should be
-capitalized. Also, 'DEFAULT' constraints should be listed before 'NOT NULL'
-constraints for maximum portability. 'NOT NULL' constraints should not use an
-empty string for the 'DEFAULT' constraint.
-
 Identifiers should not be longer than 30 characters.
-
-
-Oracle Database Scripts
------------------------
-
-For maximum portability with several Oracle versions, Oracle-specific database
-scripts are necessary. Coming from MySQL, use the following data types:
-
-* VARCHAR2 for VARCHAR
-* NUMBER(16) for INT(EGER)
-* NUMBER(8) for SMALLINT
-* NUMBER(1) for boolean flags (TINYINT)
-* CLOB or VARCHAR2(4000) for TEXT
-* DATE for DATETIME
-
-See http://download.oracle.com/docs/html/B10257_01/ch3.htm for more
-information.
-
-Identifiers must not be longer than 30 characters. This is easily exceeded
-with some of the index names.
-
-'DEFAULT' constraints must always preceed 'NOT NULL' constraints. 'NOT NULL'
-constraints must not use an empty string for the 'DEFAULT' constraint.
-
-Instead of using `ALTER TABLE table CHANGE column column spec...` use `ALTER
-TABLE table MODIFY column spec...`.
 
 
 Regular Expression Use
@@ -595,7 +557,7 @@ Error checking
 Horde code should throw ``Horde_Exception`` objects (or equivalent Exception
 derivatives) to report errors.  The calling code should either explicitly
 catch the exception and handle it or else the Horde-wide exception handler
-will handle the exception, display an error message, and exit the script.
+will handle the exception, display an error message, and exit the script::
 
     try {
         $result = $something->call('may error');
@@ -613,6 +575,41 @@ localized.
 Throwing exceptions is expensive, so use them carefully for logic flow. You
 should cache results of Horde::callHook() calls for example, if you expect them
 to not exist.
+
+
+Exceptions in Framework Packages
+================================
+
+Exceptions thrown in packages can be divided into two categories: code/logic
+exceptions and execution exceptions.
+
+Code/Logic Exceptions
+---------------------
+
+These are exceptions that should be thrown when there is an issue with the
+programming logic - e.g. the environment was not properly set up by an
+application, or a required parameter was not provided.
+
+These type of exceptions should throw one of the SPL Exceptions (e.g.
+BadFunctionCallException, LogicException, RuntimeException), NOT a package
+exception.  This ensures that errors will normally cause a fatal error, rather
+than potentially being caught and ignored by the calling code.  As such, there
+is no need to document the exception in phpdoc.  Further, the exception
+messages should not be translated, as these messages are intended for
+developers not users.
+
+Execution Exceptions
+--------------------
+
+These are exceptions that are thrown due to an error encountered while
+performing the action requested by the calling code.
+
+Any package that throws at least one execution Exception should define a
+Horde_PackageName_Exception class that extends Horde_Exception.  Execution
+exceptions should use this class when throwing an error.  Any method that
+throws this kind of exception should document it in the phpdoc using the
+@throws keyword.  These messages should be translated, as they potentially
+could be displayed to the user at the application level.
 
 
 Existence checking
@@ -650,22 +647,22 @@ c. If you want to know if a variable is a non-empty string, including 0, you
    have to use `strlen()`_. This only works with strings or scalars that
    automatically cast to strings without problems::
 
-   // Make sure that $str is a non-empty string. $str must exist, so add an
-   // additional check with isset() if necessary.
-   if (strlen($str)) {
-       // $str has a non-zero length.
-   } else {
-       // $str is an empty string '', or null.
-   }
+      // Make sure that $str is a non-empty string. $str must exist, so add an
+      // additional check with isset() if necessary.
+      if (strlen($str)) {
+          // $str has a non-zero length.
+      } else {
+          // $str is an empty string '', or null.
+      }
 
 d. If you know you are working with a mixed variable then using just
    `isset()`_ and `empty()`_ could cause unexpected results, for example if
    testing for a key and the variable is actually a string::
 
-    $foo = 'bar';
-    if (isset($foo['somekey'])) {
-        // This will evaluate to TRUE!
-    }
+      $foo = 'bar';
+      if (isset($foo['somekey'])) {
+          // This will evaluate to TRUE!
+      }
 
 If you know that there is a possibility of a mixed type variable the solution
 in this case would be to add an `is_array()`_ check in the ``if()`` statement.
@@ -841,7 +838,9 @@ Disk I/O
 --------
 Disk read and write operations are slow.  If possible read and write files in
 large chunks.  According to the PHP documentation, file_get_contents() is
-potentially much faster than using fopen()/fread()/fclose().
+potentially much faster than using fopen()/fread()/fclose(). BUT the
+trade-off is the need to read the entire file into memory, so use of
+file_get_contents() depends on the data size.
 
 
 STDIN/STDOUT/STDERR
@@ -853,3 +852,28 @@ To access either STDIN, STDOUT, or STDERR, the following code should be used::
         $line = fgets([STDIN|STDOUT|STDERR]);
         // process $line here
     }
+
+
+PHP Function Issues
+===================
+
+fpassthru()
+-----------
+This function can fail depending on the size of the stream. Instead, use
+fread() to get the stream data::
+
+    // NO: fpassthru($stream);
+    while (!feof($stream)) {
+        echo fread($stream, 8192);
+    }
+
+stream_get_contents()
+---------------------
+This function was broken before PHP 5.2.7; the offset parameter did not
+respect a value of 0 (i.e. rewinding to beginning of stream).
+
+Use rewind() instead::
+
+    // NO: $foo = stream_get_contents($stream, -1, 0);
+    rewind($stream);
+    $foo = stream_get_contents($stream);

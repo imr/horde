@@ -2,23 +2,23 @@
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/Autoload.php';
+require_once __DIR__ . '/Autoload.php';
 
 /**
  * @author     Jan Schneider <jan@horde.org>
- * @license    http://www.fsf.org/copyleft/gpl.html GPL
+ * @license    http://www.horde.org/licenses/gpl GPL
  * @category   Horde
  * @package    Text_Diff
  * @subpackage UnitTests
  */
-class Horde_Text_Diff_RendererTest extends PHPUnit_Framework_TestCase
+class Horde_Text_Diff_RendererTest extends Horde_Test_Case
 {
     protected $_lines = array();
 
     public function setUp()
     {
         for ($i = 1; $i <= 8; $i++) {
-            $this->_lines[$i] = file(dirname(__FILE__) . '/fixtures/' . $i . '.txt');
+            $this->_lines[$i] = file(__DIR__ . '/fixtures/' . $i . '.txt');
         }
     }
 

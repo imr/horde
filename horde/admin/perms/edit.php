@@ -1,16 +1,18 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  * @author Jan Schneider <jan@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../../lib/Application.php';
-Horde_Registry::appInit('horde', array('admin' => true));
+require_once __DIR__ . '/../../lib/Application.php';
+Horde_Registry::appInit('horde', array(
+    'permission' => array('horde:administration:perms')
+));
 
 /* Set up the form variables. */
 $vars = Horde_Variables::getDefaultVariables();
@@ -34,46 +36,46 @@ if ($category !== null) {
                 $copyFrom = null;
             }
 
-            $parent = $vars->get('parent');
-            $permission = $corePerms->newPermission($category);
             try {
-                $result = $perms->addPermission($permission, $parent);
+                $permission = $corePerms->newPermission($category);
+                $result = $perms->addPermission($permission);
                 $form = 'edit.inc';
                 $perm_id = $perms->getPermissionId($permission);
-            } catch (Exception $e) {
-            }
 
-            if ($copyFrom) {
-                /* We have autocreated the permission and we have been told to
-                 * copy an existing permission for the defaults. */
-                $copyFromObj = $perms->getPermission($copyFrom);
-                $permission->addGuestPermission($copyFromObj->getGuestPermissions(), false);
-                $permission->addDefaultPermission($copyFromObj->getDefaultPermissions(), false);
-                $permission->addCreatorPermission($copyFromObj->getCreatorPermissions(), false);
-                foreach ($copyFromObj->getUserPermissions() as $user => $uperm) {
-                    $permission->addUserPermission($user, $uperm, false);
+                if ($copyFrom) {
+                    /* We have autocreated the permission and we have been told to
+                     * copy an existing permission for the defaults. */
+                    $copyFromObj = $perms->getPermission($copyFrom);
+                    $permission->addGuestPermission($copyFromObj->getGuestPermissions(), false);
+                    $permission->addDefaultPermission($copyFromObj->getDefaultPermissions(), false);
+                    $permission->addCreatorPermission($copyFromObj->getCreatorPermissions(), false);
+                    foreach ($copyFromObj->getUserPermissions() as $user => $uperm) {
+                        $permission->addUserPermission($user, $uperm, false);
+                    }
+                    foreach ($copyFromObj->getGroupPermissions() as $group => $gperm) {
+                        $permission->addGroupPermission($group, $gperm, false);
+                    }
+                } else {
+                    /* We have autocreated the permission and we don't have an
+                     * existing permission to copy.  See if some defaults were
+                     * supplied. */
+                    $addPerms = Horde_Util::getFormData('autocreate_guest');
+                    if ($addPerms) {
+                        $permission->addGuestPermission($addPerms, false);
+                    }
+                    $addPerms = Horde_Util::getFormData('autocreate_default');
+                    if ($addPerms) {
+                        $permission->addDefaultPermission($addPerms, false);
+                    }
+                    $addPerms = Horde_Util::getFormData('autocreate_creator');
+                    if ($addPerms) {
+                        $permission->addCreatorPermission($addPerms, false);
+                    }
                 }
-                foreach ($copyFromObj->getGroupPermissions() as $group => $gperm) {
-                    $permission->addGroupPermission($group, $gperm, false);
-                }
-            } else {
-                /* We have autocreated the permission and we don't have an
-                 * existing permission to copy.  See if some defaults were
-                 * supplied. */
-                $addPerms = Horde_Util::getFormData('autocreate_guest');
-                if ($addPerms) {
-                    $permission->addGuestPermission($addPerms, false);
-                }
-                $addPerms = Horde_Util::getFormData('autocreate_default');
-                if ($addPerms) {
-                    $permission->addDefaultPermission($addPerms, false);
-                }
-                $addPerms = Horde_Util::getFormData('autocreate_creator');
-                if ($addPerms) {
-                    $permission->addCreatorPermission($addPerms, false);
-                }
+                $permission->save();
+            } catch (Exception $e) {
+                $notification->push($e);
             }
-            $permission->save();
         } else {
             $redirect = true;
         }
@@ -108,13 +110,23 @@ if ($ui->validateEditForm($info)) {
         ->redirect();
 }
 
-$title = _("Permissions Administration");
-require HORDE_TEMPLATES . '/common-header.inc';
-require HORDE_TEMPLATES . '/admin/menu.inc';
-
-/* Render the form and tree. */
+// Buffer the tree rendering
+Horde::startBuffer();
 $ui->renderForm('edit.php');
 echo '<br />';
 $ui->renderTree($perm_id);
+$tree_output = Horde::endBuffer();
 
-require HORDE_TEMPLATES . '/common-footer.inc';
+// Buffer the menu output
+Horde::startBuffer();
+require HORDE_TEMPLATES . '/admin/menu.inc';
+$menu_output = Horde::endBuffer();
+
+$page_output->header(array(
+    'title' => _("Permissions Administration")
+));
+
+/* Render the form and tree. */
+echo $menu_output;
+echo $tree_output;
+$page_output->footer();

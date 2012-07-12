@@ -3,33 +3,31 @@
  * Implementation of the Quota API for servers using Maildir++ quota files on
  * the local filesystem.
  *
- * Copyright 2007-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2007-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Eric Rostetter <eric.rostetter@physics.utexas.edu>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
-class IMP_Quota_Maildir extends IMP_Quota_Base
+class IMP_Quota_Maildir extends IMP_Quota
 {
     /**
      * Constructor.
      *
      * @param array $params  Parameters:
-     * <pre>
-     * 'msg_count' - (boolean) Display information on the message limit rather
-     *               than the storage limit?
-     *               DEFAULT: false
-     * 'path' - (string) The path to the user's Maildir directory. You may use
-     *          the two-character sequence "~U" to represent the user's
-     *          account name, and the actual username will be substituted in
-     *          that location.
-     *          E.g., '/home/~U/Maildir/' or '/var/mail/~U/Maildir/'
-     *          DEFAULT: ''
-     * </pre>
+     *   - msg_count: (boolean) Display information on the message limit rather
+     *                than the storage limit?
+     *                DEFAULT: false
+     *   - path: (string) The path to the user's Maildir directory. You may use
+     *           the two-character sequence "~U" to represent the user's
+     *           account name, and the actual username will be substituted in
+     *           that location.
+     *           E.g., '/home/~U/Maildir/' or '/var/mail/~U/Maildir/'
+     *           DEFAULT: ''
      */
     public function __construct($params = array())
     {
@@ -43,10 +41,8 @@ class IMP_Quota_Maildir extends IMP_Quota_Base
      * Returns quota information (used/allocated), in bytes.
      *
      * @return array  An array with the following keys:
-     * <pre>
-     * 'limit' = Maximum quota allowed.
-     * 'usage' = Currently used portion of quota (in bytes).
-     * </pre>
+     *   - limit: Maximum quota allowed.
+     *   - usage: Currently used portion of quota (in bytes).
      * @throws IMP_Exception
      */
     public function getQuota()

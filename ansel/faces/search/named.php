@@ -2,10 +2,10 @@
 /**
  * Show all named faces.
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Duck <duck@obala.net>
  */
@@ -33,8 +33,10 @@ $pager = new Horde_Core_Ui_Pager(
     )
 );
 
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => _("Named faces")
+));
 echo Horde::menu();
 $notification->notify(array('listeners' => 'status'));
 include ANSEL_TEMPLATES . '/faces/faces.inc';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

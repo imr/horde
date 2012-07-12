@@ -1,18 +1,24 @@
 <?php
 /**
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Kronolith base library.
+ *
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
- * @package Kronolith
+ * @category Horde
+ * @license  http://www.horde.org/licenses/gpl GPL
+ * @package  Kronolith
  */
 
 /**
  * The Kronolith:: class provides functionality common to all of Kronolith.
  *
- * @author  Chuck Hagenbuch <chuck@horde.org>
- * @package Kronolith
+ * @author   Chuck Hagenbuch <chuck@horde.org>
+ * @category Horde
+ * @license  http://www.horde.org/licenses/gpl GPL
+ * @package  Kronolith
  */
 class Kronolith
 {
@@ -43,258 +49,9 @@ class Kronolith
     const PERMS_DELEGATE = 1024;
 
     /**
-     * Driver singleton instances.
-     *
-     * @var array
-     */
-    static private $_instances = array();
-
-    /**
      * @var Kronolith_Tagger
      */
     static private $_tagger;
-
-    /**
-     * Output everything for the AJAX interface up to but not including the
-     * <body> tag.
-     */
-    public static function header()
-    {
-        // Need to include script files before we start output
-        $datejs = str_replace('_', '-', $GLOBALS['language']) . '.js';
-        if (!file_exists($GLOBALS['registry']->get('jsfs', 'horde') . '/date/' . $datejs)) {
-            $datejs = 'en-US.js';
-        }
-        Horde::addScriptFile('effects.js', 'horde');
-        Horde::addScriptFile('sound.js', 'horde');
-        Horde::addScriptFile('horde.js', 'horde');
-        Horde::addScriptFile('dragdrop2.js', 'kronolith');
-        Horde::addScriptFile('growler.js', 'horde');
-        Horde::addScriptFile('redbox.js', 'horde');
-        Horde::addScriptFile('tooltips.js', 'horde');
-        Horde::addScriptFile('colorpicker.js', 'horde');
-        Horde::addScriptFile('date/' . $datejs, 'horde');
-        Horde::addScriptFile('date/date.js', 'horde');
-        Horde::addScriptFile('kronolith.js', 'kronolith');
-        Horde_Core_Ui_JsCalendar::init(array('short_weekdays' => true));
-
-        if (isset($GLOBALS['language'])) {
-            header('Content-type: text/html; charset=UTF-8');
-            header('Vary: Accept-Language');
-        }
-
-        echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "DTD/xhtml1-transitional.dtd">' . "\n" .
-             (!empty($GLOBALS['language']) ? '<html lang="' . strtr($GLOBALS['language'], '_', '-') . '"' : '<html') . ">\n".
-             "<head>\n" .
-             '<title>' . htmlspecialchars($GLOBALS['registry']->get('name')) . "</title>\n";
-
-        Horde::includeFavicon();
-        echo Horde::wrapInlineScript(self::includeJSVars());
-        Horde::includeStylesheetFiles();
-
-        echo "</head>\n";
-
-        // Send what we have currently output so the browser can start
-        // loading CSS/JS. See:
-        // http://developer.yahoo.com/performance/rules.html#flush
-        echo Horde::endBuffer();
-        flush();
-    }
-
-    /**
-     * Outputs the javascript code which defines all javascript variables
-     * that are dependent on the local user's account.
-     *
-     * @private
-     *
-     * @return string
-     */
-    public static function includeJSVars()
-    {
-        global $prefs, $registry;
-
-        $kronolith_webroot = $registry->get('webroot');
-        $horde_webroot = $registry->get('webroot', 'horde');
-        $has_tasks = Kronolith::hasApiPermission('tasks');
-        $app_urls = array();
-        if (isset($GLOBALS['conf']['menu']['apps']) &&
-            is_array($GLOBALS['conf']['menu']['apps'])) {
-            foreach ($GLOBALS['conf']['menu']['apps'] as $app) {
-                $app_urls[$app] = (string)Horde::url($registry->getInitialPage($app), true)->add('ajaxui', 1);
-            }
-        }
-
-        /* Variables used in core javascript files. */
-        $code['conf'] = array(
-            'URI_AJAX' => (string)Horde::getServiceLink('ajax', 'kronolith'),
-            'URI_SNOOZE' => (string)Horde::url($registry->get('webroot', 'horde') . '/services/snooze.php', true, -1),
-            'URI_CALENDAR_EXPORT' => (string)Horde::url('data.php', true)->add(array('actionID' => 'export', 'all_events' => 1, 'exportID' => Horde_Data::EXPORT_ICALENDAR, 'exportCal' => 'internal_')),
-            'URI_EVENT_EXPORT' => str_replace(array('%23', '%7B', '%7D'), array('#', '{', '}'), Horde::url('event.php', true)->add(array('view' => 'ExportEvent', 'eventID' => '#{id}', 'calendar' => '#{calendar}', 'type' => '#{type}'))),
-            'SESSION_ID' => defined('SID') ? SID : '',
-            'images' => array(
-                'attendees' => (string)Horde_Themes::img('attendees-fff.png'),
-                'alarm'     => (string)Horde_Themes::img('alarm-fff.png'),
-                'recur'     => (string)Horde_Themes::img('recur-fff.png'),
-                'exception' => (string)Horde_Themes::img('exception-fff.png'),
-            ),
-            'user' => $GLOBALS['registry']->convertUsername($GLOBALS['registry']->getAuth(), false),
-            'prefs_url' => (string)Horde::getServiceLink('prefs', 'kronolith')->setRaw(true)->add('ajaxui', 1),
-            'app_urls' => $app_urls,
-            'use_iframe' => !empty($GLOBALS['conf']['menu']['apps_iframe']),
-            'name' => $registry->get('name'),
-            'has_tasks' => (bool)$has_tasks,
-            'is_ie6' => ($GLOBALS['browser']->isBrowser('msie') && ($GLOBALS['browser']->getMajor() < 7)),
-            'login_view' => $prefs->getValue('defaultview') == 'workweek' ? 'week' : $prefs->getValue('defaultview'),
-            'default_calendar' => 'internal|' . self::getDefaultCalendar(Horde_Perms::EDIT),
-            'week_start' => (int)$prefs->getValue('week_start_monday'),
-            'max_events' => (int)$prefs->getValue('max_events'),
-            'date_format' => str_replace(array('%e', '%d', '%a', '%A', '%m', '%h', '%b', '%B', '%y', '%Y'),
-                                         array('d', 'dd', 'ddd', 'dddd', 'MM', 'MMM', 'MMM', 'MMMM', 'yy', 'yyyy'),
-                                         Horde_Nls::getLangInfo(D_FMT)),
-            'time_format' => $prefs->getValue('twentyFour') ? 'HH:mm' : 'hh:mm tt',
-            'status' => array('tentative' => self::STATUS_TENTATIVE,
-                              'confirmed' => self::STATUS_CONFIRMED,
-                              'cancelled' => self::STATUS_CANCELLED,
-                              'free' => self::STATUS_FREE),
-            'recur' => array(Horde_Date_Recurrence::RECUR_NONE => 'None',
-                             Horde_Date_Recurrence::RECUR_DAILY => 'Daily',
-                             Horde_Date_Recurrence::RECUR_WEEKLY => 'Weekly',
-                             Horde_Date_Recurrence::RECUR_MONTHLY_DATE => 'Monthly',
-                             Horde_Date_Recurrence::RECUR_MONTHLY_WEEKDAY => 'Monthly',
-                             Horde_Date_Recurrence::RECUR_YEARLY_DATE => 'Yearly',
-                             Horde_Date_Recurrence::RECUR_YEARLY_DAY => 'Yearly',
-                             Horde_Date_Recurrence::RECUR_YEARLY_WEEKDAY => 'Yearly'),
-            'perms' => array('all' => Horde_Perms::ALL,
-                             'show' => Horde_Perms::SHOW,
-                             'read' => Horde_Perms::READ,
-                             'edit' => Horde_Perms::EDIT,
-                             'delete' => Horde_Perms::DELETE,
-                             'delegate' => self::PERMS_DELEGATE),
-            'snooze' => array('0' => _("select..."),
-                              '5' => _("5 minutes"),
-                              '15' => _("15 minutes"),
-                              '60' => _("1 hour"),
-                              '360' => _("6 hours"),
-                              '1440' => _("1 day")),
-        );
-        if (!empty($GLOBALS['conf']['logo']['link'])) {
-            $code['conf']['URI_HOME'] = $GLOBALS['conf']['logo']['link'];
-        }
-
-        if ($has_tasks) {
-            $code['conf']['tasks'] = $registry->tasks->ajaxDefaults();
-        }
-
-        // Calendars. Do some twisting to sort own calendar before shared
-        // calendars.
-        foreach (array(true, false) as $my) {
-            foreach ($GLOBALS['all_calendars'] as $id => $calendar) {
-                if (!empty($GLOBALS['conf']['share']['hidden']) &&
-                    $calendar->owner() != $GLOBALS['registry']->getAuth() &&
-                    !in_array($id, $GLOBALS['display_calendars'])) {
-                    continue;
-                }
-                $owner = $GLOBALS['registry']->getAuth() &&
-                    $calendar->owner() == $GLOBALS['registry']->getAuth();
-                if (($my && $owner) || (!$my && !$owner)) {
-                    $code['conf']['calendars']['internal'][$id] = $calendar->toHash();
-                }
-            }
-
-            // Tasklists
-            if (!$has_tasks) {
-                continue;
-            }
-            foreach ($registry->tasks->listTasklists($my, Horde_Perms::SHOW) as $id => $tasklist) {
-                if (!isset($GLOBALS['all_external_calendars']['tasks/' . $id]) ||
-                    (!empty($GLOBALS['conf']['share']['hidden']) &&
-                     $tasklist->get('owner') != $GLOBALS['registry']->getAuth() &&
-                     !in_array('tasks/' . $id, $GLOBALS['display_external_calendars']))) {
-                    continue;
-                }
-                $owner = $GLOBALS['registry']->getAuth() &&
-                    $tasklist->get('owner') == $GLOBALS['registry']->getAuth();
-                if (($my && $owner) || (!$my && !$owner)) {
-                    $code['conf']['calendars']['tasklists']['tasks/' . $id] = $GLOBALS['all_external_calendars']['tasks/' . $id]->toHash();
-                }
-            }
-        }
-
-        // Timeobjects
-        foreach ($GLOBALS['all_external_calendars'] as $id => $calendar) {
-            if ($calendar->api() == 'tasks') {
-                continue;
-            }
-            if (!empty($GLOBALS['conf']['share']['hidden']) &&
-                !in_array($id, $GLOBALS['display_external_calendars'])) {
-                continue;
-            }
-            $code['conf']['calendars']['external'][$id] = $calendar->toHash();
-        }
-
-        // Remote calendars
-        foreach ($GLOBALS['all_remote_calendars'] as $url => $calendar) {
-            $code['conf']['calendars']['remote'][$url] = $calendar->toHash();
-        }
-
-        // Holidays
-        foreach ($GLOBALS['all_holidays'] as $id => $calendar) {
-            $code['conf']['calendars']['holiday'][$id] = $calendar->toHash();
-        }
-
-        /* Gettext strings used in core javascript files. */
-        $code['text'] = array(
-            'ajax_error' => _("Error when communicating with the server."),
-            'ajax_timeout' => _("There has been no contact with the server for several minutes. The server may be temporarily unavailable or network problems may be interrupting your session. You will not see any updates until the connection is restored."),
-            'ajax_recover' => _("The connection to the server has been restored."),
-            'alarm' => _("Alarm:"),
-            'snooze' => sprintf(_("You can snooze it for %s or %s dismiss %s it entirely"), '#{time}', '#{dismiss_start}', '#{dismiss_end}'),
-            'noalerts' => _("No Notifications"),
-            'alerts' => sprintf(_("%s notifications"), '#{count}'),
-            'hidelog' => _("Hide Notifications"),
-            'growlerinfo' => _("This is the notification backlog"),
-            'agenda' => _("Agenda"),
-            'searching' => sprintf(_("Events matching \"%s\""), '#{term}'),
-            'allday' => _("All day"),
-            'more' => _("more..."),
-            'prefs' => _("Preferences"),
-            'shared' => _("Shared"),
-            'no_url' => _("You must specify a URL."),
-            'no_calendar_title' => _("The calendar title must not be empty."),
-            'no_tasklist_title' => _("The task list title must not be empty."),
-            'delete_calendar' => _("Are you sure you want to delete this calendar and all the events in it?"),
-            'delete_tasklist' => _("Are you sure you want to delete this task list and all the tasks in it?"),
-            'wrong_auth' => _("The authentication information you specified wasn't accepted."),
-            'geocode_error' => _("Unable to locate requested address"),
-            'wrong_date_format' => sprintf(_("You used an unknown date format \"%s\". Please try something like \"%s\"."), '#{wrong}', '#{right}'),
-            'wrong_time_format' => sprintf(_("You used an unknown time format \"%s\". Please try something like \"%s\"."), '#{wrong}', '#{right}'),
-            'fix_form_values' => _("Please enter correct values in the form first."),
-        );
-        for ($i = 1; $i <= 12; ++$i) {
-            $code['text']['month'][$i - 1] = Horde_Nls::getLangInfo(constant('MON_' . $i));
-        }
-        for ($i = 1; $i <= 7; ++$i) {
-            $code['text']['weekday'][$i] = Horde_Nls::getLangInfo(constant('DAY_' . $i));
-        }
-        foreach (array(Horde_Date_Recurrence::RECUR_DAILY,
-                       Horde_Date_Recurrence::RECUR_WEEKLY,
-                       Horde_Date_Recurrence::RECUR_MONTHLY_DATE,
-                       Horde_Date_Recurrence::RECUR_MONTHLY_WEEKDAY,
-                       Horde_Date_Recurrence::RECUR_YEARLY_DATE,
-                       Horde_Date_Recurrence::RECUR_YEARLY_DAY,
-                       Horde_Date_Recurrence::RECUR_YEARLY_WEEKDAY) as $recurType) {
-            $code['text']['recur'][$recurType] = self::recurToString($recurType);
-        }
-
-        $code['text']['recur']['exception'] = _("Exception");
-
-        // Maps
-        $code['conf']['maps'] = $GLOBALS['conf']['maps'];
-
-        return Horde::addInlineJsVars(array(
-            'var Kronolith' => $code
-        ), array('ret_vars' => true));
-    }
 
     /**
      * Converts a permission object to a json object.
@@ -306,7 +63,7 @@ class Kronolith
      *
      * @return array  A hash suitable for json.
      */
-    public static function permissionToJson(Horde_Perms_Permission $perm)
+    static public function permissionToJson(Horde_Perms_Permission $perm)
     {
         $json = $perm->data;
         if (isset($json['users'])) {
@@ -339,7 +96,7 @@ class Kronolith
      *                as keys and arrays of events or event ids as values.
      * @throws Kronolith_Exception
      */
-    public static function listAlarms($date, $calendars, $fullevent = false)
+    static public function listAlarms($date, $calendars, $fullevent = false)
     {
         $kronolith_driver = self::getDriver();
 
@@ -362,7 +119,7 @@ class Kronolith
      * @return array  The events.
      * @throws Kronolith_Exception
      */
-    public static function search($query, $calendar = null)
+    static public function search($query, $calendar = null)
     {
         if ($calendar) {
             $driver = explode('|', $calendar, 2);
@@ -398,28 +155,38 @@ class Kronolith
      * @param Horde_Date $startDate    The start of the time range.
      * @param Horde_Date $endDate      The end of the time range.
      * @param array $calendars         The calendars to check for events.
-     * @param boolean $showRecurrence  Return every instance of a recurring
-     *                                 event? If false, will only return
-     *                                 recurring events once inside the
-     *                                 $startDate - $endDate range.
-     *                                 Defaults to true
-     * @param boolean $alarmsOnly      Filter results for events with alarms
-     *                                 Defaults to false
-     * @param boolean $showRemote      Return events from remote and
-     *                                 listTimeObjects as well?
-     * @param boolean $hideExceptions  Hide events that represent exceptions to
-     *                                 a recurring event?
-     * @param boolean $fetchTags       Should we fetch each event's tags from
-     *                                 storage?
+     * @param array $options         Additional options:
+     *   - show_recurrence: (boolean) Return every instance of a recurring
+     *                       event?
+     *                      DEFAULT: false (Only return recurring events once
+     *                      inside $startDate - $endDate range)
+     *   - has_alarm:       (boolean) Only return events with alarms.
+     *                      DEFAULT: false (Return all events)
+     *   - json:            (boolean) Store the results of the event's toJson()
+     *                      method?
+     *                      DEFAULT: false
+     *   - cover_dates:     (boolean) Add the events to all days that they
+     *                      cover?
+     *                      DEFAULT: true
+     *   - hide_exceptions: (boolean) Hide events that represent exceptions to
+     *                      a recurring event.
+     *                      DEFAULT: false (Do not hide exception events)
+     *   - fetch_tags:      (boolean) Fetch tags for all events.
+     *                      DEFAULT: false (Do not fetch event tags)
      *
      * @return array  The events happening in this time period.
      */
-    public static function listEvents($startDate, $endDate, $calendars = null,
-                                      $showRecurrence = true,
-                                      $alarmsOnly = false, $showRemote = true,
-                                      $hideExceptions = false,
-                                      $coverDates = true, $fetchTags = false)
+    static public function listEvents(
+        $startDate, $endDate, $calendars = null, array $options = array())
     {
+        $options = array_merge(array(
+            'show_recurrence' => true,
+            'has_alarm' => false,
+            'show_remote' => true,
+            'hide_exceptions' => false,
+            'cover_dates' => true,
+            'fetch_tags' => false), $options);
+
         $results = array();
 
         /* Internal calendars. */
@@ -430,29 +197,23 @@ class Kronolith
         foreach ($calendars as $calendar) {
             try {
                 $driver->open($calendar);
-                $events = $driver->listEvents($startDate, $endDate,
-                                              $showRecurrence, $alarmsOnly,
-                                              false, $coverDates,
-                                              $hideExceptions, $fetchTags);
+                $events = $driver->listEvents($startDate, $endDate, $options);
                 self::mergeEvents($results, $events);
             } catch (Kronolith_Exception $e) {
                 $GLOBALS['notification']->push($e);
             }
         }
 
-        /* Resource calendars (this would only be populated if explicitly
-         * requested in the request, so include them if this is set regardless
-         * of $calendars value).
-         *
-         * @TODO: Should we disallow even *viewing* these if the user is not an
-         *        admin?
-         */
+        // Resource calendars (this would only be populated if explicitly
+        // requested in the request, so include them if this is set regardless
+        // of $calendars value).
         if (!empty($GLOBALS['display_resource_calendars'])) {
             $driver = self::getDriver('Resource');
             foreach ($GLOBALS['display_resource_calendars'] as $calendar) {
                 try {
                     $driver->open($calendar);
-                    $events = $driver->listEvents($startDate, $endDate, $showRecurrence);
+                    $events = $driver->listEvents(
+                        $startDate, $endDate, array('show_recurrence' => $options['show_recurrence']));
                     self::mergeEvents($results, $events);
                 } catch (Kronolith_Exception $e) {
                     $GLOBALS['notification']->push($e);
@@ -460,14 +221,15 @@ class Kronolith
             }
         }
 
-        if ($showRemote) {
+        if ($options['show_remote']) {
             /* Horde applications providing listTimeObjects. */
             if (count($GLOBALS['display_external_calendars'])) {
                 $driver = self::getDriver('Horde');
                 foreach ($GLOBALS['display_external_calendars'] as $external_cal) {
                     try {
                         $driver->open($external_cal);
-                        $events = $driver->listEvents($startDate, $endDate, $showRecurrence);
+                        $events = $driver->listEvents(
+                            $startDate, $endDate, array('show_recurrence' => $options['show_recurrence']));
                         self::mergeEvents($results, $events);
                     } catch (Kronolith_Exception $e) {
                         $GLOBALS['notification']->push($e);
@@ -479,7 +241,8 @@ class Kronolith
             foreach ($GLOBALS['display_remote_calendars'] as $url) {
                 try {
                     $driver = self::getDriver('Ical', $url);
-                    $events = $driver->listEvents($startDate, $endDate, $showRecurrence);
+                    $events = $driver->listEvents(
+                        $startDate, $endDate, array('show_recurrence' => $options['show_recurrence']));
                     self::mergeEvents($results, $events);
                 } catch (Kronolith_Exception $e) {
                     $GLOBALS['notification']->push($e);
@@ -492,7 +255,8 @@ class Kronolith
                 foreach ($GLOBALS['display_holidays'] as $holiday) {
                     try {
                         $driver->open($holiday);
-                        $events = $driver->listEvents($startDate, $endDate, $showRecurrence);
+                        $events = $driver->listEvents(
+                            $startDate, $endDate, array('show_recurrence' => $options['show_recurrence']));
                         self::mergeEvents($results, $events);
                     } catch (Kronolith_Exception $e) {
                         $GLOBALS['notification']->push($e);
@@ -502,12 +266,7 @@ class Kronolith
         }
 
         /* Sort events. */
-        foreach ($results as $day => $devents) {
-            if (count($devents)) {
-                uasort($devents, array('Kronolith', '_sortEventStartTime'));
-                $results[$day] = $devents;
-            }
-        }
+        $results = self::sortEvents($results);
 
         return $results;
     }
@@ -518,7 +277,7 @@ class Kronolith
      * @param array $results  First list of events.
      * @param array $events   List of events to be merged into the first one.
      */
-    public static function mergeEvents(&$results, $events)
+    static public function mergeEvents(&$results, $events)
     {
         foreach ($events as $day => $day_events) {
             if (isset($results[$day])) {
@@ -533,9 +292,19 @@ class Kronolith
     /**
      * Calculates recurrences of an event during a certain period.
      */
-    public static function addEvents(&$results, &$event, $startDate, $endDate,
+    static public function addEvents(&$results, &$event, $startDate, $endDate,
                                      $showRecurrence, $json, $coverDates = true)
     {
+        /* If the event has a custom timezone, we need to convert the
+         * recurrence object to the event's timezone while calculating next
+         * recurrences, to take DST changes in both the event's and the local
+         * timezone into account. */
+        $convert = $event->timezone &&
+            $event->getDriver()->supportsTimezones();
+        if ($convert) {
+            $timezone = date_default_timezone_get();
+        }
+
         if ($event->recurs() && $showRecurrence) {
             /* Recurring Event. */
 
@@ -562,30 +331,15 @@ class Kronolith
                           $event->end->mday - $event->start->mday,
                           $event->end->hour - $event->start->hour,
                           $event->end->min - $event->start->min);
-            while ($diff[4] < 0) {
-                --$diff[3];
-                $diff[4] += 60;
-            }
-            while ($diff[3] < 0) {
-                --$diff[2];
-                $diff[3] += 24;
-            }
-            while ($diff[2] < 0) {
-                --$diff[1];
-                $diff[2] += Horde_Date_Utils::daysInMonth($event->start->month, $event->start->year);
-            }
-            while ($diff[1] < 0) {
-                --$diff[0];
-                $diff[1] += 12;
-            }
 
             if ($event->start->compareDateTime($startDate) < 0) {
                 /* The first time the event happens was before the period
                  * started. Start searching for recurrences from the start of
                  * the period. */
-                $next = array('year' => $startDate->year,
-                              'month' => $startDate->month,
-                              'mday' => $startDate->mday);
+                $next = new Horde_Date(array('year' => $startDate->year,
+                                             'month' => $startDate->month,
+                                             'mday' => $startDate->mday),
+                                       $event->timezone);
             } else {
                 /* The first time the event happens is in the range; unless
                  * there is an exception for this ocurrence, add it. */
@@ -605,8 +359,23 @@ class Kronolith
                 ++$next->mday;
             }
 
+            if ($convert) {
+                $event->recurrence->start->setTimezone($event->timezone);
+                if ($event->recurrence->hasRecurEnd()) {
+                    $event->recurrence->recurEnd->setTimezone($event->timezone);
+                }
+            }
+
             /* Add all recurrences of the event. */
             $next = $event->recurrence->nextRecurrence($next);
+            if ($convert) {
+                /* Resetting after the nextRecurrence() call, because
+                 * we need to test if the next recurrence in the
+                 * event's timezone actually matches the interval we
+                 * check in the local timezone. This is done on each
+                 * nextRecurrence() further below. */
+                $next->setTimezone($timezone);
+            }
             while ($next !== false && $next->compareDate($endDate) <= 0) {
                 if (!$event->recurrence->hasException($next->year, $next->month, $next->mday)) {
                     /* Add the event to all the days it covers. */
@@ -626,6 +395,9 @@ class Kronolith
 
                     }
                 }
+                if ($convert) {
+                    $next->setTimezone($event->timezone);
+                }
                 $next = $event->recurrence->nextRecurrence(
                     array('year' => $next->year,
                           'month' => $next->month,
@@ -633,6 +405,9 @@ class Kronolith
                           'hour' => $next->hour,
                           'min' => $next->min,
                           'sec' => $next->sec));
+                if ($convert) {
+                    $next->setTimezone($timezone);
+                }
             }
         } else {
             /* Event only occurs once. */
@@ -645,7 +420,11 @@ class Kronolith
                 if ($startDate &&
                     $event->start->compareDateTime($startDate) < 0) {
                     /* It started before the beginning of the period. */
-                    $eventStart = clone $startDate;
+                    if ($event->recurs()) {
+                        $eventStart = $event->recurrence->nextRecurrence($startDate);
+                    } else {
+                        $eventStart = clone $startDate;
+                    }
                 } else {
                     $eventStart = clone $event->start;
                 }
@@ -660,24 +439,49 @@ class Kronolith
                         $eventEnd = $endDate;
                     }
                 } else {
+                    /* Need to perform some magic if this is a single instance
+                     * of a recurring event since $event->end would be the
+                     * original end date, not the recurrence's end date. */
+                    if ($event->recurs()) {
+
+                        $diff = array($event->end->year - $event->start->year,
+                                      $event->end->month - $event->start->month,
+                                      $event->end->mday - $event->start->mday,
+                                      $event->end->hour - $event->start->hour,
+                                      $event->end->min - $event->start->min);
+
+                        $theEnd = $event->recurrence->nextRecurrence($eventStart);
+                        $theEnd->year  += $diff[0];
+                        $theEnd->month += $diff[1];
+                        $theEnd->mday  += $diff[2];
+                        $theEnd->hour  += $diff[3];
+                        $theEnd->min   += $diff[4];
+                        if ($convert) {
+                            $eventStart->setTimezone($timezone);
+                            $theEnd->setTimezone($timezone);
+                        }
+                    } else {
+                        $theEnd = clone $event->end;
+                    }
+
                     /* If the event doesn't end at 12am set the end date to
                      * the current end date. If it ends at 12am and does not
                      * end at the same time that it starts (0 duration), set
                      * the end date to the previous day's end date. */
-                    if ($event->end->hour != 0 ||
-                        $event->end->min != 0 ||
-                        $event->end->sec != 0 ||
-                        $event->start->compareDateTime($event->end) == 0 ||
+                    if ($theEnd->hour != 0 ||
+                        $theEnd->min != 0 ||
+                        $theEnd->sec != 0 ||
+                        $event->start->compareDateTime($theEnd) == 0 ||
                         $allDay) {
-                        $eventEnd = clone $event->end;
+                        $eventEnd = clone $theEnd;
                     } else {
                         $eventEnd = new Horde_Date(
                             array('hour' =>  23,
                                   'min' =>   59,
                                   'sec' =>   59,
-                                  'month' => $event->end->month,
-                                  'mday' =>  $event->end->mday - 1,
-                                  'year' =>  $event->end->year));
+                                  'month' => $theEnd->month,
+                                  'mday' =>  $theEnd->mday - 1,
+                                  'year' =>  $theEnd->year));
                     }
                 }
 
@@ -701,9 +505,8 @@ class Kronolith
                         if ($loopDate->compareDate($eventStart) == 0) {
                             $addEvent->start = $eventStart;
                         } else {
-                            $addEvent->start = new Horde_Date(array(
-                                'hour' => 0, 'min' => 0, 'sec' => 0,
-                                'month' => $loopDate->month, 'mday' => $loopDate->mday, 'year' => $loopDate->year));
+                            $addEvent->start = clone $loopDate;
+                            $addEvent->start->hour = $addEvent->start->min = $addEvent->start->sec = 0;
                             $addEvent->first = false;
                         }
 
@@ -712,9 +515,9 @@ class Kronolith
                         if ($loopDate->compareDate($eventEnd) == 0) {
                             $addEvent->end = $eventEnd;
                         } else {
-                            $addEvent->end = new Horde_Date(array(
-                                'hour' => 23, 'min' => 59, 'sec' => 59,
-                                'month' => $loopDate->month, 'mday' => $loopDate->mday, 'year' => $loopDate->year));
+                            $addEvent->end = clone $loopDate;
+                            $addEvent->end->hour = 23;
+                            $addEvent->end->min = $addEvent->end->sec = 59;
                             $addEvent->last = false;
                         }
 
@@ -742,7 +545,7 @@ class Kronolith
      * @param boolean $json           Store the results of the events' toJson()
      *                                method?
      */
-    public static function addCoverDates(&$results, $event, $eventStart,
+    static public function addCoverDates(&$results, $event, $eventStart,
                                          $eventEnd, $json)
     {
         $loopDate = new Horde_Date($eventStart->year, $eventStart->month, $eventStart->mday);
@@ -760,6 +563,10 @@ class Kronolith
                 if ($loopDate->compareDate($eventEnd) != 0) {
                     $addEvent->last = false;
                 }
+                if ($addEvent->recurs() &&
+                    $addEvent->recurrence->hasCompletion($loopDate->year, $loopDate->month, $loopDate->mday)) {
+                    $addEvent->status = Kronolith::STATUS_CANCELLED;
+                }
                 $results[$loopDate->dateString()][$addEvent->id] = $json ? $addEvent->toJson($allDay) : $addEvent;
             }
             $loopDate->mday++;
@@ -776,7 +583,7 @@ class Kronolith
      * @param boolean $json           Store the results of the events' toJson()
      *                                method?
      */
-    public static function addSearchEvents(&$events, $event, $query, $json)
+    static public function addSearchEvents(&$events, $event, $query, $json)
     {
         static $now;
         if (!isset($now)) {
@@ -789,9 +596,21 @@ class Kronolith
                 $eventEnd = $event->end;
             } else {
                 if (empty($query->end)) {
+                    $convert = $event->timezone &&
+                        $event->getDriver()->supportsTimezones();
+                    if ($convert) {
+                        $timezone = date_default_timezone_get();
+                        $event->recurrence->start->setTimezone($event->timezone);
+                        if ($event->recurrence->hasRecurEnd()) {
+                            $event->recurrence->recurEnd->setTimezone($event->timezone);
+                        }
+                    }
                     $eventEnd = $event->recurrence->nextRecurrence($now);
                     if (!$eventEnd) {
-                        continue;
+                        return;
+                    }
+                    if ($convert) {
+                        $eventEnd->setTimezone($timezone);
                     }
                 } else {
                     $eventEnd = $query->end;
@@ -807,7 +626,7 @@ class Kronolith
             $eventStart = $event->start;
             $eventEnd = $event->end;
         }
-        Kronolith::addEvents($events, $event, $eventStart, $eventEnd, $showRecurrence, $json, false);
+        self::addEvents($events, $event, $eventStart, $eventEnd, $showRecurrence, $json, false);
     }
 
     /**
@@ -815,7 +634,7 @@ class Kronolith
      *
      * @return integer  The number of events.
      */
-    public static function countEvents()
+    static public function countEvents()
     {
         static $count;
         if (isset($count)) {
@@ -873,7 +692,7 @@ class Kronolith
         $title = $r->untaggedText();
         $start = $d->timestamp();
 
-        $kronolith_driver = Kronolith::getDriver(null, $calendar);
+        $kronolith_driver = self::getDriver(null, $calendar);
         $event = $kronolith_driver->getEvent();
         $event->initialized = true;
         $event->title = $title;
@@ -887,122 +706,118 @@ class Kronolith
 
     /**
      * Initial app setup code.
+     *
+     * Globals defined:
+     *   - all_calendars
+     *   - all_remote_calendars
+     *   - display_calendars
+     *   - display_holidays
+     *   - display_external_calendars
+     *   - display_remote_calendars
+     *   - display_resource_calendars
      */
-    public static function initialize()
+    static public function initialize()
     {
-        /* Store the request timestamp if it's not already present. */
-        if (!isset($_SERVER['REQUEST_TIME'])) {
-            $_SERVER['REQUEST_TIME'] = time();
-        }
-
-        /* Fetch display preferences. */
-        $GLOBALS['display_calendars'] = @unserialize($GLOBALS['prefs']->getValue('display_cals'));
-        $GLOBALS['display_remote_calendars'] = @unserialize($GLOBALS['prefs']->getValue('display_remote_cals'));
-        $GLOBALS['display_external_calendars'] = @unserialize($GLOBALS['prefs']->getValue('display_external_cals'));
-        $GLOBALS['display_holidays'] = @unserialize($GLOBALS['prefs']->getValue('holiday_drivers'));
-
-        if (!is_array($GLOBALS['display_calendars'])) {
-            $GLOBALS['display_calendars'] = array();
-        }
-        if (!is_array($GLOBALS['display_remote_calendars'])) {
-            $GLOBALS['display_remote_calendars'] = array();
-        }
-        if (!is_array($GLOBALS['display_external_calendars'])) {
-            $GLOBALS['display_external_calendars'] = array();
-        }
-        if (!is_array($GLOBALS['display_holidays']) ||
-            empty($GLOBALS['conf']['holidays']['enable'])) {
-            $GLOBALS['display_holidays'] = array();
-        }
+        global $conf, $prefs, $registry, $session;
 
         /* Update preferences for which calendars to display. If the
          * user doesn't have any selected calendars to view then fall
          * back to an available calendar. An empty string passed in this
          * parameter will clear any existing session value.*/
-        if (($calendarId = Horde_Util::getFormData('display_cal')) !== null) {
-            $GLOBALS['session']->set('kronolith', 'display_cal', $calendarId);
+        if (($calId = Horde_Util::getFormData('display_cal')) !== null) {
+            $session->set('kronolith', 'display_cal', $calId);
+        } else {
+            $calId = $session->get('kronolith', 'display_cal');
         }
 
-        if (strlen($GLOBALS['session']->get('kronolith', 'display_cal'))) {
+        if (strlen($calId)) {
             /* Specifying a value for display_cal is always to make sure
              * that only the specified calendars are shown. Use the
-             * "toggle_calendar" argument  to toggle the state of a single
+             * "toggle_calendar" argument to toggle the state of a single
              * calendar. */
             $GLOBALS['display_calendars'] = array();
             $GLOBALS['display_remote_calendars'] = array();
             $GLOBALS['display_external_calendars'] = array();
             $GLOBALS['display_resource_calendars'] = array();
             $GLOBALS['display_holidays'] = array();
-            $calendars = $GLOBALS['session']->get('kronolith', 'display_cal');
-            if (!is_array($calendars)) {
-                $calendars = array($calendars);
+
+            if (strncmp($calId, 'remote_', 7) === 0) {
+                $GLOBALS['display_remote_calendars'][] = substr($calId, 7);
+            } elseif (strncmp($calId, 'external_', 9) === 0) {
+                $GLOBALS['display_external_calendars'][] = substr($calId, 9);
+            } elseif (strncmp($calId, 'resource_', 9) === 0) {
+                $GLOBALS['display_resource_calendars'][] = substr($calId, 9);
+            } elseif (strncmp($calId, 'holidays_', 9) === 0) {
+                $GLOBALS['display_holidays'][] = substr($calId, 9);
+            } else {
+                $GLOBALS['display_calendars'][] = (strncmp($calId, 'internal_', 9) === 0)
+                    ? substr($calId, 9)
+                    : $calId;
             }
-            foreach ($calendars as $calendarId) {
-                if (strncmp($calendarId, 'remote_', 7) === 0) {
-                    $calendarId = substr($calendarId, 7);
-                    if (!in_array($calendarId, $GLOBALS['display_remote_calendars'])) {
-                        $GLOBALS['display_remote_calendars'][] = $calendarId;
-                    }
-                } elseif (strncmp($calendarId, 'external_', 9) === 0) {
-                    $calendarId = substr($calendarId, 9);
-                    if (!in_array($calendarId, $GLOBALS['display_external_calendars'])) {
-                        $GLOBALS['display_external_calendars'][] = $calendarId;
-                    }
-                } elseif (strncmp($calendarId, 'resource_', 9) === 0) {
-                    if (!in_array($calendarId, $GLOBALS['display_resource_calendars'])) {
-                        $GLOBALS['display_resource_calendars'][] = $calendarId;
-                    }
-                } elseif (strncmp($calendarId, 'holidays_', 9) === 0) {
-                    $calendarId = substr($calendarId, 9);
-                    if (!in_array($calendarId, $GLOBALS['display_holidays'])) {
-                        $GLOBALS['display_holidays'][] = $calendarId;
-                    }
-                } else {
-                    if (!in_array($calendarId, $GLOBALS['display_calendars'])) {
-                        $GLOBALS['display_calendars'][] = $calendarId;
-                    }
-                }
+        } else {
+            /* Fetch display preferences. */
+            $display_prefs = array(
+                'display_cals' => 'display_calendars',
+                'display_remote_cals' => 'display_remote_calendars',
+                'display_external_cals' => 'display_external_calendars',
+                'holiday_drivers' => 'display_holidays'
+            );
+            foreach ($display_prefs as $key => $val) {
+                $pref_val = @unserialize($prefs->getValue($key));
+                $GLOBALS[$val] = is_array($pref_val)
+                    ? $pref_val
+                    : array();
+            }
+
+            if (empty($conf['holidays']['enable'])) {
+                $GLOBALS['display_holidays'] = array();
             }
         }
 
         /* Check for single "toggle" calendars. */
-        if (($calendarId = Horde_Util::getFormData('toggle_calendar')) !== null) {
-            if (strncmp($calendarId, 'remote_', 7) === 0) {
-                $calendarId = substr($calendarId, 7);
-                if (in_array($calendarId, $GLOBALS['display_remote_calendars'])) {
-                    $key = array_search($calendarId, $GLOBALS['display_remote_calendars']);
+        if (($calId = Horde_Util::getFormData('toggle_calendar')) !== null) {
+            if (strncmp($calId, 'remote_', 7) === 0) {
+                $calId = substr($calId, 7);
+                if (($key = array_search($calId, $GLOBALS['display_remote_calendars'])) === false) {
+                    $GLOBALS['display_remote_calendars'][] = $calId;
+                } else {
                     unset($GLOBALS['display_remote_calendars'][$key]);
-                } else {
-                    $GLOBALS['display_remote_calendars'][] = $calendarId;
                 }
-            } elseif ((strncmp($calendarId, 'external_', 9) === 0 &&
-                       $calendarId = substr($calendarId, 9)) ||
-                      (strncmp($calendarId, 'tasklists_', 10) === 0 &&
-                       $calendarId = substr($calendarId, 10))) {
-                if (in_array($calendarId, $GLOBALS['display_external_calendars'])) {
-                    $key = array_search($calendarId, $GLOBALS['display_external_calendars']);
+            } elseif ((strncmp($calId, 'external_', 9) === 0 &&
+                       ($calId = substr($calId, 9))) ||
+                      (strncmp($calId, 'tasklists_', 10) === 0 &&
+                       ($calId = substr($calId, 10)))) {
+                if (($key = array_search($calId, $GLOBALS['display_external_calendars'])) === false) {
+                    $GLOBALS['display_external_calendars'][] = $calId;
+                } else {
                     unset($GLOBALS['display_external_calendars'][$key]);
-                } else {
-                    $GLOBALS['display_external_calendars'][] = $calendarId;
                 }
-            } elseif (strncmp($calendarId, 'holiday_', 8) === 0) {
-                $calendarId = substr($calendarId, 8);
-                if (in_array($calendarId, $GLOBALS['display_holidays'])) {
-                    $key = array_search($calendarId, $GLOBALS['display_holidays']);
+
+                if (strpos($calId, 'tasks/') === 0) {
+                    $tasklists = array();
+                    foreach ($GLOBALS['display_external_calendars'] as $id) {
+                        if (strpos($id, 'tasks/') === 0) {
+                            $tasklists[] = substr($id, 6);
+                        }
+                    }
+                    try {
+                        $registry->tasks->setDisplayedTasklists($tasklists);
+                    } catch (Horde_Exception $e) {}
+                }
+            } elseif (strncmp($calId, 'holiday_', 8) === 0) {
+                $calId = substr($calId, 8);
+                if (($key = array_search($calId, $GLOBALS['display_holidays'])) === false) {
+                    $GLOBALS['display_holidays'][] = $calId;
+                } else {
                     unset($GLOBALS['display_holidays'][$key]);
-                } else {
-                    $GLOBALS['display_holidays'][] = $calendarId;
                 }
+            } elseif (($key = array_search($calId, $GLOBALS['display_calendars'])) === false) {
+                $GLOBALS['display_calendars'][] = $calId;
             } else {
-                if (in_array($calendarId, $GLOBALS['display_calendars'])) {
-                    $key = array_search($calendarId, $GLOBALS['display_calendars']);
-                    unset($GLOBALS['display_calendars'][$key]);
-                } else {
-                    $GLOBALS['display_calendars'][] = $calendarId;
-                }
+                unset($GLOBALS['display_calendars'][$key]);
             }
 
-            $GLOBALS['prefs']->setValue('display_cals', serialize($GLOBALS['display_calendars']));
+            $prefs->setValue('display_cals', serialize($GLOBALS['display_calendars']));
         }
 
         /* Make sure all shares exists now to save on checking later. */
@@ -1010,25 +825,19 @@ class Kronolith
         foreach (self::listInternalCalendars() as $id => $calendar) {
             $GLOBALS['all_calendars'][$id] = new Kronolith_Calendar_Internal(array('share' => $calendar));
         }
-        $calendar_keys = array_values($GLOBALS['display_calendars']);
-        $GLOBALS['display_calendars'] = array();
-        foreach ($calendar_keys as $id) {
-            if (isset($GLOBALS['all_calendars'][$id])) {
-                $GLOBALS['display_calendars'][] = $id;
-            }
-        }
+        $GLOBALS['display_calendars'] = array_intersect($GLOBALS['display_calendars'], array_keys($GLOBALS['all_calendars']));
 
         /* Make sure all the remote calendars still exist. */
-        $_temp = $GLOBALS['display_remote_calendars'];
-        $GLOBALS['display_remote_calendars'] = array();
-        $GLOBALS['all_remote_calendars'] = array();
+        $tmp = $GLOBALS['display_remote_calendars'];
+        $GLOBALS['all_remote_calendars'] = $GLOBALS['display_remote_calendars'] = array();
         $calendars = @unserialize($GLOBALS['prefs']->getValue('remote_cals'));
         if (!is_array($calendars)) {
             $calendars = array();
         }
+
         foreach ($calendars as $calendar) {
             $GLOBALS['all_remote_calendars'][$calendar['url']] = new Kronolith_Calendar_Remote($calendar);
-            if (in_array($calendar['url'], $_temp)) {
+            if (in_array($calendar['url'], $tmp)) {
                 $GLOBALS['display_remote_calendars'][] = $calendar['url'];
             }
         }
@@ -1057,26 +866,40 @@ class Kronolith
         $GLOBALS['prefs']->setValue('holiday_drivers', serialize($GLOBALS['display_holidays']));
 
         /* Get a list of external calendars. */
-        $has_tasks = Kronolith::hasApiPermission('tasks');
-        $tasklists = $has_tasks
-            ? $GLOBALS['registry']->tasks->listTasklists()
-            : array();
         $GLOBALS['all_external_calendars'] = array();
+
+        /* Make sure all task lists exist. */
+        if (self::hasApiPermission('tasks') &&
+            $GLOBALS['registry']->hasMethod('tasks/listTimeObjects')) {
+            try {
+                $tasklists = $GLOBALS['registry']->tasks->listTasklists();
+                $categories = $GLOBALS['registry']->call('tasks/listTimeObjectCategories');
+                foreach ($categories as $name => $description) {
+                    if (!isset($tasklists[$name])) {
+                        continue;
+                    }
+                    $GLOBALS['all_external_calendars']['tasks/' . $name] = new Kronolith_Calendar_External_Tasks(array('api' => 'tasks', 'name' => $description, 'share' => $tasklists[$name]));
+                }
+            } catch (Horde_Exception $e) {
+                Horde::logMessage($e, 'DEBUG');
+            }
+        }
+
         if ($GLOBALS['session']->exists('kronolith', 'all_external_calendars')) {
             foreach ($GLOBALS['session']->get('kronolith', 'all_external_calendars') as $calendar) {
-                if (!Kronolith::hasApiPermission($calendar['a'])) {
+                if (!self::hasApiPermission($calendar['a']) ||
+                    $calendar['a'] == 'tasks') {
                     continue;
                 }
-                $GLOBALS['all_external_calendars'][$calendar['a'] . '/' . $calendar['n']] = $calendar['a'] == 'tasks'
-                    ? new Kronolith_Calendar_External_Tasks(array('api' => $calendar['a'], 'name' => $calendar['d'], 'share' => $tasklists[$calendar['n']]))
-                    : new Kronolith_Calendar_External(array('api' => $calendar['a'], 'name' => $calendar['d'], 'id' => $calendar['n']));
+                $GLOBALS['all_external_calendars'][$calendar['a'] . '/' . $calendar['n']] = new Kronolith_Calendar_External(array('api' => $calendar['a'], 'name' => $calendar['d'], 'id' => $calendar['n']));
             }
         } else {
             $apis = array_unique($GLOBALS['registry']->listAPIs());
             $ext_cals = array();
 
             foreach ($apis as $api) {
-                if (!Kronolith::hasApiPermission($api) ||
+                if ($api == 'tasks' ||
+                    !self::hasApiPermission($api) ||
                     !$GLOBALS['registry']->hasMethod($api . '/listTimeObjects')) {
                     continue;
                 }
@@ -1088,9 +911,7 @@ class Kronolith
                 }
 
                 foreach ($categories as $name => $description) {
-                    $GLOBALS['all_external_calendars'][$api . '/' . $name] = $api == 'tasks'
-                        ? new Kronolith_Calendar_External_Tasks(array('api' => $api, 'name' => $description, 'share' => $tasklists[$name]))
-                        : new Kronolith_Calendar_External(array('api' => $api, 'name' => $description, 'id' => $name));
+                    $GLOBALS['all_external_calendars'][$api . '/' . $name] = new Kronolith_Calendar_External(array('api' => $api, 'name' => $description, 'id' => $name));
                     $ext_cals[] = array(
                         'a' => $api,
                         'n' => $name,
@@ -1103,33 +924,31 @@ class Kronolith
         }
 
         /* Make sure all the external calendars still exist. */
-        $_temp = $GLOBALS['display_external_calendars'];
+        $_tasklists = $_temp = $GLOBALS['display_external_calendars'];
+        if (self::hasApiPermission('tasks')) {
+            try {
+                $_tasklists = $GLOBALS['registry']->tasks->getDisplayedTasklists();
+            } catch (Horde_Exception $e) {
+            }
+        }
         $GLOBALS['display_external_calendars'] = array();
         foreach ($GLOBALS['all_external_calendars'] as $id => $calendar) {
-            if (in_array($id, $_temp)) {
+            if ((substr($id, 0, 6) == 'tasks/' &&
+                 in_array(substr($id, 6), $_tasklists)) ||
+                in_array($id, $_temp)) {
                 $GLOBALS['display_external_calendars'][] = $id;
-            } else {
-                /* Convert Kronolith 2 preferences.
-                 * @todo: remove in Kronolith 3.1. */
-                list(,$oldid,) = explode('/', $id);
-                if (in_array($calendar->api() . '/' . $oldid, $_temp)) {
-                    $GLOBALS['display_external_calendars'][] = $calendarId;
-                }
             }
         }
         $GLOBALS['prefs']->setValue('display_external_cals', serialize($GLOBALS['display_external_calendars']));
 
-        /* If an authenticated doesn't own a calendar, create it. */
+        /* If an authenticated user doesn't own a calendar, create it. */
         if (!empty($GLOBALS['conf']['share']['auto_create']) &&
             $GLOBALS['registry']->getAuth() &&
-            !count(Kronolith::listInternalCalendars(true))) {
-            $identity = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Identity')->create();
-            $share = $GLOBALS['kronolith_shares']->newShare(
-                $GLOBALS['registry']->getAuth(),
-                strval(new Horde_Support_Randomid()),
-                sprintf(_("Calendar of %s"), $identity->getName())
-            );
-            $GLOBALS['kronolith_shares']->addShare($share);
+            !count(self::listInternalCalendars(true))) {
+            $calendars = $GLOBALS['injector']->getInstance('Kronolith_Factory_Calendars')
+                ->create();
+
+            $share = $calendars->createDefaultShare();
             $GLOBALS['all_calendars'][$share->getName()] = new Kronolith_Calendar_Internal(array('share' => $share));
             $GLOBALS['display_calendars'][] = $share->getName();
 
@@ -1166,74 +985,71 @@ class Kronolith
 
             $GLOBALS['prefs']->setValue('display_cals', serialize($GLOBALS['display_calendars']));
         }
-
     }
 
     /**
      * Initialize the event map.
      *
      * @param array $params Parameters to pass the the map
-     *
-     * @return void
      */
-    public static function initEventMap($params)
+    static public function initEventMap($params)
     {
-        // Add the apikeys
+        $apikeys = array();
+
         if (!empty($params['providers'])) {
             /* It is safe to put configuration specific to horde driver inside
-            this block since horde driver *must* contain a provider array */
+             * this block since horde driver *must* contain a provider
+             * array. */
 
             // Language specific file needed?
-            //$language = str_replace('_', '-', $GLOBALS['language']);
-            $language = $GLOBALS['language'];
-            if (!file_exists($GLOBALS['registry']->get('jsfs', 'horde') . '/map/' . $language . '.js')) {
+            $language = str_replace('_', '-', $GLOBALS['language']);
+            if (!file_exists($GLOBALS['registry']->get('jsfs', 'horde') . '/map/lang/' . $language . '.js')) {
                 $language = 'en-US';
             }
+
             $params['conf'] = array(
-                'markerImage' => (string)Horde_Themes::img('map/marker.png'),
-                'markerBackground' => (string)Horde_Themes::img('map/marker-shadow.png'),
-                'useMarkerLayer' => true,
                 'language' => $language,
+                'markerImage' => strval(Horde_Themes::img('map/marker.png')),
+                'markerBackground' => strval(Horde_Themes::img('map/marker-shadow.png')),
+                'useMarkerLayer' => true
             );
 
-            foreach ($params['providers'] as $layer) {
-                switch ($layer) {
-                case 'Google':
-                    $params['conf']['apikeys']['google'] = $GLOBALS['conf']['api']['googlemaps'];
-                    break;
-                case 'Yahoo':
-                    $params['conf']['apikeys']['yahoo'] = $GLOBALS['conf']['api']['yahoomaps'];
-                    break;
-                case 'Cloudmade':
-                    $params['conf']['apikeys']['cloudmade'] = $GLOBALS['conf']['api']['cloudmade'];
-                    break;
-                }
-            }
+            $apikeys = $params['providers'];
         }
 
         if (!empty($params['geocoder'])) {
-            switch ($params['geocoder']) {
-            case 'Google':
-                $params['conf']['apikeys']['google'] = $GLOBALS['conf']['api']['googlemaps'];
-                break;
-            case 'Yahoo':
-                $params['conf']['apikeys']['yahoo'] = $GLOBALS['conf']['api']['yahoomaps'];
-                break;
+            $apikeys[] = $params['geocoder'];
+        }
+
+        foreach ($apikeys as $val) {
+            switch ($val) {
             case 'Cloudmade':
                 $params['conf']['apikeys']['cloudmade'] = $GLOBALS['conf']['api']['cloudmade'];
                 break;
+
+            case 'Google':
+                $params['conf']['apikeys']['google'] = $GLOBALS['conf']['api']['googlemaps'];
+                break;
+
+            case 'Yahoo':
+                $params['conf']['apikeys']['yahoo'] = $GLOBALS['conf']['api']['yahoomaps'];
+                break;
             }
         }
+
         $params['jsuri'] = $GLOBALS['registry']->get('jsuri', 'horde') . '/map/';
-        Horde::addScriptFile('map/map.js', 'horde');
-        $js = 'HordeMap.initialize(' . Horde_Serialize::serialize($params, HORDE_SERIALIZE::JSON) . ');';
-        Horde::addinlineScript($js);
+
+        global $page_output;
+        $page_output->addScriptFile('map/map.js', 'horde');
+        $page_output->addinlineScript(
+            'HordeMap.initialize(' . Horde_Serialize::serialize($params, HORDE_SERIALIZE::JSON) . ');'
+        );
     }
 
     /**
      * Returns the real name, if available, of a user.
      */
-    public static function getUserName($uid)
+    static public function getUserName($uid)
     {
         static $names = array();
 
@@ -1252,7 +1068,7 @@ class Kronolith
     /**
      * Returns the email address, if available, of a user.
      */
-    public static function getUserEmail($uid)
+    static public function getUserEmail($uid)
     {
         static $emails = array();
 
@@ -1270,7 +1086,7 @@ class Kronolith
     /**
      * Checks if an email address belongs to a user.
      */
-    public static function isUserEmail($uid, $email)
+    static public function isUserEmail($uid, $email)
     {
         static $emails = array();
 
@@ -1295,7 +1111,7 @@ class Kronolith
      *
      * @return string  The translated displayable recurrence value string.
      */
-    public static function recurToString($type)
+    static public function recurToString($type)
     {
         switch ($type) {
         case Horde_Date_Recurrence::RECUR_NONE:
@@ -1327,7 +1143,7 @@ class Kronolith
      *
      * @return string  The translated displayable meeting status string.
      */
-    public static function statusToString($status)
+    static public function statusToString($status)
     {
         switch ($status) {
         case self::STATUS_CONFIRMED:
@@ -1354,7 +1170,7 @@ class Kronolith
      *
      * @return string  The translated displayable attendee response string.
      */
-    public static function responseToString($response)
+    static public function responseToString($response)
     {
         switch ($response) {
         case self::RESPONSE_ACCEPTED:
@@ -1382,7 +1198,7 @@ class Kronolith
      * @return string  The translated displayable attendee participation
      *                 string.
      */
-    public static function partToString($part)
+    static public function partToString($part)
     {
         switch ($part) {
         case self::PART_OPTIONAL:
@@ -1405,7 +1221,7 @@ class Kronolith
      *
      * @return string  The Kronolith response value.
      */
-    public static function responseFromICal($response)
+    static public function responseFromICal($response)
     {
         switch (Horde_String::upper($response)) {
         case 'ACCEPTED':
@@ -1432,7 +1248,7 @@ class Kronolith
      *
      * @return string  The HTML <select> widget.
      */
-    public static function buildStatusWidget($name,
+    static public function buildStatusWidget($name,
                                              $current = self::STATUS_CONFIRMED,
                                              $any = false)
     {
@@ -1469,27 +1285,64 @@ class Kronolith
      * Returns all internal calendars a user has access to, according
      * to several parameters/permission levels.
      *
+     * This method takes the $conf['share']['hidden'] setting into account. If
+     * this setting is enabled, even if requesting permissions different than
+     * SHOW, it will only return calendars that the user owns or has SHOW
+     * permissions for. For checking individual calendar's permissions, use
+     * hasPermission() instead.
+     *
      * @param boolean $owneronly   Only return calenders that this user owns?
      *                             Defaults to false.
      * @param integer $permission  The permission to filter calendars by.
      *
      * @return array  The calendar list.
      */
-    public static function listInternalCalendars($owneronly = false, $permission = Horde_Perms::SHOW)
+    static public function listInternalCalendars($owneronly = false,
+                                                 $permission = Horde_Perms::SHOW)
     {
         if ($owneronly && !$GLOBALS['registry']->getAuth()) {
             return array();
         }
 
-        try {
-            $calendars = $GLOBALS['kronolith_shares']->listShares(
-                $GLOBALS['registry']->getAuth(),
-                array('perm' => $permission,
-                      'attributes' => $owneronly ? $GLOBALS['registry']->getAuth() : null,
-                      'sort_by' => 'name'));
-        } catch (Horde_Share_Exception $e) {
-            Horde::logMessage($e, 'ERR');
-            return array();
+        $kronolith_shares = $GLOBALS['injector']->getInstance('Kronolith_Shares');
+
+        if ($owneronly || empty($GLOBALS['conf']['share']['hidden'])) {
+            try {
+                $calendars = $kronolith_shares->listShares(
+                    $GLOBALS['registry']->getAuth(),
+                    array('perm' => $permission,
+                          'attributes' => $owneronly ? $GLOBALS['registry']->getAuth() : null,
+                          'sort_by' => 'name'));
+            } catch (Horde_Share_Exception $e) {
+                Horde::logMessage($e);
+                return array();
+            }
+        } else {
+            try {
+                $calendars = $kronolith_shares->listShares(
+                    $GLOBALS['registry']->getAuth(),
+                    array('perm' => $permission,
+                          'attributes' => $GLOBALS['registry']->getAuth(),
+                          'sort_by' => 'name'));
+            } catch (Horde_Share_Exception $e) {
+                Horde::logMessage($e);
+                return array();
+            }
+            $display_calendars = @unserialize($GLOBALS['prefs']->getValue('display_cals'));
+            if (is_array($display_calendars)) {
+                foreach ($display_calendars as $id) {
+                    try {
+                        $calendar = $kronolith_shares->getShare($id);
+                        if ($calendar->hasPermission($GLOBALS['registry']->getAuth(), $permission)) {
+                            $calendars[$id] = $calendar;
+                        }
+                    } catch (Horde_Exception_NotFound $e) {
+                    } catch (Horde_Share_Exception $e) {
+                        Horde::logMessage($e);
+                        return array();
+                    }
+                }
+            }
         }
 
         $default_share = $GLOBALS['prefs']->getValue('default_share');
@@ -1515,7 +1368,7 @@ class Kronolith
      *
      * @return array  The calendar list.
      */
-    public static function listCalendars($permission = Horde_Perms::SHOW,
+    static public function listCalendars($permission = Horde_Perms::SHOW,
                                          $display = false,
                                          $flat = true)
     {
@@ -1566,25 +1419,91 @@ class Kronolith
     /**
      * Returns the default calendar for the current user at the specified
      * permissions level.
+     *
+     * @param integer $permission  Horde_Perms constant for permission level required.
+     * @param boolean $owner_only  Only consider owner-owned calendars.
+     *
+     * @return mixed  The calendar id, or false if none found.
      */
-    public static function getDefaultCalendar($permission = Horde_Perms::SHOW)
+    static public function getDefaultCalendar($permission = Horde_Perms::SHOW, $owner_only = false)
     {
         global $prefs;
 
         $default_share = $prefs->getValue('default_share');
-        $calendars = self::listInternalCalendars($permission);
+        $calendars = self::listInternalCalendars($owner_only, $permission);
 
         if (isset($calendars[$default_share]) ||
             $prefs->isLocked('default_share')) {
             return $default_share;
         } elseif (isset($GLOBALS['all_calendars'][$GLOBALS['registry']->getAuth()]) &&
                   $GLOBALS['all_calendars'][$GLOBALS['registry']->getAuth()]->hasPermission($permission)) {
+            // This is for older, existing default shares. New default shares
+            // are not named as the username.
             return $GLOBALS['registry']->getAuth();
         } elseif (count($calendars)) {
             return key($calendars);
         }
 
         return false;
+    }
+
+    /**
+     * Returns the calendars that should be used for syncing.
+     *
+     * @param boolean $prune  Remove calendar ids from the sync list that no
+     *                        longer exist. The values are pruned *after* the
+     *                        results are passed back to the client to give
+     *                        sync clients a chance to remove their entries.
+     *
+     * @return array  An array of calendar ids
+     */
+    static public function getSyncCalendars($prune = false)
+    {
+        $haveRemoved = false;
+        $cs = unserialize($GLOBALS['prefs']->getValue('sync_calendars'));
+        if (!empty($cs)) {
+            if ($prune) {
+                $calendars = self::listInternalCalendars(true, Horde_Perms::EDIT);
+                $cscopy = array_flip($cs);
+                foreach ($cs as $c) {
+                    if (empty($calendars[$c])) {
+                        unset($cscopy[$c]);
+                        $haveRemoved = true;
+                    }
+                }
+                if ($haveRemoved) {
+                    $GLOBALS['prefs']->setValue('sync_calendars', serialize(array_flip($cscopy)));
+                }
+            }
+            return $cs;
+        }
+
+        if ($cs = self::getDefaultCalendar(Horde_Perms::EDIT, true)) {
+            return array($cs);
+        }
+
+        return array();
+    }
+
+    /**
+     * Returns whether the current user has certain permissions on a calendar.
+     *
+     * @param string $calendar  A calendar id.
+     * @param integer $perm     A Horde_Perms permission mask.
+     *
+     * @return boolean  True if the current user has the requested permissions.
+     */
+    static public function hasPermission($calendar, $perm)
+    {
+        try {
+            $share = $GLOBALS['injector']->getInstance('Kronolith_Shares')->getShare($calendar);
+            if (!$share->hasPermission($GLOBALS['registry']->getAuth(), $perm)) {
+                throw new Horde_Exception_NotFound();
+            }
+        } catch (Horde_Exception_NotFound $e) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -1595,10 +1514,12 @@ class Kronolith
      * @return Horde_Share  The new share.
      * @throws Kronolith_Exception
      */
-    public static function addShare($info)
+    static public function addShare($info)
     {
+        $kronolith_shares = $GLOBALS['injector']->getInstance('Kronolith_Shares');
+
         try {
-            $calendar = $GLOBALS['kronolith_shares']->newShare($GLOBALS['registry']->getAuth(), strval(new Horde_Support_Randomid()), $info['name']);
+            $calendar = $kronolith_shares->newShare($GLOBALS['registry']->getAuth(), strval(new Horde_Support_Randomid()), $info['name']);
         } catch (Horde_Share_Exception $e) {
             throw new Kronolith_Exception($e);
         }
@@ -1612,7 +1533,7 @@ class Kronolith
         $tagger->tag($calendar->getName(), $info['tags'], $calendar->get('owner'), 'calendar');
 
         try {
-            $GLOBALS['kronolith_shares']->addShare($calendar);
+            $kronolith_shares->addShare($calendar);
         } catch (Horde_Share_Exception $e) {
             throw new Kronolith_Exception($e);
         }
@@ -1631,7 +1552,7 @@ class Kronolith
      *
      * @throws Kronolith_Exception
      */
-    public static function updateShare(&$calendar, $info)
+    static public function updateShare(&$calendar, $info)
     {
         if (!$GLOBALS['registry']->getAuth() ||
             ($calendar->get('owner') != $GLOBALS['registry']->getAuth() &&
@@ -1662,7 +1583,7 @@ class Kronolith
      *
      * @throws Kronolith_Exception
      */
-    public static function deleteShare($calendar)
+    static public function deleteShare($calendar)
     {
         if (!$GLOBALS['registry']->getAuth() ||
             ($calendar->get('owner') != $GLOBALS['registry']->getAuth() &&
@@ -1672,14 +1593,14 @@ class Kronolith
 
         // Delete the calendar.
         try {
-            Kronolith::getDriver()->delete($calendar->getName());
+            self::getDriver()->delete($calendar->getName());
         } catch (Exception $e) {
-            throw new Kronolith_Exception(sprintf(_("Unable to delete \"%s\": %s"), $calendar->get('name'), $ed->getMessage()));
+            throw new Kronolith_Exception(sprintf(_("Unable to delete \"%s\": %s"), $calendar->get('name'), $e->getMessage()));
         }
 
         // Remove share and all groups/permissions.
         try {
-            $result = $GLOBALS['kronolith_shares']->removeShare($calendar);
+            $result = $GLOBALS['injector']->getInstance('Kronolith_Shares')->removeShare($calendar);
         } catch (Horde_Share_Exception $e) {
             throw new Kronolith_Exception($e);
         }
@@ -1693,7 +1614,7 @@ class Kronolith
      * @return array  A list of error messages.
      * @throws Kronolith_Exception
      */
-    public static function readPermsForm($share)
+    static public function readPermsForm($share)
     {
         $auth = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Auth')->create();
         $perm = $share->getPermission();
@@ -1728,7 +1649,7 @@ class Kronolith
                 $share->save();
                 if ($GLOBALS['conf']['share']['notify']) {
                     $view->ownerChange = true;
-                    $multipart = Kronolith::buildMimeMessage($view, 'notification', $image);
+                    $multipart = self::buildMimeMessage($view, 'notification', $image);
                     $to = $GLOBALS['injector']
                         ->getInstance('Horde_Core_Factory_Identity')
                         ->create($new_owner)
@@ -1746,7 +1667,7 @@ class Kronolith
             if ($GLOBALS['conf']['share']['hidden']) {
                 $view->subscribe = Horde::url('calendars/subscribe.php', true)->add('calendar', $share->getName());
             }
-            $multipart = Kronolith::buildMimeMessage($view, 'notification', $image);
+            $multipart = self::buildMimeMessage($view, 'notification', $image);
         }
 
         if ($GLOBALS['registry']->isAdmin() ||
@@ -1773,9 +1694,9 @@ class Kronolith
                 $perm->removeDefaultPermission(Horde_Perms::DELETE, false);
             }
             if (Horde_Util::getFormData('default_delegate')) {
-                $perm->addDefaultPermission(Kronolith::PERMS_DELEGATE, false);
+                $perm->addDefaultPermission(self::PERMS_DELEGATE, false);
             } else {
-                $perm->removeDefaultPermission(Kronolith::PERMS_DELEGATE, false);
+                $perm->removeDefaultPermission(self::PERMS_DELEGATE, false);
             }
 
             // Process guest permissions.
@@ -1800,9 +1721,9 @@ class Kronolith
                 $perm->removeGuestPermission(Horde_Perms::DELETE, false);
             }
             if (Horde_Util::getFormData('guest_delegate')) {
-                $perm->addGuestPermission(Kronolith::PERMS_DELEGATE, false);
+                $perm->addGuestPermission(self::PERMS_DELEGATE, false);
             } else {
-                $perm->removeGuestPermission(Kronolith::PERMS_DELEGATE, false);
+                $perm->removeGuestPermission(self::PERMS_DELEGATE, false);
             }
         }
 
@@ -1828,9 +1749,9 @@ class Kronolith
             $perm->removeCreatorPermission(Horde_Perms::DELETE, false);
         }
         if (Horde_Util::getFormData('creator_delegate')) {
-            $perm->addCreatorPermission(Kronolith::PERMS_DELEGATE, false);
+            $perm->addCreatorPermission(self::PERMS_DELEGATE, false);
         } else {
-            $perm->removeCreatorPermission(Kronolith::PERMS_DELEGATE, false);
+            $perm->removeCreatorPermission(self::PERMS_DELEGATE, false);
         }
 
         // Process user permissions.
@@ -1878,7 +1799,7 @@ class Kronolith
                 $has_perms = true;
             }
             if (!empty($u_delegate[$key])) {
-                $perm->addUserPermission($user, Kronolith::PERMS_DELEGATE, false);
+                $perm->addUserPermission($user, self::PERMS_DELEGATE, false);
                 $has_perms = true;
             }
 
@@ -1928,7 +1849,7 @@ class Kronolith
                 $has_perms = true;
             }
             if (!empty($g_delegate[$key])) {
-                $perm->addGroupPermission($group, Kronolith::PERMS_DELEGATE, false);
+                $perm->addGroupPermission($group, self::PERMS_DELEGATE, false);
                 $has_perms = true;
             }
 
@@ -1963,7 +1884,7 @@ class Kronolith
      *
      * @throws Kronolith_Exception
      */
-    public static function subscribeRemoteCalendar(&$info, $update = false)
+    static public function subscribeRemoteCalendar(&$info, $update = false)
     {
         if (!(strlen($info['name']) && strlen($info['url']))) {
             throw new Kronolith_Exception(_("You must specify a name and a URL."));
@@ -2003,7 +1924,7 @@ class Kronolith
      * @return array  Hash with the deleted calendar's information.
      * @throws Kronolith_Exception
      */
-    public static function unsubscribeRemoteCalendar($url)
+    static public function unsubscribeRemoteCalendar($url)
     {
         $url = trim($url);
         if (!strlen($url)) {
@@ -2035,7 +1956,7 @@ class Kronolith
      *
      * @return string  The calendar's feed URL.
      */
-    public static function feedUrl($calendar)
+    static public function feedUrl($calendar)
     {
         if (isset($GLOBALS['conf']['urls']['pretty']) &&
             $GLOBALS['conf']['urls']['pretty'] == 'rewrite') {
@@ -2053,19 +1974,18 @@ class Kronolith
      *
      * @return string  The calendar's embed snippit.
      */
-    public static function embedCode($calendar)
+    static public function embedCode($calendar)
     {
         /* Get the base url */
-        $imple = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create(array('kronolith', 'Embed'), array(
+        $url = $GLOBALS['registry']->getServiceLink('ajax', 'kronolith')->add(array(
             'calendar' => 'internal_' . $calendar,
             'container' => 'kronolithCal',
             'view' => 'month'
-        ), true);
+        ));
+        $url->url .= 'embed';
 
-        $html = '<div id="kronolithCal"></div><script src="' . $imple->getUrl()
-            . '" type="text/javascript"></script>';
-
-        return $html;
+        return '<div id="kronolithCal"></div><script src="' . $url .
+               '" type="text/javascript"></script>';
     }
 
     /**
@@ -2077,78 +1997,53 @@ class Kronolith
      * @return array  The attendee list with e-mail addresses as keys and
      *                attendee information as values.
      */
-    public static function parseAttendees($newAttendees)
+    static public function parseAttendees($newAttendees)
     {
-        global $notification;
+        global $injector, $notification;
 
         if (empty($newAttendees)) {
-            return;
+            return array();
         }
 
-        $parser = new Horde_Mail_Rfc822();
+        $parser = $injector->getInstance('Horde_Mail_Rfc822');
         $attendees = array();
 
-        foreach (Horde_Mime_Address::explode($newAttendees) as $newAttendee) {
-            // Parse the address without validation to see what we can get out
-            // of it. We allow email addresses (john@example.com), email
-            // address with user information (John Doe <john@example.com>),
-            // and plain names (John Doe).
-            try {
-                $newAttendeeParsed = $parser->parseAddressList($newAttendee, array(
-                    'default_domain' => null,
-                    'nest_groups' => false,
-                    'validate' => false
-                ));
-                $error = (!isset($newAttendeeParsed[0]) || !isset($newAttendeeParsed[0]->mailbox));
-            } catch (Horde_Mail_Exception $e) {
-                $error = true;
-            }
+        /* Parse the address without validation to see what we can get out
+         * of it. We allow email addresses (john@example.com), email
+         * address with user information (John Doe <john@example.com>),
+         * and plain names (John Doe). */
+        $result = $parser->parseAddressList($newAttendees);
+        $result->setIteratorFilter(Horde_Mail_Rfc822_List::HIDE_GROUPS);
 
-            // If we can't even get a mailbox out of the address, then it is
-            // likely unuseable. Reject it entirely.
-            if ($error) {
+        foreach ($result as $newAttendee) {
+            if (!$newAttendee->valid) {
+                // If we can't even get a mailbox out of the address, then it
+                // is likely unuseable. Reject it entirely.
                 $notification->push(
                     sprintf(_("Unable to recognize \"%s\" as an email address."), $newAttendee),
-                    'horde.error');
+                    'horde.error'
+                );
                 continue;
             }
 
-            // Loop through any addresses we found.
-            foreach ($newAttendeeParsed as $newAttendeeParsedPart) {
-                // If there is only a mailbox part, then it is just a local
-                // name.
-                if (empty($newAttendeeParsedPart->host)) {
-                    $attendees[] = array(
-                        'attendance' => Kronolith::PART_REQUIRED,
-                        'response'   => Kronolith::RESPONSE_NONE,
-                        'name'       => $newAttendee,
-                    );
+            // If there is only a mailbox part, then it is just a local name.
+            if (!is_null($newAttendee->host)) {
+                // Build a full email address again and validate it.
+                try {
+                    $parser->parseAddressList($newAttendee->writeAddress(true));
+                } catch (Horde_Mail_Exception $e) {
+                    $notification->push($e, 'horde.error');
                     continue;
                 }
-
-                // Build a full email address again and validate it.
-                $name = empty($newAttendeeParsedPart->personal)
-                    ? ''
-                    : $newAttendeeParsedPart->personal;
-
-                try {
-                    $newAttendeeParsedPartNew = Horde_Mime::encodeAddress(Horde_Mime_Address::writeAddress($newAttendeeParsedPart->mailbox, $newAttendeeParsedPart->host, $name), 'UTF-8');
-                    $newAttendeeParsedPartValidated = $parser->parseAddressList($newAttendeeParsedPartNew, array(
-                        'default_domain' => null
-                    ));
-
-                    $email = $newAttendeeParsedPart->mailbox . '@'
-                        . $newAttendeeParsedPart->host;
-                    // Avoid overwriting existing attendees with the default
-                    // values.
-                    $attendees[Horde_String::lower($email)] = array(
-                        'attendance' => Kronolith::PART_REQUIRED,
-                        'response'   => Kronolith::RESPONSE_NONE,
-                        'name'       => $name);
-                } catch (Horde_Mime_Exception $e) {
-                    $notification->push($e, 'horde.error');
-                }
             }
+
+            // Avoid overwriting existing attendees with the default
+            // values.
+            $attendees[$newAttendee->bare_address] = array(
+                'attendance' => self::PART_REQUIRED,
+                'response'   => self::RESPONSE_NONE,
+                'name'       => strval($newAttendee)
+            );
         }
 
         return $attendees;
@@ -2159,13 +2054,10 @@ class Kronolith
      *
      * @return string  Attendee/Resource list.
      */
-    public static function attendeeList()
+    static public function attendeeList()
     {
         /* Attendees */
-        $attendees = array();
-        foreach ($GLOBALS['session']->get('kronolith', 'attendees', Horde_Session::TYPE_ARRAY) as $email => $attendee) {
-            $attendees[] = empty($attendee['name']) ? $email : Horde_Mime_Address::trimAddress($attendee['name'] . (strpos($email, '@') === false ? '' : ' <' . $email . '>'));
-        }
+        $attendees = self::getAttendeeEmailList($GLOBALS['session']->get('kronolith', 'attendees', Horde_Session::TYPE_ARRAY))->addresses;
 
         /* Resources */
         foreach ($GLOBALS['session']->get('kronolith', 'resources', Horde_Session::TYPE_ARRAY) as $resource) {
@@ -2177,20 +2069,25 @@ class Kronolith
 
     /**
      * Sends out iTip event notifications to all attendees of a specific
-     * event. Can be used to send event invitations, event updates as well as
-     * event cancellations.
+     * event.
      *
-     * @param Kronolith_Event $event      The event in question.
-     * @param Notification $notification  A notification object used to show
-     *                                    result status.
-     * @param integer $action             The type of notification to send.
-     *                                    One of the Kronolith::ITIP_* values.
-     * @param Horde_Date $instance        If cancelling a single instance of a
-     *                                    recurring event, the date of this
-     *                                    intance.
+     * Can be used to send event invitations, event updates as well as event
+     * cancellations.
+     *
+     * @param Kronolith_Event $event
+     *        The event in question.
+     * @param Horde_Notification_Handler $notification
+     *        A notification object used to show result status.
+     * @param integer $action
+     *        The type of notification to send. One of the Kronolith::ITIP_*
+     *        values.
+     * @param Horde_Date $instance
+     *        If cancelling a single instance of a recurring event, the date of
+     *        this instance.
      */
-    public static function sendITipNotifications($event, $notification,
-                                                 $action, $instance = null)
+    static public function sendITipNotifications(
+        Kronolith_Event $event, Horde_Notification_Handler $notification,
+        $action, Horde_Date $instance = null)
     {
         global $conf, $registry;
 
@@ -2200,7 +2097,7 @@ class Kronolith
 
         $ident = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Identity')->create($event->creator);
         if (!$ident->getValue('from_addr')) {
-            $notification->push(sprintf(_("You do not have an email address configured in your Personal Information Preferences. You must set one %shere%s before event notifications can be sent."), Horde::getServiceLink('prefs', 'kronolith')->add(array('app' => 'horde', 'group' => 'identities'))->link(), '</a>'), 'horde.error', array('content.raw'));
+            $notification->push(sprintf(_("You do not have an email address configured in your Personal Information Preferences. You must set one %shere%s before event notifications can be sent."), $registry->getServiceLink('prefs', 'kronolith')->add(array('app' => 'horde', 'group' => 'identities'))->link(), '</a>'), 'horde.error', array('content.raw'));
             return;
         }
 
@@ -2208,7 +2105,7 @@ class Kronolith
         // need the Content-ID.
         $image = self::getImagePart('big_invitation.png');
 
-        $share = $GLOBALS['kronolith_shares']->getShare($event->calendar);
+        $share = $GLOBALS['injector']->getInstance('Kronolith_Shares')->getShare($event->calendar);
         $view = new Horde_View(array('templatePath' => KRONOLITH_TEMPLATES . '/itip'));
         new Horde_View_Helper_Text($view);
         $view->identity = $ident;
@@ -2257,12 +2154,8 @@ class Kronolith
             }
 
             if ($event->attendees) {
-                $attendees = array();
-                foreach ($event->attendees as $mail => $attendee) {
-                    $attendees[] = empty($attendee['name']) ? $mail : Horde_Mime_Address::trimAddress($attendee['name'] . (strpos($mail, '@') === false ? '' : ' <' . $mail . '>'));
-                }
+                $view->attendees = strval(self::getAttendeeEmailList($event->attendees));
                 $view->organizer = $GLOBALS['registry']->convertUserName($event->creator, false);
-                $view->attendees = $attendees;
             }
 
             if ($action == self::ITIP_REQUEST) {
@@ -2296,10 +2189,16 @@ class Kronolith
             $ics->setName($filename);
             $ics->setContentTypeParameter('METHOD', $method);
             $ics->setCharset('UTF-8');
+            $ics->setEOL("\r\n");
 
-            $multipart = Kronolith::buildMimeMessage($view, 'notification', $image);
+            $multipart = self::buildMimeMessage($view, 'notification', $image);
             $multipart->addPart($ics);
-            $recipient = empty($status['name']) ? $email : Horde_Mime_Address::trimAddress($status['name'] . ' <' . $email . '>');
+
+            $recipient = new Horde_Mail_Rfc822_Address($email);
+            if (!empty($status['name'])) {
+                $recipient->personal = $status['name'];
+            }
+
             $mail = new Horde_Mime_Mail(
                 array('Subject' => $view->subject,
                       'To' => $recipient,
@@ -2333,7 +2232,7 @@ class Kronolith
      * @throws Horde_Mime_Exception
      * @throws Kronolith_Exception
      */
-    public static function sendNotification($event, $action)
+    static public function sendNotification($event, $action)
     {
         global $conf;
 
@@ -2345,7 +2244,7 @@ class Kronolith
         $calendar = $event->calendar;
         $recipients = array();
         try {
-            $share = $GLOBALS['kronolith_shares']->getShare($calendar);
+            $share = $GLOBALS['injector']->getInstance('Kronolith_Shares')->getShare($calendar);
         } catch (Horde_Share_Exception $e) {
             throw new Kronolith_Exception($e);
         }
@@ -2388,11 +2287,13 @@ class Kronolith
             if (strpos($email, '@') === false) {
                 continue;
             }
-            list($mailbox, $host) = explode('@', $email);
             if (!isset($addresses[$vals['lang']][$vals['tf']][$vals['df']])) {
                 $addresses[$vals['lang']][$vals['tf']][$vals['df']] = array();
             }
-            $addresses[$vals['lang']][$vals['tf']][$vals['df']][] = Horde_Mime_Address::writeAddress($mailbox, $host, $identity->getValue('fullname'));
+
+            $tmp = new Horde_Mail_Rfc822_Address($email);
+            $tmp->personal = $identity->getValue('fullname');
+            $addresses[$vals['lang']][$vals['tf']][$vals['df']][] = strval($tmp);
         }
 
         if (!$addresses) {
@@ -2449,16 +2350,16 @@ class Kronolith
      *
      * @throws Kronolith_Exception
      */
-    public static function notifyOfResourceRejection($event)
+    static public function notifyOfResourceRejection($event)
     {
         $declined = array();
         $accepted = array();
         foreach ($event->getResources() as $id => $resource) {
-            if ($resource['response'] == Kronolith::RESPONSE_DECLINED) {
-                $r = Kronolith::getDriver('Resource')->getResource($id);
+            if ($resource['response'] == self::RESPONSE_DECLINED) {
+                $r = self::getDriver('Resource')->getResource($id);
                 $declined[] = $r->get('name');
-            } elseif ($resource['response'] == Kronolith::RESPONSE_ACCEPTED) {
-                $r = Kronolith::getDriver('Resource')->getResource($id);
+            } elseif ($resource['response'] == self::RESPONSE_ACCEPTED) {
+                $r = self::getDriver('Resource')->getResource($id);
                 $accepted[] = $r->get('name');
             }
 
@@ -2501,7 +2402,7 @@ class Kronolith
      * @return mixed  The user's email, time, and language preferences if they
      *                want a notification for this calendar.
      */
-    public static function _notificationPref($user, $mode, $calendar = null)
+    static public function _notificationPref($user, $mode, $calendar = null)
     {
         $prefs = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Prefs')->create('kronolith', array(
             'cache' => false,
@@ -2543,7 +2444,7 @@ class Kronolith
      *
      * @return Horde_Mime_Part  A multipart/alternative MIME part.
      */
-    public static function buildMimeMessage(Horde_View $view, $template,
+    static public function buildMimeMessage(Horde_View $view, $template,
                                             Horde_Mime_Part $image)
     {
         $multipart = new Horde_Mime_Part();
@@ -2575,7 +2476,7 @@ class Kronolith
      *
      * @return Horde_Mime_Part  A MIME part representing the image.
      */
-    public static function getImagePart($file)
+    static public function getImagePart($file)
     {
         $background = Horde_Themes::img($file);
         $image = new Horde_Mime_Part();
@@ -2589,7 +2490,7 @@ class Kronolith
     /**
      * @return Horde_Date
      */
-    public static function currentDate()
+    static public function currentDate()
     {
         if ($date = Horde_Util::getFormData('date')) {
             return new Horde_Date($date . '000000');
@@ -2604,18 +2505,28 @@ class Kronolith
     /**
      * Parses a complete date-time string into a Horde_Date object.
      *
-     * @param string $date  The date-time string to parse.
+     * @param string $date       The date-time string to parse.
+     * @param boolean $withtime  Whether time is included in the string.
+     * @þaram string $timezone   The timezone of the string.
      *
      * @return Horde_Date  The parsed date.
      * @throws Horde_Date_Exception
      */
-    public static function parseDate($date)
+    static public function parseDate($date, $withtime = true, $timezone = null)
     {
+        // strptime() is not available on Windows.
+        if (!function_exists('strptime')) {
+            return new Horde_Date($date, $timezone);
+        }
+
         // strptime() is locale dependent, i.e. %p is not always matching
         // AM/PM. Set the locale to C to workaround this, but grab the
         // locale's D_FMT before that.
-        $format = Horde_Nls::getLangInfo(D_FMT) . ' '
-            . ($GLOBALS['prefs']->getValue('twentyFour') ? '%H:%M' : '%I:%M %p');
+        $format = Horde_Nls::getLangInfo(D_FMT);
+        if ($withtime) {
+            $format .= ' '
+                . ($GLOBALS['prefs']->getValue('twentyFour') ? '%H:%M' : '%I:%M %p');
+        }
         $old_locale = setlocale(LC_TIME, 0);
         setlocale(LC_TIME, 'C');
 
@@ -2628,7 +2539,7 @@ class Kronolith
             $date_arr = strptime($date, $format);
             if (!$date_arr) {
                 // Try throwing at Horde_Date finally.
-                return new Horde_Date($start);
+                return new Horde_Date($date, $timezone);
             }
         }
 
@@ -2638,13 +2549,14 @@ class Kronolith
                   'mday'  => $date_arr['tm_mday'],
                   'hour'  => $date_arr['tm_hour'],
                   'min'   => $date_arr['tm_min'],
-                  'sec'   => $date_arr['tm_sec']));
+                  'sec'   => $date_arr['tm_sec']),
+            $timezone);
     }
 
     /**
      * @param string $tabname
      */
-    public static function tabs($tabname = null)
+    static public function tabs($tabname = null)
     {
         $date = self::currentDate();
         $date_stamp = $date->dateString();
@@ -2673,7 +2585,7 @@ class Kronolith
      * @param string $tabname
      * @param Kronolith_Event $event
      */
-    public static function eventTabs($tabname, $event)
+    static public function eventTabs($tabname, $event)
     {
         if (!$event->initialized) {
             return;
@@ -2694,7 +2606,8 @@ class Kronolith
          * we can read the event. */
         if ((!$event->private ||
              $event->creator == $GLOBALS['registry']->getAuth()) &&
-            $event->hasPermission(Horde_Perms::READ)) {
+            $event->hasPermission(Horde_Perms::READ) &&
+            self::getDefaultCalendar(Horde_Perms::EDIT)) {
             $tabs->addTab(
                 $event->hasPermission(Horde_Perms::EDIT) ? _("_Edit") : _("Save As New"),
                 $event->getEditUrl(),
@@ -2735,86 +2648,26 @@ class Kronolith
      *                           instance.
      * @throws Kronolith_Exception
      */
-    public static function getDriver($driver = null, $calendar = null)
+    static public function getDriver($driver = null, $calendar = null)
     {
-        switch ($driver) {
-        case 'internal':
-            $driver = '';
-            break;
-        case 'external':
-        case 'tasklists':
-            $driver = 'Horde';
-            break;
-        case 'remote':
-            $driver = 'Ical';
-            break;
-        case 'holiday':
-            $driver = 'Holidays';
-            break;
-        case 'resource':
-            $driver = 'Resource';
-            break;
-        }
-
-        if (empty($driver)) {
-            $driver = Horde_String::ucfirst($GLOBALS['conf']['calendar']['driver']);
-        }
-
-        if (!isset(self::$_instances[$driver])) {
-            switch ($driver) {
-            case 'Sql':
-            case 'Resource':
-                $params = Horde::getDriverConfig('calendar', 'sql');
-                if ($params['driverconfig'] != 'Horde') {
-                    // Custom
-                    $params['db'] = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Db')->create('kronolith', $params);
-                } else {
-                    $params['db'] = $GLOBALS['injector']->getInstance('Horde_Db_Adapter');
-                }
-                break;
-
-            case 'Kolab':
-                $params = Horde::getDriverConfig('calendar', 'kolab');
-                break;
-
-            case 'Ical':
-                $params = array();
-                break;
-
-            case 'Horde':
-                $params['registry'] = $GLOBALS['registry'];
-                break;
-
-            case 'Holidays':
-                if (empty($GLOBALS['conf']['holidays']['enable'])) {
-                    throw new Kronolith_Exception(_("Holidays are disabled"));
-                }
-                $params['language'] = $GLOBALS['language'];
-                break;
-
-            default:
-                throw new Kronolith_Exception('No calendar driver specified');
-                break;
-            }
-
-            self::$_instances[$driver] = $GLOBALS['injector']->getInstance('Kronolith_Factory_Driver')->create($driver, $params);
-        }
+        $driver = $GLOBALS['injector']->getInstance('Kronolith_Factory_Driver')->create($driver);
 
         if (!is_null($calendar)) {
-            self::$_instances[$driver]->open($calendar);
+            $driver->open($calendar);
+
             /* Remote calendar parameters are per calendar. */
             if ($driver == 'Ical') {
-                self::$_instances[$driver]->setParams(self::getRemoteParams($calendar));
+                $driver->setParams(self::getRemoteParams($calendar));
             }
         }
 
-        return self::$_instances[$driver];
+        return $driver;
     }
 
     /**
      * Check for HTTP authentication credentials
      */
-    public static function getRemoteParams($calendar)
+    static public function getRemoteParams($calendar)
     {
         if (empty($calendar)) {
             return array();
@@ -2847,7 +2700,7 @@ class Kronolith
      *
      * @param string $view The name of the view.
      */
-    public static function getView($view)
+    static public function getView($view)
     {
         switch ($view) {
         case 'Day':
@@ -2908,7 +2761,7 @@ class Kronolith
     /**
      * Should we show event location, based on the show_location pref?
      */
-    public static function viewShowLocation()
+    static public function viewShowLocation()
     {
         $show = @unserialize($GLOBALS['prefs']->getValue('show_location'));
         return @in_array('screen', $show);
@@ -2917,7 +2770,7 @@ class Kronolith
     /**
      * Should we show event time, based on the show_time preference?
      */
-    public static function viewShowTime()
+    static public function viewShowTime()
     {
         $show = @unserialize($GLOBALS['prefs']->getValue('show_time'));
         return @in_array('screen', $show);
@@ -2932,9 +2785,14 @@ class Kronolith
      *
      * @return string  A HTML color code.
      */
-    public static function backgroundColor($calendar)
+    static public function backgroundColor($calendar)
     {
-        $color = is_array($calendar) ? @$calendar['color'] : $calendar->get('color');
+        $color = '';
+        if (!is_array($calendar)) {
+            $color = $calendar->get('color');
+        } elseif (isset($calendar['color'])) {
+            $color = $calendar['color'];
+        }
         return empty($color) ? '#dddddd' : $color;
     }
 
@@ -2948,7 +2806,7 @@ class Kronolith
      *
      * @return string  A HTML color code.
      */
-    public static function foregroundColor($calendar)
+    static public function foregroundColor($calendar)
     {
         return Horde_Image::brightness(is_string($calendar) ? $calendar : self::backgroundColor($calendar)) < 128 ? '#fff' : '#000';
     }
@@ -2964,7 +2822,7 @@ class Kronolith
      *
      * @return string  A CSS string with color definitions.
      */
-    public static function getCSSColors($calendar, $with_attribute = true)
+    static public function getCSSColors($calendar, $with_attribute = true)
     {
         $css = 'background-color:' . self::backgroundColor($calendar) . ';color:' . self::foregroundColor($calendar);
         if ($with_attribute) {
@@ -2978,18 +2836,33 @@ class Kronolith
      *
      * return boolean  True if the ajax view should be displayed.
      */
-    public static function showAjaxView()
+    static public function showAjaxView()
     {
-        global $prefs, $session;
+        return $GLOBALS['registry']->getView() == Horde_Registry::VIEW_DYNAMIC && $GLOBALS['prefs']->getValue('dynamic_view');
+    }
 
-        $mode = $session->get('horde', 'mode');
-        return ($mode == 'dynamic' || ($prefs->getValue('dynamic_view') && $mode == 'auto')) && Horde::ajaxAvailable();
+    /**
+     * Sorts an event list.
+     *
+     * @param array $days  A list of days with events.
+     *
+     * @return array  The sorted day list.
+     */
+    static public function sortEvents($days)
+    {
+        foreach ($days as $day => $devents) {
+            if (count($devents)) {
+                uasort($devents, array('Kronolith', '_sortEventStartTime'));
+                $days[$day] = $devents;
+            }
+        }
+        return $days;
     }
 
     /**
      * Used with usort() to sort events based on their start times.
      */
-    public static function _sortEventStartTime($a, $b)
+    static protected function _sortEventStartTime($a, $b)
     {
         $diff = $a->start->compareDateTime($b->start);
         if ($diff == 0) {
@@ -3004,7 +2877,7 @@ class Kronolith
      *
      * @return Kronolith_Tagger
      */
-    public static function getTagger()
+    static public function getTagger()
     {
         if (empty(self::$_tagger)) {
             self::$_tagger = new Kronolith_Tagger();
@@ -3021,14 +2894,14 @@ class Kronolith
      * @return Kronolith_Resource|Horde_Share_Object
      * @throws Kronolith_Exception
      */
-    public static function getInternalCalendar($target)
+    static public function getInternalCalendar($target)
     {
-        if (Kronolith_Resource::isResourceCalendar($target)) {
+        if (self::getDriver('Resource')->isResourceCalendar($target)) {
             $driver = self::getDriver('Resource');
             $id = $driver->getResourceIdByCalendar($target);
             return $driver->getResource($id);
         } else {
-            return $GLOBALS['kronolith_shares']->getShare($target);
+            return $GLOBALS['injector']->getInstance('Kronolith_Shares')->getShare($target);
         }
     }
 
@@ -3037,7 +2910,7 @@ class Kronolith
      *
      * @return array  An array with two keys: 'fields' and 'sources'.
      */
-    public static function getAddressbookSearchParams()
+    static public function getAddressbookSearchParams()
     {
         $src = json_decode($GLOBALS['prefs']->getValue('search_sources'));
         if (empty($src)) {
@@ -3064,10 +2937,85 @@ class Kronolith
      *
      * @return boolean  True if the API can be accessed.
      */
-    public static function hasApiPermission($api, $perm = Horde_Perms::READ)
+    static public function hasApiPermission($api, $perm = Horde_Perms::READ)
     {
         $app = $GLOBALS['registry']->hasInterface($api);
         return ($app && $GLOBALS['registry']->hasPermission($app, $perm));
+    }
+
+    /**
+     * Remove all events owned by the specified user in all calendars.
+     *
+     * @param string $user  The user name to delete events for.
+     *
+     * @throws Kronolith_Exception
+     * @throws Horde_Exception_NotFound
+     * @throws Horde_Exception_PermissionDenied
+     */
+    static public function removeUserEvents($user)
+    {
+        if (!$GLOBALS['registry']->isAdmin()) {
+            throw new Horde_Exception_PermissionDenied();
+        }
+
+        try {
+            $shares = $GLOBALS['injector']
+                ->getInstance('Kronolith_Shares')
+                ->listShares($user, array('perm' => Horde_Perms::EDIT));
+        } catch (Horde_Share_Exception $e) {
+            Horde::logMessage($shares, 'ERR');
+            throw new Kronolith_Exception($shares);
+        }
+
+        foreach (array_keys($shares) as $calendar) {
+            $driver = self::getDriver(null, $calendar);
+            $events = $driver->listEvents(null, null, array('cover_dates' => false));
+            $uids = array();
+            foreach ($events as $dayevents) {
+                foreach ($dayevents as $event) {
+                    $uids[] = $event->uid;
+                }
+            }
+            foreach ($uids as $uid) {
+                $event = $driver->getByUID($uid, array($calendar));
+                $driver->deleteEvent($event->id);
+            }
+        }
+    }
+
+    /**
+     * TODO
+     *
+     * @param array $attendees
+     *
+     * @return Horde_Mail_Rfc822_List
+     */
+    static public function getAttendeeEmailList($attendees)
+    {
+        $a_list = new Horde_Mail_Rfc822_List();
+
+        foreach ($attendees as $mail => $attendee) {
+            $tmp = new Horde_Mail_Rfc822_Address($mail);
+            if (!empty($attendee['name'])) {
+                $tmp->personal = $attendee['name'];
+            }
+            $a_list->add($tmp);
+        }
+
+        return $a_list;
+    }
+
+    public static function menu()
+    {
+        $sidebar = Horde::menu(array('menu_ob' => true))->render();
+        $perms = $GLOBALS['injector']->getInstance('Horde_Core_Perms');
+        if (Kronolith::getDefaultCalendar(Horde_Perms::EDIT) &&
+            ($perms->hasAppPermission('max_events') === true ||
+             $perms->hasAppPermission('max_events') > Kronolith::countEvents())) {
+            $sidebar->addNewButton(_("_New Event"), Horde::url('new.php')->add('url', Horde::selfUrl(true, false, true)));
+        }
+        return $GLOBALS['injector']->getInstance('Horde_View_Topbar')->render()
+            . $sidebar;
     }
 
 }

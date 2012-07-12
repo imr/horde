@@ -1,11 +1,11 @@
 <?php
 
-require_once dirname(__FILE__) . '/TestCase.php';
+require_once __DIR__ . '/TestCase.php';
 
 /**
  * @author     Chuck Hagenbuch <chuck@horde.org>
  * @author     Mike Naberezny <mike@maintainable.com>
- * @license    http://opensource.org/licenses/bsd-license.php BSD
+ * @license    http://www.horde.org/licenses/bsd BSD
  * @category   Horde
  * @package    Argv
  * @subpackage UnitTests
@@ -15,6 +15,7 @@ class Horde_Argv_ParserTest extends Horde_Argv_TestCase
 {
     public function setUp()
     {
+        parent::setUp();
         $this->parser = new Horde_Argv_Parser();
         $this->parser->addOption('-v', '--verbose', '-n', '--noisy',
                                   array('action' => 'store_true', 'dest' => 'verbose'));
@@ -37,7 +38,7 @@ class Horde_Argv_ParserTest extends Horde_Argv_TestCase
     public function testGetOption()
     {
         $opt1 = $this->parser->getOption("-v");
-        $this->assertType('Horde_Argv_Option', $opt1);
+        $this->assertInstanceOf('Horde_Argv_Option', $opt1);
         $this->assertEquals($opt1->shortOpts, array("-v", "-n"));
         $this->assertEquals($opt1->longOpts, array("--verbose", "--noisy"));
         $this->assertEquals($opt1->action, "store_true");

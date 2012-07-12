@@ -6,22 +6,21 @@
  * ----------
  * http://example.com/horde/services/ajax.php/APP/ACTION
  *
- * 'APP' - (string) The application name.
  * 'ACTION' - (string) The AJAX action identifier.
+ * 'APP' - (string) The application name.
  *
- * Reserved 'ACTION' strings:
- * 'logOut' - Logs user out of Horde.
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * See the enclosed file COPYING for license information (LGPL). If you
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
- * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
- *
- * @author  Michael Slusarz <slusarz@horde.org>
- * @package Horde
+ * @author   Michael Slusarz <slusarz@horde.org>
+ * @category Horde
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
+ * @package  Horde
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 
 list($app, $action) = explode('/', trim(Horde_Util::getPathInfo(), '/'));
 if (empty($action)) {
@@ -32,22 +31,21 @@ if (empty($action)) {
 }
 
 try {
-    Horde_Registry::appInit($app, array('authentication' => 'throw'));
-} catch (Horde_Exception $e) {
-    if ($action != 'logOut') {
-        /* Handle session timeouts when they come from an AJAX request. */
-        if ($e->getCode() == Horde_Registry::AUTH_FAILURE) {
-            $ajax = $injector->getInstance('Horde_Core_Factory_Ajax')->create($app, Horde_Variables::getDefaultVariables());
-            $notification->push($ajax->getSessionLogoutUrl(), 'horde.ajaxtimeout', array('content.raw'));
-            Horde::sendHTTPResponse(Horde::prepareResponse(null, $ajax->notify), $ajax->responseType());
-            exit;
-        }
-
-        $registry->authenticateFailure($app, $e);
-    }
+    Horde_Registry::appInit($app);
+} catch (Horde_Exception_AuthenticationFailure $e) {
+    $response = new Horde_Core_Ajax_Response_HordeCore_SessionTimeout($app);
+    $response->sendAndExit();
 } catch (Exception $e) {
     // Uncaught exception.  Sending backtrace info back via AJAX is just a
     // waste of time.
+    exit;
+}
+
+// Token checking.
+$vars = $injector->getInstance('Horde_Variables');
+try {
+    $session->checkToken($vars->token);
+} catch (Horde_Exception $e) {
     exit;
 }
 
@@ -55,19 +53,18 @@ try {
 // encoding.
 Horde::startBuffer();
 
-$ajax = $injector->getInstance('Horde_Core_Factory_Ajax')->create($app, Horde_Variables::getDefaultVariables(), $action);
+$ajax = $injector->getInstance('Horde_Core_Factory_Ajax')->create($app, $vars, $action);
 try {
-    $result = $ajax->doAction();
+    $ajax->doAction();
 } catch (Exception $e) {
     $notification->push($e->getMessage(), 'horde.error');
-    $result = null;
 }
 
 // Clear the output buffer that we started above, and log any unexpected
 // output at a DEBUG level.
 if ($out = Horde::endBuffer()) {
-    Horde::logMessage('Unexpected output: ' . $out, 'DEBUG');
+    Horde::logMessage('Unexpected output when creating AJAX reponse: ' . $out, 'DEBUG');
 }
 
 // Send the final result.
-Horde::sendHTTPResponse(Horde::prepareResponse($result, $ajax->notify), $ajax->responseType());
+$ajax->send();

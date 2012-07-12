@@ -4,15 +4,15 @@
  * various directory search drivers.  It includes functions for searching,
  * adding, removing, and modifying directory entries.
  *
- * Copyright 2000-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2000-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @author   Jon Parise <jon@csh.rit.edu>
  * @category Horde
- * @license  http://www.horde.org/licenses/asl.php ASL
+ * @license  http://www.horde.org/licenses/apache ASL
  * @package  Turba
  */
 class Turba_Driver implements Countable
@@ -180,11 +180,13 @@ class Turba_Driver implements Countable
     {
         /* Handle category. */
         if (!empty($hash['category'])) {
-            if (!empty($hash['category']['new'])) {
+            if (is_array($hash['category']) && !empty($hash['category']['new'])) {
                 $cManager = new Horde_Prefs_CategoryManager();
                 $cManager->add($hash['category']['value']);
+                $hash['category'] = $hash['category']['value'];
+            } elseif (is_array($hash['category'])) {
+                $hash['category'] = $hash['category']['value'];
             }
-            $hash['category'] = $hash['category']['value'];
         }
 
         // Add composite fields to $hash if at least one field part exists
@@ -227,7 +229,7 @@ class Turba_Driver implements Countable
                             ? $hash[$mapfields]
                             : '';
                     }
-                    $fields[$this->map[$key]['attribute']] = preg_replace('/\s+/', ' ', trim(vsprintf($this->map[$key]['format'], $fieldarray), " \t\n\r\0\x0B,"));
+                    $fields[$this->map[$key]['attribute']] = Turba::formatCompositeField($this->map[$key]['format'], $fieldarray);
                 } else {
                     // If 'parse' is not specified, use 'format' and 'fields'.
                     if (!isset($this->map[$key]['parse'])) {
@@ -283,117 +285,125 @@ class Turba_Driver implements Countable
         $search = $search_terms = $subsearch = $strict_search = array();
         $glue = $temp = '';
         $lastChar = '\"';
+        $blobs = $this->getBlobs();
 
         foreach ($criteria as $key => $val) {
-            if (isset($this->map[$key])) {
-                if (is_array($this->map[$key])) {
-                    /* Composite field, break out the search terms. */
-                    $parts = explode(' ', $val);
-                    if (count($parts) > 1) {
-                        /* Only parse if there was more than 1 search term and
-                         * 'AND' the cumulative subsearches. */
-                        for ($i = 0; $i < count($parts); ++$i) {
-                            $term = $parts[$i];
-                            $firstChar = substr($term, 0, 1);
-                            if ($firstChar == '"') {
-                                $temp = substr($term, 1, strlen($term) - 1);
-                                $done = false;
-                                while (!$done && $i < count($parts) - 1) {
-                                    $lastChar = substr($parts[$i + 1], -1);
-                                    if ($lastChar == '"') {
-                                        $temp .= ' ' . substr($parts[$i + 1], 0, -1);
-                                        $done = true;
-                                    } else {
-                                        $temp .= ' ' . $parts[$i + 1];
-                                    }
-                                    ++$i;
+            if (!isset($this->map[$key])) {
+                continue;
+            }
+            if (is_array($this->map[$key])) {
+                /* Composite field, break out the search terms. */
+                $parts = explode(' ', $val);
+                if (count($parts) > 1) {
+                    /* Only parse if there was more than 1 search term and
+                     * 'AND' the cumulative subsearches. */
+                    for ($i = 0; $i < count($parts); ++$i) {
+                        $term = $parts[$i];
+                        $firstChar = substr($term, 0, 1);
+                        if ($firstChar == '"') {
+                            $temp = substr($term, 1, strlen($term) - 1);
+                            $done = false;
+                            while (!$done && $i < count($parts) - 1) {
+                                $lastChar = substr($parts[$i + 1], -1);
+                                if ($lastChar == '"') {
+                                    $temp .= ' ' . substr($parts[$i + 1], 0, -1);
+                                    $done = true;
+                                } else {
+                                    $temp .= ' ' . $parts[$i + 1];
                                 }
-                                $search_terms[] = $temp;
-                            } else {
-                                $search_terms[] = $term;
+                                ++$i;
                             }
-                        }
-                        $glue = 'AND';
-                    } else {
-                        /* If only one search term, use original input and
-                           'OR' the searces since we're only looking for 1
-                           term in any of the composite fields. */
-                        $search_terms[0] = $val;
-                        $glue = 'OR';
-                    }
-
-                    foreach ($this->map[$key]['fields'] as $field) {
-                        $field = $this->toDriver($field);
-                        if (!empty($strict[$field])) {
-                            /* For strict matches, use the original search
-                             * vals. */
-                            $strict_search[] = array(
-                                'field' => $field,
-                                'op' => '=',
-                                'test' => $val,
-                            );
+                            $search_terms[] = $temp;
                         } else {
-                            /* Create a subsearch for each individual search
-                             * term. */
-                            if (count($search_terms) > 1) {
-                                /* Build the 'OR' search for each search term
-                                 * on this field. */
-                                $atomsearch = array();
-                                for ($i = 0; $i < count($search_terms); ++$i) {
-                                    $atomsearch[] = array(
-                                        'field' => $field,
-                                        'op' => 'LIKE',
-                                        'test' => $search_terms[$i],
-                                        'begin' => $match_begin,
-                                        'approximate' => !empty($this->approximate[$field]),
-                                    );
-                                }
-                                $atomsearch[] = array(
-                                    'field' => $field,
-                                    'op' => '=',
-                                    'test' => '',
-                                    'begin' => $match_begin,
-                                    'approximate' => !empty($this->approximate[$field])
-                                );
-
-                                $subsearch[] = array('OR' => $atomsearch);
-                                unset($atomsearch);
-                                $glue = 'AND';
-                            } else {
-                                /* $parts may have more than one element, but
-                                 * if they are all quoted we will only have 1
-                                 * $subsearch. */
-                                $subsearch[] = array(
-                                    'field' => $field,
-                                    'op' => 'LIKE',
-                                    'test' => $search_terms[0],
-                                    'begin' => $match_begin,
-                                    'approximate' => !empty($this->approximate[$field]),
-                                );
-                                $glue = 'OR';
-                            }
+                            $search_terms[] = $term;
                         }
                     }
-                    if (count($subsearch)) {
-                        $search[] = array($glue => $subsearch);
-                    }
+                    $glue = 'AND';
                 } else {
-                    /* Not a composite field. */
-                    if (!empty($strict[$this->map[$key]])) {
+                    /* If only one search term, use original input and
+                       'OR' the searces since we're only looking for 1
+                       term in any of the composite fields. */
+                    $search_terms[0] = $val;
+                    $glue = 'OR';
+                }
+
+                foreach ($this->map[$key]['fields'] as $field) {
+                    if (!empty($blobs[$field])) {
+                        continue;
+                    }
+                    $field = $this->toDriver($field);
+                    if (!empty($strict[$field])) {
+                        /* For strict matches, use the original search
+                         * vals. */
                         $strict_search[] = array(
-                            'field' => $this->map[$key],
+                            'field' => $field,
                             'op' => '=',
                             'test' => $val,
                         );
                     } else {
-                        $search[] = array(
-                            'field' => $this->map[$key],
-                            'op' => 'LIKE',
-                            'test' => $val,
-                            'begin' => $match_begin,
-                            'approximate' => !empty($this->approximate[$this->map[$key]]),
-                        );
+                        /* Create a subsearch for each individual search
+                         * term. */
+                        if (count($search_terms) > 1) {
+                            /* Build the 'OR' search for each search term
+                             * on this field. */
+                            $atomsearch = array();
+                            for ($i = 0; $i < count($search_terms); ++$i) {
+                                $atomsearch[] = array(
+                                    'field' => $field,
+                                    'op' => 'LIKE',
+                                    'test' => $search_terms[$i],
+                                    'begin' => $match_begin,
+                                    'approximate' => !empty($this->approximate[$field]),
+                                );
+                            }
+                            $atomsearch[] = array(
+                                'field' => $field,
+                                'op' => '=',
+                                'test' => '',
+                                'begin' => $match_begin,
+                                'approximate' => !empty($this->approximate[$field])
+                            );
+
+                            $subsearch[] = array('OR' => $atomsearch);
+                            unset($atomsearch);
+                            $glue = 'AND';
+                        } else {
+                            /* $parts may have more than one element, but
+                             * if they are all quoted we will only have 1
+                             * $subsearch. */
+                            $subsearch[] = array(
+                                'field' => $field,
+                                'op' => 'LIKE',
+                                'test' => $search_terms[0],
+                                'begin' => $match_begin,
+                                'approximate' => !empty($this->approximate[$field]),
+                            );
+                            $glue = 'OR';
+                        }
                     }
+                }
+                if (count($subsearch)) {
+                    $search[] = array($glue => $subsearch);
+                }
+            } else {
+                /* Not a composite field. */
+                if (!empty($blobs[$key])) {
+                    continue;
+                }
+                if (!empty($strict[$this->map[$key]])) {
+                    $strict_search[] = array(
+                        'field' => $this->map[$key],
+                        'op' => '=',
+                        'test' => $val,
+                    );
+                } else {
+                    $search[] = array(
+                        'field' => $this->map[$key],
+                        'op' => 'LIKE',
+                        'test' => $val,
+                        'begin' => $match_begin,
+                        'approximate' => !empty($this->approximate[$this->map[$key]]),
+                    );
                 }
             }
         }
@@ -506,7 +516,7 @@ class Turba_Driver implements Countable
                                     $strict_fields, $match_begin);
 
         if (count($return_fields)) {
-            $return_fields_pre = array_unique(array_merge(array('__key', '__type', '__owner', 'name'), $return_fields));
+            $return_fields_pre = array_unique(array_merge(array('__key', '__type', '__owner', '__members', 'name'), $return_fields));
             $return_fields = array();
             foreach ($return_fields_pre as $field) {
                 $result = $this->toDriver($field);
@@ -638,7 +648,8 @@ class Turba_Driver implements Countable
             $key = $ob->getValue('__key');
 
             // Calculate the age of the time object
-            if ($start->year == $end->year) {
+            if ($start->year == $end->year ||
+                $end->year == 9999) {
                 $age = $start->year - $t_object->year;
             } elseif ($t_object->month <= $end->month) {
                 // t_object must be in later year
@@ -791,7 +802,7 @@ class Turba_Driver implements Countable
         }
 
         if (!isset($attributes['__uid'])) {
-            $attributes['__uid'] = strval(new Horde_Support_Guid());
+            $attributes['__uid'] = $this->_makeUid();
         }
 
         $key = $attributes['__key'] = $this->_makeKey($this->toDriverKeys($attributes));
@@ -888,7 +899,22 @@ class Turba_Driver implements Countable
             throw new Turba_Exception('Not supported');
         }
 
-        $this->_deleteAll($sourceName);
+        $ids = $this->_deleteAll($sourceName);
+
+        // Update Horde_History
+        $history = $GLOBALS['injector']->getInstance('Horde_History');
+        try {
+            foreach ($ids as $id) {
+                // This is slightly hackish, but it saves us from having to
+                // create and save an array of Turba_Objects before we delete
+                // them, just to be able to calculate this using
+                // Turba_Object#getGuid
+                $guid = 'turba:' . $this->getName() . ':' . $id;
+                $history->log($guid, array('action' => 'delete'), true);
+            }
+        } catch (Exception $e) {
+            Horde::logMessage($e, 'ERR');
+        }
     }
 
     /**
@@ -970,11 +996,19 @@ class Turba_Driver implements Countable
             ? array('CHARSET' => 'UTF-8')
             : array();
 
+        $haveDecodeHook = Horde::hookExists('decode_attribute', 'turba');
         foreach ($hash as $key => $val) {
             if ($skipEmpty && !strlen($val)) {
                 continue;
             }
-
+            if ($haveDecodeHook) {
+                try {
+                    $val = Horde::callHook(
+                        'decode_attribute',
+                        array($key, $val, $object),
+                        'turba');
+                } catch (Turba_Exception $e) {}
+            }
             switch ($key) {
             case 'name':
                 if ($fields && !isset($fields['FN'])) {
@@ -999,7 +1033,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['LABEL']) ||
                      (isset($fields['LABEL']->Params['TYPE']) &&
-                      !isset($fields['LABEL']->Params['TYPE']->ValEnum['HOME'])))) {
+                      !$this->_hasValEnum($fields['LABEL']->Params['TYPE']->ValEnum, 'HOME')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1013,7 +1047,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['LABEL']) ||
                      (isset($fields['LABEL']->Params['TYPE']) &&
-                      !isset($fields['LABEL']->Params['TYPE']->ValEnum['WORK'])))) {
+                      !$this->_hasValEnum($fields['LABEL']->Params['TYPE']->ValEnum, 'WORK')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1041,13 +1075,13 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['TEL']) ||
                      (isset($fields['TEL']->Params['TYPE']) &&
-                      !isset($fields['TEL']->Params['TYPE']->ValEnum['HOME'])))) {
+                      !$this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'HOME')))) {
                     break;
                 }
                 if ($version == '2.1') {
-                    $vcard->setAttribute('TEL', $val, array('HOME' => null));
+                    $vcard->setAttribute('TEL', $val, array('HOME' => null, 'VOICE' => null));
                 } else {
-                    $vcard->setAttribute('TEL', $val, array('TYPE' => 'HOME'));
+                    $vcard->setAttribute('TEL', $val, array('TYPE' => array('HOME', 'VOICE')));
                 }
                 break;
 
@@ -1055,13 +1089,13 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['TEL']) ||
                      (isset($fields['TEL']->Params['TYPE']) &&
-                      !isset($fields['TEL']->Params['TYPE']->ValEnum['WORK'])))) {
+                      !$this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'WORK')))) {
                     break;
                 }
                 if ($version == '2.1') {
-                    $vcard->setAttribute('TEL', $val, array('WORK' => null));
+                    $vcard->setAttribute('TEL', $val, array('WORK' => null, 'VOICE' => null));
                 } else {
-                    $vcard->setAttribute('TEL', $val, array('TYPE' => 'WORK'));
+                    $vcard->setAttribute('TEL', $val, array('TYPE' => array('WORK', 'VOICE')));
                 }
                 break;
 
@@ -1069,13 +1103,13 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['TEL']) ||
                      (isset($fields['TEL']->Params['TYPE']) &&
-                      !isset($fields['TEL']->Params['TYPE']->ValEnum['CELL'])))) {
+                      !$this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'CELL')))) {
                     break;
                 }
                 if ($version == '2.1') {
-                    $vcard->setAttribute('TEL', $val, array('CELL' => null));
+                    $vcard->setAttribute('TEL', $val, array('CELL' => null, 'VOICE' => null));
                 } else {
-                    $vcard->setAttribute('TEL', $val, array('TYPE' => 'CELL'));
+                    $vcard->setAttribute('TEL', $val, array('TYPE' => array('CELL', 'VOICE')));
                 }
                 break;
 
@@ -1086,19 +1120,21 @@ class Turba_Driver implements Countable
                         break;
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['CELL'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'CELL')) {
                         if ($version == '2.1') {
                             $parameters['CELL'] = null;
+                            $parameters['VOICE'] = null;
                         } else {
-                            $parameters['TYPE'] = 'CELL';
+                            $parameters['TYPE'] = array('CELL', 'VOICE');
                         }
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['HOME'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'HOME')) {
                         if ($version == '2.1') {
                             $parameters['HOME'] = null;
+                            $parameters['VOICE'] = null;
                         } else {
-                            $parameters['TYPE'] = 'HOME';
+                            $parameters['TYPE'] = array('HOME', 'VOICE');
                         }
                     }
                     if (empty($parameters)) {
@@ -1106,9 +1142,9 @@ class Turba_Driver implements Countable
                     }
                 } else {
                     if ($version == '2.1') {
-                        $parameters = array('CELL' => null, 'HOME' => null);
+                        $parameters = array('CELL' => null, 'HOME' => null, 'VOICE' => null);
                     } else {
-                        $parameters = array('TYPE' => 'CELL', 'TYPE' => 'HOME');
+                        $parameters = array('TYPE' => array('CELL', 'HOME', 'VOICE'));
                     }
                 }
                 $vcard->setAttribute('TEL', $val, $parameters);
@@ -1121,19 +1157,21 @@ class Turba_Driver implements Countable
                         break;
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['CELL'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'CELL')) {
                         if ($version == '2.1') {
                             $parameters['CELL'] = null;
+                            $parameters['VOICE'] = null;
                         } else {
-                            $parameters['TYPE'] = 'CELL';
+                            $parameters['TYPE'] = array('CELL', 'VOICE');
                         }
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['WORK'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'WORK')) {
                         if ($version == '2.1') {
                             $parameters['WORK'] = null;
+                            $parameters['VOICE'] = null;
                         } else {
-                            $parameters['TYPE'] = 'WORK';
+                            $parameters['TYPE'] = array('WORK', 'VOICE');
                         }
                     }
                     if (empty($parameters)) {
@@ -1141,9 +1179,9 @@ class Turba_Driver implements Countable
                     }
                 } else {
                     if ($version == '2.1') {
-                        $parameters = array('CELL' => null, 'WORK' => null);
+                        $parameters = array('CELL' => null, 'WORK' => null, 'VOICE' => null);
                     } else {
-                        $parameters = array('TYPE' => 'CELL', 'TYPE' => 'WORK');
+                        $parameters = array('TYPE' => array('CELL', 'WORK', 'VOICE'));
                     }
                 }
                 $vcard->setAttribute('TEL', $val, $parameters);
@@ -1153,7 +1191,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['TEL']) ||
                      (isset($fields['TEL']->Params['TYPE']) &&
-                      !isset($fields['TEL']->Params['TYPE']->ValEnum['VIDEO'])))) {
+                      !$this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'VIDEO')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1170,7 +1208,7 @@ class Turba_Driver implements Countable
                         break;
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['VIDEO'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'VIDEO')) {
                         if ($version == '2.1') {
                             $parameters['VIDEO'] = null;
                         } else {
@@ -1178,7 +1216,7 @@ class Turba_Driver implements Countable
                         }
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['HOME'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'HOME')) {
                         if ($version == '2.1') {
                             $parameters['HOME'] = null;
                         } else {
@@ -1192,7 +1230,7 @@ class Turba_Driver implements Countable
                     if ($version == '2.1') {
                         $parameters = array('VIDEO' => null, 'HOME' => null);
                     } else {
-                        $parameters = array('TYPE' => 'VIDEO', 'TYPE' => 'HOME');
+                        $parameters = array('TYPE' => array('VIDEO', 'HOME'));
                     }
                 }
                 $vcard->setAttribute('TEL', $val, $parameters);
@@ -1205,7 +1243,7 @@ class Turba_Driver implements Countable
                         break;
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['VIDEO'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'VIDEO')) {
                         if ($version == '2.1') {
                             $parameters['VIDEO'] = null;
                         } else {
@@ -1213,7 +1251,7 @@ class Turba_Driver implements Countable
                         }
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['WORK'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'WORK')) {
                         if ($version == '2.1') {
                             $parameters['WORK'] = null;
                         } else {
@@ -1227,7 +1265,7 @@ class Turba_Driver implements Countable
                     if ($version == '2.1') {
                         $parameters = array('VIDEO' => null, 'WORK' => null);
                     } else {
-                        $parameters = array('TYPE' => 'VIDEO', 'TYPE' => 'WORK');
+                        $parameters = array('TYPE' => array('VIDEO', 'WORK'));
                     }
                 }
                 $vcard->setAttribute('TEL', $val, $parameters);
@@ -1243,7 +1281,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['X-SIP']) ||
                      (isset($fields['X-SIP']->Params['TYPE']) &&
-                      !isset($fields['X-SIP']->Params['TYPE']->ValEnum['POC'])))) {
+                      !$this->_hasValEnum($fields['X-SIP']->Params['TYPE']->ValEnum, 'POC')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1257,7 +1295,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['X-SIP']) ||
                      (isset($fields['X-SIP']->Params['TYPE']) &&
-                      !isset($fields['X-SIP']->Params['TYPE']->ValEnum['VOIP'])))) {
+                      !$this->_hasValEnum($fields['X-SIP']->Params['TYPE']->ValEnum, 'VOIP')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1271,7 +1309,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['X-SIP']) ||
                      (isset($fields['X-SIP']->Params['TYPE']) &&
-                      !isset($fields['X-SIP']->Params['TYPE']->ValEnum['SWIS'])))) {
+                      !$this->_hasValEnum($fields['X-SIP']->Params['TYPE']->ValEnum, 'SWIS')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1292,7 +1330,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['TEL']) ||
                      (isset($fields['TEL']->Params['TYPE']) &&
-                      !isset($fields['TEL']->Params['TYPE']->ValEnum['FAX'])))) {
+                      !$this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'FAX')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1309,7 +1347,7 @@ class Turba_Driver implements Countable
                         break;
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['FAX'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'FAX')) {
                         if ($version == '2.1') {
                             $parameters['FAX'] = null;
                         } else {
@@ -1317,7 +1355,7 @@ class Turba_Driver implements Countable
                         }
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['HOME'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'HOME')) {
                         if ($version == '2.1') {
                             $parameters['HOME'] = null;
                         } else {
@@ -1331,7 +1369,7 @@ class Turba_Driver implements Countable
                     if ($version == '2.1') {
                         $parameters = array('FAX' => null, 'HOME' => null);
                     } else {
-                        $parameters = array('TYPE' => 'FAX', 'TYPE' => 'HOME');
+                        $parameters = array('TYPE' => array('FAX', 'HOME'));
                     }
                 }
                 $vcard->setAttribute('TEL', $val, $parameters);
@@ -1344,7 +1382,7 @@ class Turba_Driver implements Countable
                         break;
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['FAX'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'FAX')) {
                         if ($version == '2.1') {
                             $parameters['FAX'] = null;
                         } else {
@@ -1352,7 +1390,7 @@ class Turba_Driver implements Countable
                         }
                     }
                     if (!isset($fields['TEL']->Params['TYPE']) ||
-                        isset($fields['TEL']->Params['TYPE']->ValEnum['WORK'])) {
+                        $this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'WORK')) {
                         if ($version == '2.1') {
                             $parameters['WORK'] = null;
                         } else {
@@ -1366,14 +1404,14 @@ class Turba_Driver implements Countable
                     if ($version == '2.1') {
                         $parameters = array('FAX' => null, 'WORK' => null);
                     } else {
-                        $parameters = array('TYPE' => 'FAX', 'TYPE' => 'WORK');
+                        $parameters = array('TYPE' => array('FAX', 'WORK'));
                     }
                 }
                 $vcard->setAttribute('TEL', $val, $parameters);
                 if ($version == '2.1') {
                     $vcard->setAttribute('TEL', $val, array('FAX' => null, 'WORK' => null));
                 } else {
-                    $vcard->setAttribute('TEL', $val, array('TYPE' => 'FAX', 'TYPE' => 'WORK'));
+                    $vcard->setAttribute('TEL', $val, array('TYPE' => array('FAX', 'WORK')));
                 }
                 break;
 
@@ -1381,7 +1419,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['TEL']) ||
                      (isset($fields['TEL']->Params['TYPE']) &&
-                      !isset($fields['TEL']->Params['TYPE']->ValEnum['PAGER'])))) {
+                      !$this->_hasValEnum($fields['TEL']->Params['TYPE']->ValEnum, 'PAGER')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1395,14 +1433,24 @@ class Turba_Driver implements Countable
                 if ($fields && !isset($fields['EMAIL'])) {
                     break;
                 }
-                $vcard->setAttribute('EMAIL', Horde_Icalendar_Vcard::getBareEmail($val));
+                if ($version == '2.1') {
+                    $vcard->setAttribute(
+                        'EMAIL',
+                        Horde_Icalendar_Vcard::getBareEmail($val),
+                        array('INTERNET' => null));
+                } else {
+                    $vcard->setAttribute(
+                        'EMAIL',
+                        Horde_Icalendar_Vcard::getBareEmail($val),
+                        array('TYPE' => 'INTERNET'));
+                }
                 break;
 
             case 'homeEmail':
                 if ($fields &&
                     (!isset($fields['EMAIL']) ||
                      (isset($fields['EMAIL']->Params['TYPE']) &&
-                      !isset($fields['EMAIL']->Params['TYPE']->ValEnum['HOME'])))) {
+                      !$this->_hasValEnum($fields['EMAIL']->Params['TYPE']->ValEnum, 'HOME')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1420,7 +1468,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['EMAIL']) ||
                      (isset($fields['EMAIL']->Params['TYPE']) &&
-                      !isset($fields['EMAIL']->Params['TYPE']->ValEnum['WORK'])))) {
+                      !$this->_hasValEnum($fields['EMAIL']->Params['TYPE']->ValEnum, 'WORK')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1502,7 +1550,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['URL']) ||
                      (isset($fields['URL']->Params['TYPE']) &&
-                      !isset($fields['URL']->Params['TYPE']->ValEnum['HOME'])))) {
+                      !$this->_hasValEnum($fields['URL']->Params['TYPE']->ValEnum, 'HOME')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1516,7 +1564,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['URL']) ||
                      (isset($fields['URL']->Params['TYPE']) &&
-                      !isset($fields['URL']->Params['TYPE']->ValEnum['WORK'])))) {
+                      !$this->_hasValEnum($fields['URL']->Params['TYPE']->ValEnum, 'WORK')))) {
                     break;
                 }
                 if ($version == '2.1') {
@@ -1555,7 +1603,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['GEO']) ||
                      (isset($fields['GEO']->Params['TYPE']) &&
-                      !isset($fields['GEO']->Params['TYPE']->ValEnum['HOME'])))) {
+                      !$this->_hasValEnum($fields['GEO']->Params['TYPE']->ValEnum, 'HOME')))) {
                     break;
                 }
                 if (isset($hash['homeLongitude'])) {
@@ -1577,7 +1625,7 @@ class Turba_Driver implements Countable
                 if ($fields &&
                     (!isset($fields['GEO']) ||
                      (isset($fields['GEO']->Params['TYPE']) &&
-                      !isset($fields['GEO']->Params['TYPE']->ValEnum['HOME'])))) {
+                      !$this->_hasValEnum($fields['GEO']->Params['TYPE']->ValEnum, 'HOME')))) {
                     break;
                 }
                 if (isset($hash['workLongitude'])) {
@@ -1609,7 +1657,7 @@ class Turba_Driver implements Countable
                     (!isset($fields[$name]) ||
                      (isset($params['TYPE']) &&
                       isset($fields[$name]->Params['TYPE']) &&
-                      !isset($fields[$name]->Params['TYPE']->ValEnum[$params['TYPE']])))) {
+                      !$this->_hasValEnum($fields[$name]->Params['TYPE']->ValEnum, $params['TYPE'])))) {
                     break;
                 }
                 $vcard->setAttribute($name,
@@ -1621,18 +1669,7 @@ class Turba_Driver implements Countable
 
         // No explicit firstname/lastname in data source: we have to guess.
         if (!isset($hash['lastname']) && isset($hash['name'])) {
-            if (($pos = strpos($hash['name'], ',')) !== false) {
-                // Assume Last, First
-                $hash['lastname'] = Horde_String::substr($hash['name'], 0, $pos);
-                $hash['firstname'] = trim(Horde_String::substr($hash['name'], $pos + 1));
-            } elseif (($pos = Horde_String::rpos($hash['name'], ' ')) !== false) {
-                // Assume everything after last space as lastname
-                $hash['lastname'] = trim(Horde_String::substr($hash['name'], $pos + 1));
-                $hash['firstname'] = Horde_String::substr($hash['name'], 0, $pos);
-            } else {
-                $hash['lastname'] = $hash['name'];
-                $hash['firstname'] = '';
-            }
+            $this->_guessName($hash);
         }
 
         $a = array(
@@ -1731,7 +1768,7 @@ class Turba_Driver implements Countable
         if ((!$fields ||
              (isset($fields['ADR']) &&
               (!isset($fields['ADR']->Params['TYPE']) ||
-               isset($fields['ADR']->Params['TYPE']->ValEnum['HOME'])))) &&
+               $this->_hasValEnum($fields['ADR']->Params['TYPE']->ValEnum, 'HOME')))) &&
             (!empty($hash['homeAddress']) ||
              !empty($hash['homeStreet']) ||
              !empty($hash['homePOBox']) ||
@@ -1784,7 +1821,7 @@ class Turba_Driver implements Countable
         if ((!$fields ||
              (isset($fields['ADR']) &&
               (!isset($fields['ADR']->Params['TYPE']) ||
-               isset($fields['ADR']->Params['TYPE']->ValEnum['WORK'])))) &&
+               $this->_hasValEnum($fields['ADR']->Params['TYPE']->ValEnum, 'WORK')))) &&
             (!empty($hash['workAddress']) ||
              !empty($hash['workStreet']) ||
              !empty($hash['workPOBox']) ||
@@ -1835,6 +1872,25 @@ class Turba_Driver implements Countable
         }
 
         return $vcard;
+    }
+
+    /**
+     * Returns whether a ValEnum entry from a DevInf object contains a certain
+     * type.
+     *
+     * @param array $valEnum  A ValEnum hash.
+     * @param string $type    A requested attribute type.
+     *
+     * @return boolean  True if $type exists in $valEnum.
+     */
+    protected function _hasValEnum($valEnum, $type)
+    {
+        foreach (array_keys($valEnum) as $key) {
+            if (in_array($type, explode(',', $key))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -2224,7 +2280,11 @@ class Turba_Driver implements Countable
                 break;
 
             case 'X-ANNIVERSARY':
-                $hash['anniversary'] = $item['value']['year'] . '-' . $item['value']['month'] . '-' . $item['value']['mday'];
+                if (empty($item['value'])) {
+                    $hash['anniversary'] = '';
+                } else {
+                    $hash['anniversary'] = $item['value']['year'] . '-' . $item['value']['month'] . '-' . $item['value']['mday'];
+                }
                 break;
 
             case 'X-CHILDREN':
@@ -2249,8 +2309,7 @@ class Turba_Driver implements Countable
                     $fieldarray[] = isset($hash[$mapfields]) ?
                         $hash[$mapfields] : '';
                 }
-                $hash['name'] = trim(vsprintf($this->map['name']['format'], $fieldarray),
-                                     " \t\n\r\0\x0B,");
+                $hash['name'] = Turba::formatCompositeField($this->map['name']['format'], $fieldarray);
             } else {
                 $hash['name'] = isset($hash['firstname']) ? $hash['firstname'] : '';
                 if (!empty($hash['lastname'])) {
@@ -2267,14 +2326,60 @@ class Turba_Driver implements Countable
      * Convert the contact to an ActiveSync contact message
      *
      * @param Turba_Object $object  The turba object to convert
+     * @param array $options        Options:
+     *   - protocolversion: (float)  The EAS version to support
+     *                      DEFAULT: 2.5
+     *   - bodyprefs: (array)  A BODYPREFERENCE array.
+     *                DEFAULT: none (No body prefs enforced).
+     *   - truncation: (integer)  Truncate event body to this length
+     *                 DEFAULT: none (No truncation).
      *
      * @return Horde_ActiveSync_Message_Contact
      */
-    public function toASContact(Turba_Object $object)
+    public function toASContact(Turba_Object $object, array $options = array())
     {
-        $message = new Horde_ActiveSync_Message_Contact(array('logger' => $GLOBALS['injector']->getInstance('Horde_Log_Logger')));
+        $message = new Horde_ActiveSync_Message_Contact(array(
+            'logger' => $GLOBALS['injector']->getInstance('Horde_Log_Logger'),
+            'protocolversion' => $options['protocolversion'])
+        );
         $hash = $object->getAttributes();
+        if (!isset($hash['lastname']) && isset($hash['name'])) {
+            $this->_guessName($hash);
+        }
+
+        // Ensure we have at least a good guess as to separate address fields.
+        // Not ideal, but EAS does not have a single "address" field so we must
+        // map "common" to either home or work. I choose home since
+        // work/non-personal installs will be more likely to have separated
+        // address fields.
+        if (!empty($hash['commonAddress'])) {
+            if (!isset($hash['commonStreet'])) {
+                $hash['commonStreet'] = $hash['commonHome'];
+            }
+            foreach (array('Address', 'Street', 'POBox', 'Extended', 'City', 'Province', 'PostalCode', 'Country') as $field) {
+                $hash['home' . $field] = $hash['common' . $field];
+            }
+        } else {
+            if (isset($hash['homeAddress']) && !isset($hash['homeStreet'])) {
+                $hash['homeStreet'] = $hash['homeAddress'];
+            }
+            if (isset($hash['workAddress']) && !isset($hash['workStreet'])) {
+                $hash['workStreet'] = $hash['workAddress'];
+            }
+        }
+
+        $haveDecodeHook = Horde::hookExists('decode_attribute', 'turba');
         foreach ($hash as $field => $value) {
+            if ($haveDecodeHook) {
+                try {
+                    $value = Horde::callHook(
+                        'decode_attribute',
+                        array($attribute, $this->attributes[$attribute], $this),
+                        'turba');
+                } catch (Turba_Exception $e) {
+                    Horde::logMessage($e);
+                }
+            }
             switch ($field) {
             case 'name':
                 $message->fileas = $value;
@@ -2296,6 +2401,14 @@ class Turba_Driver implements Countable
                 $message->title = $value;
                 break;
 
+            case 'alias':
+            case 'nickname':
+                try {
+                    $message->nickname = $value;
+                } catch (InvalidArgumentException $e) {
+                }
+                break;
+
             case 'nameSuffix':
                 $message->suffix = $value;
                 break;
@@ -2305,8 +2418,6 @@ class Turba_Driver implements Countable
                 break;
 
             case 'homeStreet':
-                /* Address (TODO: check for a single home/workAddress field
-                 * instead) */
                 $message->homestreet = $hash['homeStreet'];
                 break;
 
@@ -2324,6 +2435,26 @@ class Turba_Driver implements Countable
 
             case 'homeCountry':
                 $message->homecountry = !empty($hash['homeCountry']) ? Horde_Nls::getCountryISO($hash['homeCountry']) : null;
+                break;
+
+            case 'otherStreet':
+                $message->otherstreet = $hash['otherStreet'];
+                break;
+
+            case 'otherCity':
+                $message->othercity = $hash['otherCity'];
+                break;
+
+            case 'otherProvince':
+                $message->otherstate = $hash['otherProvince'];
+                break;
+
+            case 'otherPostalCode':
+                $message->otherpostalcode = $hash['otherPostalCode'];
+                break;
+
+            case 'otherCountry':
+                $message->othercountry = !empty($hash['otherCountry']) ? Horde_Nls::getCountryISO($hash['otherCountry']) : null;
                 break;
 
             case 'workStreet':
@@ -2350,15 +2481,44 @@ class Turba_Driver implements Countable
                 $message->homephonenumber = $hash['homePhone'];
                 break;
 
+            case 'homePhone2':
+                $message->home2phonenumber = $hash['homePhone2'];
+                break;
+
             case 'cellPhone':
                 $message->mobilephonenumber = $hash['cellPhone'];
                 break;
+
+            case 'carPhone':
+                $message->carphonenumber = $hash['carPhone'];
+                break;
+
             case 'fax':
                 $message->businessfaxnumber = $hash['fax'];
                 break;
 
+            case 'homeFax':
+                $message->homefaxnumber = $hash['homeFax'];
+                break;
+
             case 'workPhone':
                 $message->businessphonenumber = $hash['workPhone'];
+                break;
+
+            case 'workPhone2':
+                $message->business2phonenumber = $hash['workPhone2'];
+                break;
+
+            case 'assistPhone':
+                $message->assistnamephonenumber = $hash['assistPhone'];
+                break;
+
+            case 'companyPhone':
+                $message->companymainphone = $hash['companyPhone'];
+                break;
+
+            case 'radioPhone':
+                $message->radiophonenumber = $hash['radioPhone'];
                 break;
 
             case 'pager':
@@ -2369,6 +2529,36 @@ class Turba_Driver implements Countable
                 $message->email1address = Horde_Icalendar_Vcard::getBareEmail($value);
                 break;
 
+            case 'homeEmail':
+                $message->email2address = Horde_Icalendar_Vcard::getBareEmail($value);
+                break;
+
+            case 'workEmail':
+                $message->email3address = Horde_Icalendar_Vcard::getBareEmail($value);
+                break;
+
+            case 'imaddress':
+                try {
+                    $message->imaddress = $value;
+                } catch (InvalidArgumentException $e) {
+                }
+                break;
+
+            case 'imaddress2':
+                try {
+                    $message->imaddress2 = $value;
+                } catch (InvalidArgumentException $e) {
+
+                }
+                break;
+
+            case 'imaddress3':
+                try {
+                    $message->imaddress3 = $value;
+                } catch (InvalidArgumentException $e) {
+                }
+                break;
+
             case 'title':
                 $message->jobtitle = $value;
                 break;
@@ -2377,7 +2567,7 @@ class Turba_Driver implements Countable
                 $message->companyname = $value;
                 break;
 
-            case 'departnemt':
+            case 'department':
                 $message->department = $value;
                 break;
 
@@ -2389,11 +2579,29 @@ class Turba_Driver implements Countable
             case 'spouse':
                 $message->spouse = $value;
                 break;
+
             case 'notes':
-                /* Assume no truncation - AS server will truncate as needed */
-                $message->body = $value;
-                $message->bodysize = strlen($message->body);
-                $message->bodytruncated = false;
+                if ($options['protocolversion'] > Horde_ActiveSync::VERSION_TWOFIVE) {
+                    $bp = $options['bodyprefs'];
+                    $note = new Horde_ActiveSync_Message_AirSyncBaseBody();
+                    // No HTML supported in Turba's notes. Always use plaintext.
+                    $note->type = Horde_ActiveSync::BODYPREF_TYPE_PLAIN;
+                    if (isset($bp[Horde_ActiveSync::BODYPREF_TYPE_PLAIN]['truncationsize'])) {
+                        if (Horde_String::length($value) > $bp[Horde_ActiveSync::BODYPREF_TYPE_PLAIN]['truncationsize']) {
+                            $note->data = Horde_String::substr($value, 0, $bp[Horde_ActiveSync::BODYPREF_TYPE_PLAIN]['truncationsize']);
+                            $note->truncated = 1;
+                        } else {
+                            $note->data = $value;
+                        }
+                        $note->estimateddatasize = Horde_String::length($value);
+                    }
+                    $message->airsyncbasebody = $note;
+                } else {
+                    // EAS 2.5
+                    $message->body = $value;
+                    $message->bodysize = strlen($message->body);
+                    $message->bodytruncated = 0;
+                }
                 break;
 
             case 'website':
@@ -2403,8 +2611,12 @@ class Turba_Driver implements Countable
             case 'birthday':
             case 'anniversary':
                 if (!empty($value)) {
-                    $date = new Horde_Date($value);
-                    $message->{$field} = $date;
+                    try {
+                        $date = new Horde_Date($value);
+                        $message->{$field} = $date;
+                    } catch (Horde_Date_Exception $e) {
+                        $message->$field = null;
+                    }
                 } else {
                     $message->$field = null;
                 }
@@ -2438,12 +2650,17 @@ class Turba_Driver implements Countable
             'lastname' => 'lastname',
             'firstname' => 'firstname',
             'middlename' => 'middlenames',
+            'nickname' => 'nickname',
             'title' => 'namePrefix',
             'suffix' => 'nameSuffix',
             'homestreet' => 'homeStreet',
             'homecity' => 'homeCity',
             'homestate' => 'homeProvince',
             'homepostalcode' => 'homePostalCode',
+            'otherstreet' => 'otherStreet',
+            'othercity' => 'otherCity',
+            'otherstate' => 'otherProvince',
+            'otherpostalcode' => 'otherPostalCode',
             'businessstreet' => 'workStreet',
             'businesscity' => 'workCity',
             'businessstate' => 'workProvince',
@@ -2452,26 +2669,49 @@ class Turba_Driver implements Countable
             'companyname' => 'company',
             'department' => 'department',
             'spouse' => 'spouse',
-            'body' => 'notes',
             'webpage' => 'website',
-            'assistantname' => 'assistant'
+            'assistantname' => 'assistant',
+            'imaddress' => 'imaddress',
+            'imaddress2' => 'imaddress2',
+            'imaddress3' => 'imaddress3'
         );
         foreach ($textMap as $asField => $turbaField) {
             if (!$message->isGhosted($asField)) {
-                $hash[$turbaField] = $message->{$asField};
+                try {
+                    $hash[$turbaField] = $message->{$asField};
+                } catch (InvalidArgumentException $e) {
+                }
             }
         }
 
+        try {
+            if ($message->getProtocolVersion() >= Horde_ActiveSync::VERSION_TWELVE) {
+                $hash['notes'] = $message->airsyncbasebody->data;
+            } else {
+                $hash['notes'] = $message->body;
+            }
+        } catch (InvalidArgumentException $e) {}
+
         $nonTextMap = array(
             'homephonenumber' => 'homePhone',
+            'home2phonenumber' => 'homePhone2',
             'businessphonenumber' => 'workPhone',
+            'business2phonenumber' => 'workPhone2',
             'businessfaxnumber' => 'fax',
+            'homefaxnumber' => 'homeFax',
             'pagernumber' => 'pager',
-            'mobilephonenumber' => 'cellPhone'
+            'mobilephonenumber' => 'cellPhone',
+            'carphonenumber' => 'carPhone',
+            'assistnamephonenumber' => 'assistPhone',
+            'companymainphone' => 'companyPhone',
+            'radiophonenumber' => 'radioPhone'
         );
         foreach ($nonTextMap as $asField => $turbaField) {
             if (!$message->isGhosted($asField)) {
-                $hash[$turbaField] = $message->{$asField};
+                try {
+                    $hash[$turbaField] = $message->{$asField};
+                } catch (InvalidArgumentException $e) {
+                }
             }
         }
 
@@ -2486,7 +2726,12 @@ class Turba_Driver implements Countable
         if (!$message->isGhosted('email1address')) {
             $hash['email'] = Horde_Icalendar_Vcard::getBareEmail($message->email1address);
         }
-
+        if (!$message->isGhosted('email2address')) {
+            $hash['homeEmail'] = Horde_Icalendar_Vcard::getBareEmail($message->email2address);
+        }
+        if (!$message->isGhosted('email3address')) {
+            $hash['workEmail'] = Horde_Icalendar_Vcard::getBareEmail($message->email3address);
+        }
         /* Categories */
         if (count($message->categories)) {
             $hash['category'] = implode('|', $message->categories);
@@ -2497,12 +2742,14 @@ class Turba_Driver implements Countable
         /* Birthday and Anniversary */
         if (!empty($message->birthday)) {
             $bday = new Horde_Date($message->birthday);
+            $bday->setTimezone(date_default_timezone_get());
             $hash['birthday'] = $bday->format('Y-m-d');
         } elseif (!$message->isGhosted('birthday')) {
             $hash['birthday'] = null;
         }
         if (!empty($message->anniversary)) {
             $anniversary = new Horde_Date($message->anniversary);
+            $anniversary->setTimezone(date_default_timezone_get());
             $hash['anniversary'] = $anniversary->format('Y-m-d');
         } elseif (!$message->isGhosted('anniversary')) {
             $hash['anniversary'] = null;
@@ -2528,6 +2775,16 @@ class Turba_Driver implements Countable
             $hash['workCountry'] = $country;
         } elseif (!$message->isGhosted('businesscountry')) {
             $hash['workCountry'] = null;
+        }
+
+        if (!empty($message->othercountry)) {
+            $country = array_search($message->othercountry, $countries);
+            if ($country === false) {
+                $country = $message->othercountry;
+            }
+            $hash['otherCountry'] = $country;
+        } elseif (!$message->isGhosted('othercountry')) {
+            $hash['otherCountry'] = null;
         }
 
         return $hash;
@@ -2585,6 +2842,17 @@ class Turba_Driver implements Countable
     }
 
     /**
+     * Override the name setting for this driver.
+     *
+     * @param string $name  The source name. This is the key into the
+     *                      $cfgSources array.
+     */
+    public function setSourceName($name)
+    {
+        $this->_name = $name;
+    }
+
+    /**
      * Return the owner to use when searching or creating contacts in
      * this address book.
      *
@@ -2627,61 +2895,13 @@ class Turba_Driver implements Countable
     }
 
     /**
-     * Static method to construct Turba_Driver objects.
+     * Creates an object UID for a new object.
      *
-     * @param string $name   String containing the internal name of this
-     *                       source.
-     * @param array $config  Array containing the configuration information for
-     *                       this source.
-     *
-     * @return Turba_Driver  The concrete driver object.
-     * @throws Turba_Exception
+     * @return string  A unique ID for the new object.
      */
-    static public function factory($name, array $config)
+    protected function _makeUid()
     {
-        $class = __CLASS__ . '_' . ucfirst(basename($config['type']));
-
-        if (class_exists($class)) {
-            $driver = new $class($config['params']);
-        } else {
-            throw new Turba_Exception(sprintf(_("Unable to load the definition of %s."), $class));
-        }
-
-        /* Store name and title. */
-        $driver->_name = $name;
-        $driver->title = $config['title'];
-
-        /* Initialize */
-        $driver->_init();
-
-        /* Store and translate the map at the Source level. */
-        $driver->map = $config['map'];
-        foreach ($driver->map as $key => $val) {
-            if (!is_array($val)) {
-                $driver->fields[$key] = $val;
-            }
-        }
-
-        /* Store tabs. */
-        if (isset($config['tabs'])) {
-            $driver->tabs = $config['tabs'];
-        }
-
-        /* Store remaining fields. */
-        if (isset($config['strict'])) {
-            $driver->strict = $config['strict'];
-        }
-        if (isset($config['approximate'])) {
-            $driver->approximate = $config['approximate'];
-        }
-        if (isset($config['list_name_field'])) {
-            $driver->listNameField = $config['list_name_field'];
-        }
-        if (isset($config['alternative_name'])) {
-            $driver->alternativeName = $config['alternative_name'];
-        }
-
-        return $driver;
+        return strval(new Horde_Support_Guid());
     }
 
     /**
@@ -2713,34 +2933,36 @@ class Turba_Driver implements Countable
     /**
      * Reads the given data from the address book and returns the results.
      *
-     * @param string $key    The primary key field to use.
-     * @param mixed $ids     The ids of the contacts to load.
-     * @param string $owner  Only return contacts owned by this user.
-     * @param array $fields  List of fields to return.
+     * @param string $key        The primary key field to use.
+     * @param mixed $ids         The ids of the contacts to load.
+     * @param string $owner      Only return contacts owned by this user.
+     * @param array $fields      List of fields to return.
      * @param array $blobFields  Array of fields containing binary data.
      *
      * @return array  Hash containing the search results.
      * @throws Turba_Exception
      */
-    protected function _read($key, $ids, $owner, array $fields, array $blobFields = array())
+    protected function _read($key, $ids, $owner, array $fields,
+                             array $blobFields = array())
     {
         throw new Turba_Exception(_("Reading contacts is not available."));
     }
 
     /**
-     * Adds the specified contact to the SQL database.
+     * Adds the specified contact to the addressbook.
      *
-     * @param array $attributes  TODO
+     * @param array $attributes  The attribute values of the contact.
+     * @param array $blob_fields TODO
      *
      * @throws Turba_Exception
      */
-    protected function _add(array $attributes)
+    protected function _add(array $attributes, array $blob_fields = array())
     {
         throw new Turba_Exception(_("Adding contacts is not available."));
     }
 
     /**
-     * Deletes the specified contact from the SQL database.
+     * Deletes the specified contact from the addressbook.
      *
      * @param string $object_key TODO
      * @param string $object_id  TODO
@@ -2774,7 +2996,7 @@ class Turba_Driver implements Countable
      */
     public function removeUserData($user)
     {
-        throw new Turba_Exception(_("Removing user data is not supported in the current address book storage driver."));
+        throw new Turba_Exception_NotSupported(_("Removing user data is not supported in the current address book storage driver."));
     }
 
     /**
@@ -2818,6 +3040,27 @@ class Turba_Driver implements Countable
         }
 
         return $this->_count;
+    }
+
+    /**
+     * Helper function for guessing name parts from a single name string.
+     *
+     * @param array $hash  The attributes array.
+     */
+    protected function _guessName(&$hash)
+    {
+        if (($pos = strpos($hash['name'], ',')) !== false) {
+            // Assume Last, First
+            $hash['lastname'] = Horde_String::substr($hash['name'], 0, $pos);
+            $hash['firstname'] = trim(Horde_String::substr($hash['name'], $pos + 1));
+        } elseif (($pos = Horde_String::rpos($hash['name'], ' ')) !== false) {
+            // Assume everything after last space as lastname
+            $hash['lastname'] = trim(Horde_String::substr($hash['name'], $pos + 1));
+            $hash['firstname'] = Horde_String::substr($hash['name'], 0, $pos);
+        } else {
+            $hash['lastname'] = $hash['name'];
+            $hash['firstname'] = '';
+        }
     }
 
 }

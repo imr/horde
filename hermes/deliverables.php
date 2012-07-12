@@ -1,13 +1,13 @@
 <?php
 /**
- * Copyright 2005-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2005-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://www.horde.org/licenses/bsdl.php.
  *
  * @author Jason M. Felice <jason.m.felice@gmail.com>
  */
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('hermes');
 
 $vars = Horde_Variables::getDefaultVariables();
@@ -45,15 +45,17 @@ case 'deletedeliverable':
     break;
 }
 
-$title = _("Deliverables");
-require $registry->get('templates', 'horde') . '/common-header.inc';
-require HERMES_TEMPLATES . '/menu.inc';
+$page_output->header(array(
+    'title' => _("Deliverables")
+));
+echo Horde::menu();
+$notification->notify(array('listeners' => 'status'));
 
 $renderer = new Horde_Form_Renderer();
 
 if (!$vars->exists('deliverable_id') && !$vars->exists('new')) {
     $clientSelector = new Hermes_Form_Deliverable_ClientSelector($vars);
-    $clientSelector->renderActive($renderer, $vars, 'deliverables.php', 'post');
+    $clientSelector->renderActive($renderer, $vars, Horde::url('deliverables.php'), 'post');
 }
 
 if ($vars->exists('deliverable_id') || $vars->exists('new')) {
@@ -64,7 +66,7 @@ if ($vars->exists('deliverable_id') || $vars->exists('new')) {
         }
     }
     $form = new Hermes_Form_Deliverable($vars);
-    $form->renderActive($renderer, $vars, 'deliverables.php', 'post');
+    $form->renderActive($renderer, $vars, Horde::url('deliverables.php'), 'post');
 } elseif ($vars->exists('client_id')) {
     $clients = Hermes::listClients();
     $clientname = $clients[$vars->get('client_id')];
@@ -76,13 +78,23 @@ if ($vars->exists('deliverable_id') || $vars->exists('new')) {
 
     foreach ($deliverables as $deliverable) {
         $params = array();
-        $params['url'] = Horde::url('deliverables.php');
-        $params['url'] = Horde_Util::addParameter($params['url'], array('deliverable_id' => $deliverable['id'], 'client_id' => $vars->get('client_id')));
+        $params['url'] = Horde::url('deliverables.php')->add(array('deliverable_id' => $deliverable['id'], 'client_id' => $vars->get('client_id')));
         $params['title'] = sprintf(_("Edit %s"), $deliverable['name']);
 
-        $newdeliv = '&nbsp;' . Horde::link(Horde_Util::addParameter(Horde::url('deliverables.php'), array('new' => 1, 'parent' => $deliverable['id'], 'client_id' => $vars->get('client_id'))), _("New Sub-deliverable")) . Horde::img('newdeliverable.png', _("New Sub-deliverable")) . '</a>';
-
-        $deldeliv = '&nbsp;' . Horde::link(Horde_Util::addParameter(Horde::url('deliverables.php'), array('formname' => 'deletedeliverable', 'delete' => $deliverable['id'], 'client_id' => $vars->get('client_id'))), _("Delete This Deliverable")) . Horde::img('delete.png', _("Delete This Deliverable"), '') . '</a>';
+        $newdeliv = '&nbsp;' . Horde::link(
+            Horde::url('deliverables.php')
+                ->add(array(
+                    'new' => 1,
+                    'parent' => $deliverable['id'],
+                    'client_id' => $vars->get('client_id'))),
+            _("New Sub-deliverable")) . Horde::img('newdeliverable.png', _("New Sub-deliverable")) . '</a>';
+        $deldeliv = '&nbsp;' . Horde::link(
+            Horde::url('deliverables.php')
+                ->add(array(
+                    'formname' => 'deletedeliverable',
+                    'delete' => $deliverable['id'],
+                    'client_id' => $vars->get('client_id'))),
+            _("Delete This Deliverable")) . Horde::img('delete.png', _("Delete This Deliverable"), '') . '</a>';
 
         /* Calculate the node's depth. */
         $depth = 0;
@@ -92,12 +104,17 @@ if ($vars->exists('deliverable_id') || $vars->exists('new')) {
             $iterator = $deliverables[$iterator['parent']];
         }
 
-        $tree->addNode($deliverable['id'], $deliverable['parent'],
-                       $deliverable['name'], $depth, true, $params,
-                       array($newdeliv, $deldeliv), array());
+        $tree->addNode(array(
+            'id' => $deliverable['id'],
+            'parent' => $deliverable['parent'],
+            'label' => $deliverable['name'],
+            'expanded' => true,
+            'params' => $params,
+            'right' => array($newdeliv, $deldeliv)
+        ));
     }
 
     require HERMES_TEMPLATES . '/deliverables/list.inc';
 }
 
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

@@ -3,7 +3,7 @@
  * The Ansel_View_Image:: class wraps display of individual images.
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Chuck Hagenbuch <chuck@horde.org>
  * @author  Michael J. Rubinsky <mrubinsk@horde.org>
@@ -92,10 +92,10 @@ class Ansel_View_Image extends Ansel_View_Ansel
 
         /* Any script files we may need if not calling via the api */
         if (empty($this->_params['api'])) {
-            Horde::addScriptFile('effects.js', 'horde');
-            Horde::addScriptFile('stripe.js', 'horde');
+            global $page_output;
+            $page_output->addScriptFile('scriptaculous/effects.js', 'horde');
+            $page_output->addScriptFile('stripe.js', 'horde');
         }
-
     }
 
     public function getGalleryCrumbData()
@@ -236,12 +236,11 @@ class Ansel_View_Image extends Ansel_View_Ansel
                     urldecode($this->_params['comment_url']));
             }
             $url = empty($this->_params['comment_url']) ? null : $this->_params['comment_url'];
-            $comments = $registry->call('forums/doComments',
-                                        array('ansel', $this->resource->id,
-                                              'commentCallback', true, null,
-                                              $url));
-            if ($comments instanceof PEAR_Error) {
-                Horde::logMessage($comments, 'DEBUG');
+            try {
+                $comments = $registry->forums->doComments(
+                  'ansel', $this->resource->id, 'commentCallback', true, null, $url);
+            } catch (Horde_Exception $e) {
+                Horde::logMessage($e, 'DEBUG');
                 $comments = array();
             }
         } else {
@@ -363,21 +362,20 @@ class Ansel_View_Image extends Ansel_View_Ansel
 
             /* In line caption editing */
             if ($this->gallery->hasPermission($GLOBALS['registry']->getAuth(), Horde_Perms::EDIT)) {
-                $geometry = $this->resource->getDimensions();
-                $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create(array('ansel', 'EditCaption'), array(
-                    'width' => $geometry['width'],
-                    'domid' => "Caption",
-                    'id' => $this->resource->id
+                $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create('Ansel_Ajax_Imple_EditCaption', array(
+                    'width' => $this->_geometry['width'],
+                    'id' => "Caption",
+                    'dataid' => $this->resource->id
                 ));
             }
         }
 
         /* Output the js if we are calling via the api */
         if (!empty($this->_params['api'])) {
-            $includes = $GLOBALS['injector']->createInstance('Horde_Script_Files');
-            $includes->add('effects.js', 'horde',true, true);
-            $includes->add('stripe.js', 'horde', true, true);
-            $includes->includeFiles();
+            foreach (array('prototype.js', 'stripe.js', 'scriptaculous/effects.js') as $val) {
+                $tmp = new Horde_Script_File_JsDir($val, 'horde');
+                echo $tmp->tag_full;
+            }
         }
 
         require ANSEL_TEMPLATES . '/view/image.inc';

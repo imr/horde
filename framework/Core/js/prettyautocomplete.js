@@ -1,4 +1,13 @@
 /**
+ * An autocompleter implementation that provides a UI similar to Apple's Mail
+ * To: field where entered items are represented as bubbles etc...
+ *
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
+ *
+ * See the enclosed file COPYING for license information (LGPL). If you
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
+ *
+ * @author Michael J Rubinsky <mrubinsk@horde.org>
  * @category Horde
  * @package  Core
  */
@@ -23,7 +32,8 @@ var PrettyAutocompleter = Class.create({
             displayFilter: function(t) { return t.escapeHTML() },
             filterCallback: this._filterChoices.bind(this),
             onAdd: Prototype.K,
-            onRemove: Prototype.K
+            onRemove: Prototype.K,
+            requireSelection: false,
         }, params || {});
 
         // Array to hold the currently selected items to ease with removing
@@ -74,7 +84,7 @@ var PrettyAutocompleter = Class.create({
         trigger.observe('keyup', this._resize.bind(this));
 
         // Create the underlaying Autocompleter
-        this.p.uri += '/input=' + this.p.trigger;
+        this.p.uri += '&input=' + this.p.trigger;
 
         this.p.onShow = this._knvShow.bind(this);
         this.p.onHide = this._knvHide.bind(this);
@@ -83,12 +93,12 @@ var PrettyAutocompleter = Class.create({
         this.p.domParent = this.p.box;
         new Ajax.Autocompleter(this.p.trigger, this.p.uri, this.p);
 
+        this.initialized = true;
+
         // Prepopulate the items and the container elements?
         if (typeof this.p.existing != 'undefined') {
-            this.init(this.p.existing);
+            this.reset(this.p.existing);
         }
-
-        this.initialized = true;
     },
 
     /**
@@ -129,9 +139,7 @@ var PrettyAutocompleter = Class.create({
         var list = new Element('ul', { className: this.p.listClass });
 
         // The input element and the <li> wraper
-        var inputListItem = new Element('li', {
-                className: this.p.listClass + 'Member',
-                id: this.p.triggerContainer }),
+        var inputListItem = new Element('li', { id: this.p.triggerContainer }),
             growingInput = new Element('input', {
                 className: this.p.growingInputClass,
                 id: this.p.trigger,
@@ -161,8 +169,10 @@ var PrettyAutocompleter = Class.create({
     _onKeyDown: function(e)
     {
         // Check for a comma
-        if (e.keyCode == 188) {
+        if (e.keyCode == 188 && !this.p.requireSelection) {
             this._processValue();
+            e.stop();
+        } else if (e.keyCode == 188) {
             e.stop();
         }
     },
@@ -209,7 +219,7 @@ var PrettyAutocompleter = Class.create({
         }
 
         var displayValue = this.p.displayFilter(value),
-            newItem = new Element('li', { className: this.p.listClass + 'Member ' + this.p.listClass + 'Item' }).update(displayValue),
+            newItem = new Element('li', { className: this.p.listClass + 'Item' }).update(displayValue),
             x = new Element('img', { className: 'hordeACItemRemove', src: this.p.deleteIcon });
         x.observe('click', this._removeItemHandler.bindAsEventListener(this));
         newItem.insert(x);

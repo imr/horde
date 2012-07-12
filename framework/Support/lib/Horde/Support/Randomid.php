@@ -1,28 +1,18 @@
 <?php
 /**
- * @category   Horde
- * @copyright  2010 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php BSD
- * @package    Support
- */
-
-/**
  * Class for generating a 23-character random ID string. This string uses all
  * characters in the class [-_0-9a-zA-Z].
  *
  * <code>
- *  <?php
- *
- *  $id = (string)new Horde_Support_Randomid();
- *
- *  ?>
+ * $id = (string)new Horde_Support_Randomid();
  * </code>
  *
- * @author     Michael Slusarz <slusarz@horde.org>
- * @category   Horde
- * @copyright  2010 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php BSD
- * @package    Support
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
+ *
+ * @author   Michael Slusarz <slusarz@horde.org>
+ * @category Horde
+ * @license  http://www.horde.org/licenses/bsd BSD
+ * @package  Support
  */
 class Horde_Support_Randomid
 {
@@ -46,10 +36,18 @@ class Horde_Support_Randomid
      */
     public function generate()
     {
-        // Base64 can have /, +, and = characters. Restrict to URL-safe characters.
-        return str_replace(array('/', '+', '='), array('-', '_', ''), base64_encode(
-            pack('II', mt_rand(), crc32(php_uname('n'))) . pack('H*', uniqid() . sprintf('%04s', dechex(getmypid())))
-        ));
+        $pid = function_exists('zend_thread_id')
+            ? zend_thread_id()
+            : getmypid();
+
+        /* Base64 can have /, +, and = characters. Restrict to URL-safe
+         * characters. */
+        return str_replace(
+            array('/', '+', '='),
+            array('-', '_', ''),
+            base64_encode(
+                pack('II', mt_rand(), crc32(php_uname('n')))
+                . pack('H*', uniqid() . sprintf('%04s', dechex($pid)))));
     }
 
     /**

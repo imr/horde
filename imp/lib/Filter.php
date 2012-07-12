@@ -5,22 +5,22 @@
  *
  * For full use, the following Horde API calls should be defined
  * (These API methods are not defined in IMP):
- *   mail/applyFilters
- *   mail/canApplyFilters
- *   mail/showFilters
- *   mail/blacklistFrom
- *   mail/showBlacklist
- *   mail/whitelistFrom
- *   mail/showWhitelist
+ *   - mail/applyFilters
+ *   - mail/canApplyFilters
+ *   - mail/showFilters
+ *   - mail/blacklistFrom
+ *   - mail/showBlacklist
+ *   - mail/whitelistFrom
+ *   - mail/showWhitelist
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Filter
@@ -43,7 +43,7 @@ class IMP_Filter
             : array($mbox);
 
         foreach ($mbox_list as $val) {
-            $GLOBALS['registry']->call('mail/applyFilters', array(array('mailbox' => $val)));
+            $GLOBALS['registry']->call('mail/applyFilters', array(array('mailbox' => strval($val))));
         }
     }
 
@@ -65,11 +65,7 @@ class IMP_Filter
             return false;
         }
 
-        if ($msg_count == 1) {
-            $GLOBALS['notification']->push(_("The message has been deleted."), 'horde.message');
-        } else {
-            $GLOBALS['notification']->push(_("The messages have been deleted."), 'horde.message');
-        }
+        $GLOBALS['notification']->push(ngettext(_("The message has been deleted."), _("The messages have been deleted."), $msg_count), 'horde.message');
 
         return true;
     }
@@ -118,9 +114,7 @@ class IMP_Filter
 
             foreach ($ob->uids as $idx) {
                 /* Get the list of from addresses. */
-                $contents = $GLOBALS['injector']->getInstance('IMP_Factory_Contents')->create(new IMP_Indices($ob->mbox, $idx));
-                $hdr = $contents->getHeaderOb();
-                $addr[] = Horde_Mime_Address::bareAddress($hdr->getValue('from'));
+                $addr[] = IMP::bareAddress($GLOBALS['injector']->getInstance('IMP_Factory_Contents')->create($ob->mbox->getIndicesOb($idx))->getHeader()->getValue('from'));
             }
         }
 

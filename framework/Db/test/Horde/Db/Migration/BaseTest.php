@@ -1,26 +1,26 @@
 <?php
 /**
  * Copyright 2007 Maintainable Software, LLC
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * @author     Mike Naberezny <mike@maintainable.com>
  * @author     Derek DeVries <derek@maintainable.com>
  * @author     Chuck Hagenbuch <chuck@horde.org>
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  * @category   Horde
  * @package    Db
  * @subpackage UnitTests
  */
 
-require_once dirname(dirname(__FILE__)) . '/fixtures/migrations/1_users_have_last_names1.php';
-require_once dirname(dirname(__FILE__)) . '/fixtures/migrations/2_we_need_reminders1.php';
-require_once dirname(dirname(__FILE__)) . '/fixtures/migrations_with_decimal/1_give_me_big_numbers.php';
+require_once dirname(__DIR__) . '/fixtures/migrations/1_users_have_last_names1.php';
+require_once dirname(__DIR__) . '/fixtures/migrations/2_we_need_reminders1.php';
+require_once dirname(__DIR__) . '/fixtures/migrations_with_decimal/1_give_me_big_numbers.php';
 
 /**
  * @author     Mike Naberezny <mike@maintainable.com>
  * @author     Derek DeVries <derek@maintainable.com>
  * @author     Chuck Hagenbuch <chuck@horde.org>
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  * @group      horde_db
  * @category   Horde
  * @package    Db
@@ -147,12 +147,12 @@ class Horde_Db_Migration_BaseTest extends PHPUnit_Framework_TestCase
 
     public function testAutoincrement()
     {
-        $t = $this->_conn->createTable('imp_sentmail', array('primaryKey' => array('sentmail_id')));
+        $t = $this->_conn->createTable('imp_sentmail', array('autoincrementKey' => array('sentmail_id')));
         $t->column('sentmail_id', 'bigint', array('null' => false));
         $t->column('sentmail_foo', 'string');
         $t->end();
         $migration = new Horde_Db_Migration_Base($this->_conn, null);
-        $migration->changeColumn('imp_sentmail', 'sentmail_id', 'primaryKey');
+        $migration->changeColumn('imp_sentmail', 'sentmail_id', 'autoincrementKey');
         $columns = $this->_conn->columns('imp_sentmail');
         $this->assertEquals(2, count($columns));
         $this->assertTrue(isset($columns['sentmail_id']));

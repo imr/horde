@@ -3,25 +3,27 @@
  * Base class for Kronolith resources. Partially presents a Horde_Share_Object
  * interface.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
- * @author Michael J. Rubinsky <mrubinsk@horde.org>
+ * @author Michael J Rubinsky <mrubinsk@horde.org>
  * @package Kronolith
  */
 abstract class Kronolith_Resource_Base
 {
     /**
      * Instance copy of parameters
-     *
-     *   name        - Display name of resource.
-     *   calendar    - The calendar associated with this resource.
-     *   description -
-     *   email       -
-     *   response_type - a RESPONSETYPE_* constant
-     *
+     * Contains:
+     *<pre>
+     *   -:name          - Display name of resource.
+     *   -:calendar      - The calendar associated with this resource.
+     *   -:description   - Resource description.
+     *   -:email         - An email address for the resource. (Currently not used)
+     *   -:members       - Member resources, if this is a group.
+     *   -:response_type - A RESPONSETYPE_* constant
+     *</pre>
      * @var array
      */
     protected $_params = array();
@@ -38,7 +40,7 @@ abstract class Kronolith_Resource_Base
      *
      * @param array $params
      *
-     * @return Kronolith_Resource object
+     * @return Kronolith_Resource_Base
      */
     public function __construct($params = array())
     {
@@ -51,19 +53,21 @@ abstract class Kronolith_Resource_Base
         if (empty($params['name'])) {
             throw new Horde_Exception('Required \'name\' attribute missing from resource calendar');
         }
-        $this->_params = array_merge(array('description' => '',
-                                           'response_type' => Kronolith_Resource::RESPONSETYPE_MANUAL,
-                                           'members' => '',
-                                           'calendar' => '',
-                                           'email' => ''),
-                                     $params);
-
+        $this->_params = array_merge(
+            array('description' => '',
+                  'response_type' => Kronolith_Resource::RESPONSETYPE_MANUAL,
+                  'members' => '',
+                  'calendar' => '',
+                  'email' => ''
+            ),
+            $params
+        );
     }
 
     /**
      * Obtain the resource's internal identifier.
      *
-     * @return mixed The id.
+     * @return string The id.
      */
     public function getId()
     {
@@ -93,14 +97,20 @@ abstract class Kronolith_Resource_Base
      */
     public function hasPermission($user, $permission = Horde_Perms::READ, $restrict = null)
     {
-        return $GLOBALS['registry']->isAdmin();
+        if (($permission & (Horde_Perms::EDIT | Horde_Perms::DELETE)) &&
+            !$GLOBALS['registry']->isAdmin()) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
      * Implemented to stand in as a share object.
      *
-     * @param $property
-     * @return unknown_type
+     * @param string $property  The property to get
+     *
+     * @return mixed  The value of $property
      */
     public function get($property)
     {
@@ -117,8 +127,7 @@ abstract class Kronolith_Resource_Base
     /**
      * Save resource to storage.
      *
-     * @return Kronolith_Resource object
-     * @throws Kronolith_Exception
+     * @return Kronolith_Resource_Base
      */
     public function save()
     {
@@ -126,8 +135,7 @@ abstract class Kronolith_Resource_Base
     }
 
     /**
-     * Get a storage driver instance for the resource. For now, just instantiate
-     * it here, in future, probably inject it in the const'r.
+     * Get a storage driver instance for the resource.
      *
      * @return Kronolith_Driver_Resource
      */
@@ -164,6 +172,11 @@ abstract class Kronolith_Resource_Base
         case Kronolith_Resource::RESPONSETYPE_MANUAL:
             return Kronolith::RESPONSE_NONE;
         }
+    }
+
+    public function toJson()
+    {
+        return $this->_params;
     }
 
     /**

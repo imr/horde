@@ -3,22 +3,19 @@
  * The IMP_Mime_Viewer_Related class handles multipart/related
  * (RFC 2387) messages.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Mime_Viewer_Related extends Horde_Mime_Viewer_Base
 {
     /**
-     * This driver's display capabilities.
-     *
-     * @var array
      */
     protected $_capability = array(
         'full' => true,
@@ -28,9 +25,6 @@ class IMP_Mime_Viewer_Related extends Horde_Mime_Viewer_Base
     );
 
     /**
-     * Metadata for the current viewer/data.
-     *
-     * @var array
      */
     protected $_metadata = array(
         'compressed' => false,
@@ -39,9 +33,13 @@ class IMP_Mime_Viewer_Related extends Horde_Mime_Viewer_Base
     );
 
     /**
-     * Return the full rendered version of the Horde_Mime_Part object.
+     * The multipart/related info object.
      *
-     * @return array  See parent::render().
+     * @var Horde_Mime_Related
+     */
+    protected $_related;
+
+    /**
      */
     protected function _render()
     {
@@ -49,9 +47,6 @@ class IMP_Mime_Viewer_Related extends Horde_Mime_Viewer_Base
     }
 
     /**
-     * Return the rendered inline version of the Horde_Mime_Part object.
-     *
-     * @return array  See parent::render().
      */
     protected function _renderInline()
     {
@@ -67,43 +62,12 @@ class IMP_Mime_Viewer_Related extends Horde_Mime_Viewer_Base
      */
     protected function _IMPrender($inline)
     {
-        $ids = array_keys($this->_mimepart->contentTypeMap());
         $related_id = $this->_mimepart->getMimeId();
+        $used = array($related_id);
 
-        $cids = $ret = array();
-        $id = null;
-
-        /* Build a list of parts -> CIDs. */
-        foreach ($ids as $val) {
-            $ret[$val] = null;
-            if (strcmp($related_id, $val) !== 0) {
-                $part = $this->_mimepart->getPart($val);
-                $cids[$val] = $part->getContentId();
-            }
-        }
-
-        /* Look at the 'start' parameter to determine which part to start
-         * with. If no 'start' parameter, use the first part. RFC 2387
-         * [3.1] */
-        $start = $this->_mimepart->getContentTypeParameter('start');
-        if (!empty($start)) {
-            $id = array_search($id, $cids);
-        }
-
-        if (empty($id)) {
-            reset($ids);
-            $id = next($ids);
-        }
-
-        /* Only display if the start part (normally text/html) can be
-         * displayed inline -OR- we are viewing this part as an attachment. */
-        if ($inline &&
-            !$this->getConfigParam('imp_contents')->canDisplay($id, IMP_Contents::RENDER_INLINE)) {
+        if (!($id = $this->_init($inline))) {
             return array();
         }
-
-        /* Set related information in message metadata. */
-        $this->_mimepart->setMetadata('related_cids', $cids);
 
         $render = $this->getConfigParam('imp_contents')->renderMIMEPart($id, $inline ? IMP_Contents::RENDER_INLINE : IMP_Contents::RENDER_FULL);
 
@@ -117,6 +81,8 @@ class IMP_Mime_Viewer_Related extends Horde_Mime_Viewer_Base
         }
 
         $data_id = null;
+        $ret = array_fill_keys(array_keys($this->_mimepart->contentTypeMap()), null);
+
         foreach (array_keys($render) as $val) {
             $ret[$val] = $render[$val];
             if ($ret[$val]) {
@@ -124,17 +90,91 @@ class IMP_Mime_Viewer_Related extends Horde_Mime_Viewer_Base
             }
         }
 
-        /* We want the inline display to show multipart/related vs. the
-         * viewable MIME part.  This is because a multipart/related part is
-         * not downloadable and clicking on the MIME part may not produce the
-         * desired result in the full display (i.e. HTML parts with related
-         * images). */
-        if (!is_null($data_id) && ($data_id !== $related_id)) {
-            $ret[$related_id] = $ret[$data_id];
-            $ret[$data_id] = null;
+        if (!is_null($data_id)) {
+            $this->_mimepart->setMetadata('viewable_part', $data_id);
+
+            /* We want the inline display to show multipart/related vs. the
+             * viewable MIME part.  This is because a multipart/related part
+             * is not downloadable and clicking on the MIME part may not
+             * produce the desired result in the full display (i.e. HTML parts
+             * with related images). */
+            if ($data_id !== $related_id) {
+                $ret[$related_id] = $ret[$data_id];
+                $ret[$data_id] = null;
+            }
+        }
+
+        /* Fix for broken messages that don't refer to a related CID part
+         * within the base part. */
+        if ($cids_used = $this->_mimepart->getMetadata('related_cids_used')) {
+            $used = array_merge($used, $cids_used);
+        }
+
+        foreach (array_diff(array_keys($ret), $used) as $val) {
+            if (($val !== $id) && !Horde_Mime::isChild($id, $val)) {
+                $summary = $this->getConfigParam('imp_contents')->getSummary(
+                    $val,
+                    IMP_Contents::SUMMARY_SIZE |
+                    IMP_Contents::SUMMARY_ICON |
+                    IMP_Contents::SUMMARY_DESCRIP_LINK |
+                    IMP_Contents::SUMMARY_DOWNLOAD
+                );
+
+                $status = new IMP_Mime_Status(array(
+                    _("This part contains an attachment that can not be displayed within this part:"),
+                    implode('&nbsp;', array(
+                        $summary['icon'],
+                        $summary['description'],
+                        $summary['size'],
+                        $summary['download']
+                    ))
+                ));
+                $status->action(IMP_Mime_Status::WARNING);
+
+                if (isset($ret[$related_id]['status'])) {
+                    if (!is_array($ret[$related_id]['status'])) {
+                        $ret[$related_id]['status'] = array($ret[$related_id]['status']);
+                    }
+                } else {
+                    $ret[$related_id]['status'] = array();
+                }
+                $ret[$related_id]['status'][] = $status;
+            }
         }
 
         return $ret;
+    }
+
+    /**
+     * Initialization: determine start MIME ID.
+     *
+     * @param boolean $inline  Are we viewing inline?
+     *
+     * @return string  The start MIME ID, or null if the part is not viewable.
+     */
+    protected function _init($inline)
+    {
+        if (!isset($this->_related)) {
+            $this->_related = new Horde_Mime_Related($this->_mimepart);
+
+            /* Set related information in message metadata. */
+            $this->_mimepart->setMetadata('related_ob', $this->_related);
+        }
+
+        /* Only display if the start part (normally text/html) can be
+         * displayed inline -OR- we are viewing this part as an attachment. */
+        return ($inline && !$this->getConfigParam('imp_contents')->canDisplay($this->_related->startId(), IMP_Contents::RENDER_INLINE))
+            ? null
+            : $this->_related->startId();
+    }
+
+    /**
+     */
+    public function canRender($mode)
+    {
+        return (($mode == 'inline') && !$this->_init(true))
+            ? false
+            : parent::canRender($mode);
     }
 
 }

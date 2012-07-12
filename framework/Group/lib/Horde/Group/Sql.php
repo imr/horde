@@ -2,15 +2,15 @@
 /**
  * This class provides an SQL driver for the Horde group system.
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Duck <duck@obala.net>
  * @author   Jan Schneider <jan@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Group
  */
 class Horde_Group_Sql extends Horde_Group_Base
@@ -150,6 +150,7 @@ class Horde_Group_Sql extends Horde_Group_Base
      *
      * @return array  The group's date.
      * @throws Horde_Group_Exception
+     * @throws Horde_Exception_NotFound
      */
     public function getData($gid)
     {
@@ -157,6 +158,9 @@ class Horde_Group_Sql extends Horde_Group_Base
             $result = $this->_db->selectOne(
                 'SELECT * FROM horde_groups WHERE group_uid = ?',
                 array($gid));
+            if (!$result) {
+                throw new Horde_Exception_NotFound('Group with the ID ' . $gid . ' not found');
+            }
         } catch (Horde_Db_Exception $e) {
             throw new Horde_Group_Exception($e);
         }
@@ -197,13 +201,20 @@ class Horde_Group_Sql extends Horde_Group_Base
     }
 
     /**
-     * Returns a list of all groups, with IDs as keys and names as values.
+     * Returns a list of all groups a user may see, with IDs as keys and names
+     * as values.
+     *
+     * @param string $member  Only return groups that this user is a member of.
      *
      * @return array  All existing groups.
      * @throws Horde_Group_Exception
      */
-    public function listAll()
+    public function listAll($member = null)
     {
+        if (!is_null($member)) {
+            return $this->listGroups($member);
+        }
+
         try {
             return $this->_db->selectAssoc('SELECT group_uid, group_name FROM horde_groups');
         } catch (Horde_Db_Exception $e) {

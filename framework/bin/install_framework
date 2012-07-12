@@ -5,16 +5,16 @@
  * the framework module.
  *
  * Copyright 2002 Wolfram Kriesing <wolfram@kriesing.de>
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Wolfram Kriesing <wolfram@kriesing.de>
  * @author   Jan Schneider <jan@horde.org>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  framework
  */
 
@@ -96,7 +96,7 @@ $cwd = getcwd();
 if (is_null($srcDir) && is_null($pkg)) {
     $srcDir = is_dir($cwd . '/framework')
         ? $cwd . DIRECTORY_SEPARATOR . 'framework'
-        : dirname(__FILE__) . '/..';
+        : __DIR__ . '/..';
 }
 if (is_null($destDir) && is_dir($cwd . '/lib')) {
     $destDir = $cwd . DIRECTORY_SEPARATOR . 'lib';
@@ -136,7 +136,7 @@ if (strpos(ini_get('include_path'), $destDir) === false) {
 }
 
 // Do CLI checks and environment setup first.
-if ((!@include_once dirname(__FILE__) . '/../Cli/lib/Horde/Cli.php') &&
+if ((!@include_once __DIR__ . '/../Cli/lib/Horde/Cli.php') &&
     (!@include_once 'Horde/Cli.php')  &&
     (!@include_once $srcDir . '/Cli/lib/Horde/Cli.php') &&
     (!@include_once $cwd . '/../Cli/lib/Horde/Cli.php')) {
@@ -169,7 +169,7 @@ $pear_config = PEAR_Config::singleton();
 $pear_pkg = new PEAR_PackageFile($pear_config);
 
 if ($pkg) {
-    $pkgs = array($pkg);
+    $pkgs = array(basename($pkg) => realpath($pkg));
 } else {
     $di = new DirectoryIterator($srcDir);
     $pkgs = array();
@@ -199,6 +199,10 @@ foreach ($pkgs as $key => $val) {
         continue;
     }
     foreach ($pkg_ob->getInstallationFilelist() as $file) {
+        if (!isset($file['attribs']['name'])) {
+            $cli->message('Invalid <install> entry: ' . print_r($file['attribs'], true), 'cli.error');
+            continue;
+        }
         $orig = realpath($val . '/' . $file['attribs']['name']);
         if (empty($orig)) {
             $cli->message('Install file does not seem to exist: ' . $val . '/' . $file['attribs']['name'], 'cli.error');

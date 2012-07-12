@@ -5,8 +5,8 @@
  * @subpackage UnitTests
  */
 
-/** Horde_Feed_TestCase */
-require_once dirname(__FILE__) . '/TestCase.php';
+/** Setup testing */
+require_once __DIR__ . '/Autoload.php';
 
 class Horde_Feed_IteratorTest extends PHPUnit_Framework_TestCase {
 
@@ -15,8 +15,8 @@ class Horde_Feed_IteratorTest extends PHPUnit_Framework_TestCase {
 
     public function setUp()
     {
-        $this->feed = Horde_Feed::readFile(dirname(__FILE__) . '/fixtures/TestAtomFeed.xml');
-        $this->nsfeed = Horde_Feed::readFile(dirname(__FILE__) . '/fixtures/TestAtomFeedNamespaced.xml');
+        $this->feed = Horde_Feed::readFile(__DIR__ . '/fixtures/TestAtomFeed.xml');
+        $this->nsfeed = Horde_Feed::readFile(__DIR__ . '/fixtures/TestAtomFeedNamespaced.xml');
     }
 
     public function testRewind()

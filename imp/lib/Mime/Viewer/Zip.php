@@ -3,15 +3,15 @@
  * The IMP_Mime_Viewer_Zip class renders out the contents of ZIP files
  * in HTML format and allows downloading of extractable files.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Mike Cochrane <mike@graftonhall.co.nz>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Mime_Viewer_Zip extends Horde_Mime_Viewer_Zip
@@ -20,23 +20,23 @@ class IMP_Mime_Viewer_Zip extends Horde_Mime_Viewer_Zip
      * Return the full rendered version of the Horde_Mime_Part object.
      *
      * URL parameters used by this function:
-     * <pre>
-     * 'zip_attachment' - (integer) The ZIP attachment to download.
-     * </pre>
+     *   - zip_attachment: (integer) The ZIP attachment to download.
      *
      * @return array  See parent::render().
      * @throws Horde_Exception
      */
     protected function _render()
     {
-        if (!($zip_atc = Horde_Util::getFormData('zip_attachment'))) {
+        $vars = $GLOBALS['injector']->getInstance('Horde_Variables');
+
+        if (!isset($vars->zip_attachment)) {
             return array();
         }
 
         /* Send the requested file. Its position in the zip archive is located
          * in 'zip_attachment'. */
         $data = $this->_mimepart->getContents();
-        $fileKey = $zip_atc - 1;
+        $fileKey = $vars->zip_attachment - 1;
 
         if (!($zip = $this->getConfigParam('zip'))) {
             $zip = Horde_Compress::factory('Zip');
@@ -58,7 +58,6 @@ class IMP_Mime_Viewer_Zip extends Horde_Mime_Viewer_Zip
                     $this->_mimepart->getMimeId() => array(
                         'data' => $text,
                         'name' => basename($zipInfo[$fileKey]['name']),
-                        'status' => array(),
                         'type' => 'application/octet-stream'
                     )
                 );

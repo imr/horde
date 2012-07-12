@@ -4,13 +4,14 @@
  * entries are consistently generated across the applications and framework
  * libraries.
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL-2.1
  * @package  Core
  */
 class Horde_Core_Log_Logger extends Horde_Log_Logger
@@ -28,13 +29,11 @@ class Horde_Core_Log_Logger extends Horde_Log_Logger
      *                         values are auto translated to Horde_Log
      *                         constants.
      * @param array $options   Additional options:
-     * <pre>
-     * 'file' - (string) The filename to use in the log message.
-     * 'line' - (integer) The file line to use in the log message.
-     * 'trace' - (integer) The trace level of the original log location.
-     * </pre>
+     *   - file: (string) The filename to use in the log message.
+     *   - line: (integer) The file line to use in the log message.
+     *   - trace: (integer) The trace level of the original log location.
      */
-    public function log($event, $priority = null, $options = array())
+    public function log($event, $priority = null, array $options = array())
     {
         /* If an array is passed in, assume that the caller knew what they
          * were doing and pass it directly to the log backend. */
@@ -43,10 +42,22 @@ class Horde_Core_Log_Logger extends Horde_Log_Logger
         }
 
         if ($event instanceof Exception) {
+            if ($event instanceof Horde_Exception) {
+                if ($event->logged) {
+                    return;
+                }
+                $event->logged = true;
+                if ($loglevel = $event->getLogLevel()) {
+                    $priority = $loglevel;
+                }
+            }
             if (is_null($priority)) {
                 $priority = Horde_Log::ERR;
             }
             $text = $event->getMessage();
+            if (!empty($event->details)) {
+                $text .= ' ' . $event->details;
+            }
             $trace = array(
                 'file' => $event->getFile(),
                 'line' => $event->getLine()
@@ -107,8 +118,7 @@ class Horde_Core_Log_Logger extends Horde_Log_Logger
             ? $GLOBALS['registry']->getApp()
             : 'horde';
 
-        $message = (empty($GLOBALS['conf']['log']['ident']) ? '' : $GLOBALS['conf']['log']['ident'] . ' ') .
-            ($app ? '[' . $app . '] ' : '') .
+        $message = ($app ? '[' . $app . '] ' : '') .
             $text .
             ' [pid ' . getmypid() . ' on line ' . $line . ' of "' . $file . '"]';
 

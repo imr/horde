@@ -1,24 +1,23 @@
 <?php
 /**
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
+ *
  * @category   Horde
  * @package    Support
  * @subpackage UnitTests
- * @copyright  2008-2009 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  */
 
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/Autoload.php';
+require_once __DIR__ . '/Autoload.php';
 
 /**
- * @group      support
  * @category   Horde
  * @package    Support
  * @subpackage UnitTests
- * @copyright  2008-2009 The Horde Project (http://www.horde.org/)
- * @license    http://opensource.org/licenses/bsd-license.php
+ * @license    http://www.horde.org/licenses/bsd
  */
 class Horde_Support_StubTest extends PHPUnit_Framework_TestCase
 {
@@ -40,9 +39,6 @@ class Horde_Support_StubTest extends PHPUnit_Framework_TestCase
 
     public function testAnyStaticMethodIsCallable()
     {
-        if (version_compare(PHP_VERSION, '5.3', '<')) {
-            $this->markTestSkipped();
-        }
         $this->assertTrue(is_callable(array('Horde_Support_Stub', uniqid())));
         $unique = uniqid();
         $this->assertNull(Horde_Support_Stub::$unique());

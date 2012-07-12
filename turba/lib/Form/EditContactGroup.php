@@ -10,38 +10,53 @@ class Turba_Form_EditContactGroup extends Turba_Form_EditContact
         $this->addHidden('', 'original_source', 'text', false);
         $action = $this->addHidden('', 'actionID', 'text', false);
         $action->setDefault('groupedit');
-        Horde_Form::__construct($vars, $contact);
+        parent::__construct($vars, $contact);
         $vars->set('actionID', 'groupedit');
 
         $objectkeys = $vars->get('objectkeys');
         $source = $vars->get('source');
         $key = $vars->get('key');
-        if ($source . ':' . $key == $objectkeys[0]) {
+
+        if (count($objectkeys) == 1) {
+            /* Only one contact. */
+            $this->setButtons(_("Finish"));
+        } elseif ($source . ':' . $key == $objectkeys[0]) {
             /* First contact */
             $this->setButtons(_("Next"));
+            $this->appendButtons(_("Finish"));
         } elseif ($source . ':' . $key == $objectkeys[count($objectkeys) - 1]) {
             /* Last contact */
             $this->setButtons(_("Previous"));
+            $this->appendButtons(_("Finish"));
         } else {
             /* In between */
             $this->setButtons(_("Previous"));
             $this->appendButtons(_("Next"));
+            $this->appendButtons(_("Finish"));
         }
-        $this->appendButtons(_("Finish"));
     }
 
     public function renderActive($renderer, $vars, $action, $method)
     {
         parent::renderActive($renderer, $vars, $action, $method);
 
-        /* Read the columns to display from the preferences. */
-        $source = $vars->get('source');
-        $sources = Turba::getColumns();
-        $columns = isset($sources[$source]) ? $sources[$source] : array();
-
         $results = new Turba_List($vars->get('objectkeys'));
-        $listView = new Turba_View_List($results, array('Group' => true), $columns);
-        echo '<br />' . $listView->getPage($numDisplayed);
+
+        /* Don't show listview if only 1 entry. */
+        if (count($results) > 1) {
+            /* Read the columns to display from the preferences. */
+            $source = $vars->get('source');
+            $sources = Turba::getColumns();
+
+            $listView = new Turba_View_List(
+                $results,
+                array(
+                    'Group' => true
+                ),
+                isset($sources[$source]) ? $sources[$source] : array()
+            );
+            echo '<br />' . $listView->getPage($numDisplayed);
+        }
     }
 
     public function execute()

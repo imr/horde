@@ -1,14 +1,14 @@
 <?php
 /**
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('ansel');
 
 $image = $GLOBALS['injector']->getInstance('Ansel_Storage')->getImage(Horde_Util::getFormData('image'));
@@ -21,7 +21,12 @@ if (!$gallery->hasPermission($registry->getAuth(), Horde_Perms::READ)) {
 if ($conf['vfs']['src'] == 'sendfile') {
     /* Need to ensure the file exists */
     try {
-        $image->createView('screen', Ansel::getStyleDefinition('ansel_default'));
+        $image->createView(
+            'screen',
+            Ansel::getStyleDefinition('ansel_default'),
+            ($GLOBALS['prefs']->getValue('watermark_auto') ?
+                $GLOBALS['prefs']->getValue('watermark_text', '') : '')
+        );
     } catch (Horde_Exception $e) {
         Horde::logMessage($result, 'ERR');
         exit;

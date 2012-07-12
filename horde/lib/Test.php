@@ -3,16 +3,18 @@
  * The Horde_Test:: class provides functions used in the test scripts
  * used in the various applications (test.php).
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
- * @author  Chuck Hagenbuch <chuck@horde.org>
- * @author  Jon Parise <jon@horde.org>
- * @author  Brent J. Nordquist <bjn@horde.org>
- * @author  Michael Slusarz <slusarz@horde.org>
- * @package Test
+ * @author   Chuck Hagenbuch <chuck@horde.org>
+ * @author   Jon Parise <jon@horde.org>
+ * @author   Brent J. Nordquist <bjn@horde.org>
+ * @author   Michael Slusarz <slusarz@horde.org>
+ * @category Horde
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
+ * @package  Horde
  */
 
 /* If gettext is not loaded, define a dummy _() function so that
@@ -37,7 +39,7 @@ class Horde_Test
      * @var array
      */
     protected $_supported = array(
-        '5.2', '5.3'
+        '5.3'
     );
 
     /**
@@ -45,10 +47,14 @@ class Horde_Test
      * <pre>
      * KEY:   module name
      * VALUE: Either the description or an array with the following entries:
-     *        'descrip' - (string) Module description
-     *        'error' - (string) Error message
-     *        'fatal' - (boolean) Is missing module fatal?
-     *        'phpver' - (string) The PHP version above which to do the test
+     *        descrip: (string) Module description
+     *        error: (string) Error message
+     *        fatal: (boolean) Is missing module fatal?
+     *        function: (string) Reference to function to run. If function
+     *                  returns boolean true, error message will be output.
+     *                  If function returns a string, this error message
+     *                  will be used.
+     *        phpver: (string) The PHP version above which to do the test
      * </pre>
      *
      * @var array
@@ -65,7 +71,12 @@ class Horde_Test
         ),
         'fileinfo' => array(
             'descrip' => 'MIME Magic Support (fileinfo)',
-            'error' => 'The fileinfo PECL module is used to provide MIME Magic scanning on unknown data. See horde/docs/INSTALL for information on how to install PECL extensions.'
+            'error' => 'The fileinfo extension is used to provide MIME Magic scanning on unknown data. Don\'t compile PHP with <code>--disable-all/--disable-fileinfo</code>, or enable the fileinfo extension individually before continuing.'
+        ),
+        'fileinfo_check' => array(
+            'descrip' => 'MIME Magic Support (fileinfo) - Configuration',
+            'error' => 'The fileinfo module could not open the default MIME Magic database location. You will need to manually specify the MIME Magic database location in the config file.',
+            'function' => '_checkFileinfo'
         ),
         'ftp' => array(
             'descrip' => 'FTP Support',
@@ -98,9 +109,9 @@ class Horde_Test
             'error' => 'For best results make sure the iconv extension is linked against GNU libiconv.',
             'function' => '_checkIconvImplementation'
         ),
-        'idn' => array(
-            'descrip' => 'Internationalized Domain Names Support (PECL extension)',
-            'error' => 'Horde requires the idn module to handle Internationalized Domain Names.'
+        'intl' => array(
+            'descrip' => 'Internationalization Support',
+            'error' => 'Horde requires the intl extension to handle Internationalized Domain Names.'
         ),
         'imagick' => array(
             'descrip' => 'Imagick Library',
@@ -123,10 +134,6 @@ class Horde_Test
             'descrip' => 'Mbstring Support',
             'error' => 'If you want to take full advantage of Horde\'s localization features and character set support, you will need the mbstring extension.'
         ),
-        'mcrypt' => array(
-            'descrip' => 'Mcrypt Support',
-            'error' => 'Mcrypt is a general-purpose cryptography library which is broader and significantly more efficient (FASTER!) than PHP\'s own cryptographic code and will provider faster logins.'
-        ),
         'memcache' => array(
             'descrip' => 'memcached Support (memcache) (PECL extension)',
             'error' => 'The memcache PECL module is only needed if you are using a memcached server for caching or sessions. See horde/docs/INSTALL for information on how to install PECL/PHP extensions.'
@@ -138,6 +145,11 @@ class Horde_Test
         'openssl' => array(
             'descrip' => 'OpenSSL Support',
             'error' => 'The OpenSSL extension is required for any kind of S/MIME support.'
+        ),
+        'pam' => array(
+            'descrip' => 'PAM Support',
+            'error' => 'The PAM extension is required to allow PAM authentication to be used.',
+            'function' => '_checkPam'
         ),
         'pcre' => array(
             'descrip' => 'PCRE Support',
@@ -168,7 +180,8 @@ class Horde_Test
         'xml' => array(
             'descrip' => 'XML Parser support',
             'error' => 'Horde will not run without the xml extension. Don\'t compile PHP with <code>--disable-all/--without-xml</code>, or enable the xml extension individually before continuing.',
-            'fatal' => true
+            'fatal' => true,
+            'function' => '_checkLibxmlVersion'
         ),
         'zlib' => array(
             'descrip' => 'Zlib Support',
@@ -181,13 +194,12 @@ class Horde_Test
      * <pre>
      * KEY:   setting name
      * VALUE: An array with the following entries:
-     *        'error' - (string) Error Message
-     *        'function' - (string) Reference to function to run. If function
-     *                     returns non-empty value, error message will be
-     *                     output.
-     *        'setting' - (mixed) Either a boolean (whether setting should be
-     *                    on or off) or 'value', which will simply output the
-     *                    value of the setting.
+     *        error: (string) Error message.
+     *        function: (string) Reference to function to run. If function
+     *                  returns non-empty value, error message will be output.
+     *        setting: (mixed) Either a boolean (whether setting should be
+     *                 on or off) or 'value', which will simply output the
+     *                 value of the setting.
      * </pre>
      *
      * @var array
@@ -207,7 +219,7 @@ class Horde_Test
         ),
         'memory_limit' => array(
             'setting' => 'value',
-            'error' => 'If PHP\'s internal memory limit is not set high enough Horde will not be able to handle large data items. You should set the value of memory_limit in php.ini to a sufficiently high value - at least 64M is recommended.',
+            'error' => 'If PHP\'s internal memory limit is not set high enough Horde will not be able to handle large data items. It is recommended to set the value of memory_limit in php.ini to at least 64M.',
             'function' => '_checkMemoryLimit'
         ),
         'register_globals' => array(
@@ -259,13 +271,13 @@ class Horde_Test
      * <pre>
      * KEY:   PEAR class name
      * VALUE: An array with the following entries:
-     *        'depends' - (?) This module depends on another module.
-     *        'error' - (string) Error message.
-     *        'function' - (string) Reference to function to run if module is
-     *                     found.
-     *        'path' - (string) The path to the PEAR module. Only needed if
+     *        depends: (?) This module depends on another module.
+     *        error: (string) Error message.
+     *        function: (string) Reference to function to run if module is
+     *                  found.
+     *        path: (string) The path to the PEAR module. Only needed if
      *                 KEY is not autoloadable.
-     *        'required' - (boolean) Is this PEAR module required?
+     *        required: (boolean) Is this PEAR module required?
      * </pre>
      *
      * @var array
@@ -329,8 +341,8 @@ class Horde_Test
      * <pre>
      * KEY:   app name
      * VALUE: An array with the following entries:
-     *        'error' - (string) Error message.
-     *        'version' - (string) Minimum version required of the app.
+     *        error: (string) Error message.
+     *        version: (string) Minimum version required of the app.
      * </pre>
      *
      * @var array
@@ -443,12 +455,15 @@ class Horde_Test
             }
 
             if (is_null($status_out)) {
-                if (!is_null($test_function)) {
-                    $mod_test = call_user_func(array($this, $test_function));
-                } else {
+                if (is_null($test_function)) {
                     $mod_test = extension_loaded($key);
+                } else {
+                    $mod_test = call_user_func(array($this, $test_function));
+                    if (is_string($mod_test)) {
+                        $error_msg = $mod_test;
+                        $mod_test = false;
+                    }
                 }
-
                 $status_out = $this->_status($mod_test, $fatal);
             }
 
@@ -476,12 +491,59 @@ class Horde_Test
     /**
      * Additional check for iconv module implementation.
      *
-     * @return string  Returns error string on error.
+     * @return boolean  False on error.
      */
     protected function _checkIconvImplementation()
     {
         return extension_loaded('iconv') &&
                in_array(ICONV_IMPL, array('libiconv', 'glibc'));
+    }
+
+    /**
+     * Additional check for libxml version.
+     *
+     * @return boolean  False on error.
+     */
+    protected function _checkLibxmlVersion()
+    {
+        if (!extension_loaded('xml')) {
+            return false;
+        }
+        if (LIBXML_VERSION < 20700) {
+            return 'The libxml version is too old. libxml 2.7 or later is required.';
+        }
+        return true;
+    }
+
+    /**
+     * Additional check for fileinfo module.
+     *
+     * @return boolean  False on error.
+     */
+    protected function _checkFileinfo()
+    {
+        if (extension_loaded('fileinfo') &&
+            ($res = @finfo_open())) {
+            finfo_close($res);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     */
+    protected function _checkPam()
+    {
+        if (extension_loaded('pam')) {
+            return true;
+        }
+
+        if (extension_loaded('pam_auth')) {
+            return 'The PAM extension is required to allow PAM authentication to be used. You have an improper PAM extension loaded. Some installations (e.g. Debian, Ubuntu) ship with an altered version of the PAM extension. You must uninstall this extension and reinstall from PECL.';
+        }
+
+        return false;
     }
 
     /**
@@ -744,7 +806,7 @@ class Horde_Test
         $output->class = $this->_phpver['class'];
 
         $output->status_color = 'red';
-        if ($output->major < '5.2') {
+        if ($output->major < '5.3') {
             $output->status = 'This version of PHP is not supported. You need to upgrade to a more recent version.';
             $vers_check = false;
         } elseif (in_array($output->major, $this->_supported)) {
@@ -756,7 +818,7 @@ class Horde_Test
         }
 
         if (!$vers_check) {
-            $output->version_check = 'Horde requires PHP 5.2.0 or greater.';
+            $output->version_check = 'Horde requires PHP 5.3.0 or greater.';
         }
 
         return $output;
@@ -837,6 +899,14 @@ class Horde_Test
         $ret .= is_writable(HORDE_BASE . '/static')
             ? '<strong style="color:green">Yes</strong>'
             : "<strong style=\"color:red\">No</strong><br /><strong style=\"color:orange\">If caching javascript and CSS files by storing them in static files (HIGHLY RECOMMENDED), this directory must be writable as the user the web server runs as.</strong>";
+
+        if (extension_loaded('imagick')) {
+            $im = new Imagick();
+            $imagick = is_callable(array($im, 'getIteratorIndex'));
+            $ret .= '</li></ul><h1>Imagick</h1><ul>' .
+                '<li>Imagick compiled against current ImageMagick version: ' . ($imagick ? 'Yes' : 'No');
+        }
+
         return $ret . '</li></ul>';
     }
 

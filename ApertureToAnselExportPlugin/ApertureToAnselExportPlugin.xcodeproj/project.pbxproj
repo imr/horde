@@ -242,7 +242,7 @@
 		089C1669FE841209C02AAC07 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				ORGANIZATIONNAME = "The Horde Project";
+				ORGANIZATIONNAME = "Horde LLC";
 			};
 			buildConfigurationList = 1DEB913E08733D840010E9CD /* Build configuration list for PBXProject "ApertureToAnselExportPlugin" */;
 			compatibilityVersion = "Xcode 3.1";
@@ -356,7 +356,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 10.5;
 				PRODUCT_NAME = ApertureToAnselExportPlugin;
 				SDKROOT = macosx10.6;
-				VALID_ARCHS = x86_64;
+				VALID_ARCHS = "x86 x86_64";
 				WRAPPER_EXTENSION = ApertureExport;
 			};
 			name = Release;

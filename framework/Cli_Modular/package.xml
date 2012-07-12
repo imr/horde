@@ -3,35 +3,40 @@
  <name>Horde_Cli_Modular</name>
  <channel>pear.horde.org</channel>
  <summary>A toolset for CLI interfaces that are modular.</summary>
- <description>Command line interfaces can often be composed of different modules responsible for distinct actions. This package provides tools to support such a modular CLI.</description>
+ <description>Command line interfaces can often be composed of different modules responsible for distinct actions. This package allows each such module to influence the overall command line interface. First and foremost each module can add its own option group with a specific title, description and a set of module specific options (see Horde_Argv_OptionGroup for further details). In addition Cli_Modular allows a module to modify the global usage string and add basic options valid for all modules.</description>
  <lead>
-  <name>Chuck Hagenbuch</name>
-  <user>chuck</user>
-  <email>chuck@horde.org</email>
+  <name>Gunnar Wrobel</name>
+  <user>wrobel</user>
+  <email>p@rdus.de</email>
   <active>yes</active>
  </lead>
- <lead>
-  <name>Jan Schneider</name>
-  <user>jan</user>
-  <email>jan@horde.org</email>
-  <active>yes</active>
- </lead>
- <date>2011-03-07</date>
- <time>01:46:31</time>
+ <date>2012-07-05</date>
+ <time>23:42:30</time>
  <version>
-  <release>1.0.0beta1</release>
+  <release>2.0.0beta1</release>
   <api>1.0.0</api>
  </version>
  <stability>
-  <release>beta</release>
-  <api>beta</api>
+  <release>alpha</release>
+  <api>stable</api>
  </stability>
- <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+ <license uri="http://www.horde.org/licenses/lgpl">LGPL-2.1</license>
  <notes>
 *
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
+   <dir name="doc">
+    <dir name="Horde">
+     <dir name="Cli">
+      <dir name="Modular">
+       <file name="COPYING" role="doc" />
+       <file name="DOCS_ORIGIN" role="doc" />
+       <file name="README" role="doc" />
+      </dir> <!-- /doc/Horde/Cli/Modular -->
+     </dir> <!-- /doc/Horde/Cli -->
+    </dir> <!-- /doc/Horde -->
+   </dir> <!-- /doc -->
    <dir name="lib">
     <dir name="Horde">
      <dir name="Cli">
@@ -75,13 +80,12 @@
      </dir> <!-- /test/Horde/Cli -->
     </dir> <!-- /test/Horde -->
    </dir> <!-- /test -->
-   <file name="COPYING" role="data" />
   </dir> <!-- / -->
  </contents>
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -89,23 +93,26 @@
    <package>
     <name>Horde_Argv</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0beta1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </required>
   <optional>
    <package>
     <name>Horde_Test</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0beta1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </optional>
  </dependencies>
  <phprelease>
   <filelist>
+   <install as="COPYING" name="doc/Horde/Cli/Modular/COPYING" />
+   <install as="DOCS_ORIGIN" name="doc/Horde/Cli/Modular/DOCS_ORIGIN" />
+   <install as="README" name="doc/Horde/Cli/Modular/README" />
    <install as="Horde/Cli/Modular.php" name="lib/Horde/Cli/Modular.php" />
    <install as="Horde/Cli/Modular/Exception.php" name="lib/Horde/Cli/Modular/Exception.php" />
    <install as="Horde/Cli/Modular/Module.php" name="lib/Horde/Cli/Modular/Module.php" />
@@ -123,8 +130,7 @@
    <install as="Horde/Cli/Modular/Unit/ModularTest.php" name="test/Horde/Cli/Modular/Unit/ModularTest.php" />
    <install as="Horde/Cli/Modular/Unit/ModuleProviderTest.php" name="test/Horde/Cli/Modular/Unit/ModuleProviderTest.php" />
    <install as="Horde/Cli/Modular/Unit/ModulesTest.php" name="test/Horde/Cli/Modular/Unit/ModulesTest.php" />
-   <install as="COPYING" name="COPYING" />
-  </filelist>
+   </filelist>
  </phprelease>
  <changelog>
   <release>
@@ -136,10 +142,63 @@
     <release>alpha</release>
     <api>alpha</api>
    </stability>
-   <date>2011-03-07</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <date>2011-08-30</date>
+   <license uri="http://www.horde.org/licenses/lgpl">LGPL-2.1</license>
    <notes>
 * Initial Horde 4 package.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0RC1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api></stability>
+   <date>2011-10-17</date>
+   <license uri="http://www.horde.org/licenses/lgpl">LGPL-2.1</license>
+   <notes>
+* First release candidate for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>stable</release>
+    <api>stable</api></stability>
+   <date>2011-11-02</date>
+   <license uri="http://www.horde.org/licenses/lgpl">LGPL-2.1</license>
+   <notes>
+* First stable release for Horde 4.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0alpha1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>alpha</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl">LGPL-2.1</license>
+   <notes>
+* First alpha release for Horde 5.
+* [gwr] Fixed wording of the documentation.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>1.0.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-05</date>
+   <license uri="http://www.horde.org/licenses/lgpl">LGPL-2.1</license>
+   <notes>
+*
    </notes>
   </release>
  </changelog>

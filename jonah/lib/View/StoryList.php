@@ -3,7 +3,7 @@
  * Turba_View_StoryList:: A view to handle displaying a list of stories in a
  * channel.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://cvs.horde.org/co.php/jonah/LICENSE.
@@ -30,7 +30,7 @@ class Jonah_View_StoryList extends Jonah_View_Base
         $channel = Jonah::getFeed($channel_id);
         if (!$channel->hasPermission($registry->getAuth(), Horde_Perms::EDIT)) {
             $notification->push(_("You are not authorised for this action."), 'horde.warning');
-            $registry->authenticateFailure();
+            throw new Horde_Exception_AuthenticationFailure();
         }
 
         /* Check if a URL has been passed. */
@@ -75,7 +75,7 @@ class Jonah_View_StoryList extends Jonah_View_Base
             $stories[$key]['pdf_link'] = '';
             $stories[$key]['edit_link'] = '';
             $stories[$key]['delete_link'] = '';
-            $stories[$key]['view_link'] = Horde::link(Horde::url($story['permalink']), $story['description']) . htmlspecialchars($story['title']) . '</a>';
+            $stories[$key]['view_link'] = Horde::link($GLOBALS['injector']->getInstance('Jonah_Driver')->getStoryLink($channel, $story), $story['description']) . htmlspecialchars($story['title']) . '</a>';
 
             /* PDF link. */
             $url = Horde::url('stories/pdf.php')->add(array('id' => $story['id'], 'channel_id' => $channel_id));
@@ -108,10 +108,13 @@ class Jonah_View_StoryList extends Jonah_View_Base
         $view->stories = $stories;
         $view->read = true;
         $view->comments = $conf['comments']['allow'] && $registry->hasMethod('forums/numMessages') && $channel['channel_type'] == Jonah::INTERNAL_CHANNEL;
-        require $registry->get('templates', 'horde') . '/common-header.inc';
+
+        $GLOBALS['page_output']->header(array(
+            'title' => $title
+        ));
         require JONAH_TEMPLATES . '/menu.inc';
         echo $view->render('index');
-        require $registry->get('templates', 'horde') . '/common-footer.inc';
+        $GLOBALS['page_output']->footer();
     }
 
 }

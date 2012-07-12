@@ -2,10 +2,10 @@
 /**
  * Horde_Injector factory to create Mnemo_Driver instances.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (ASL). If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author Michael J. Rubinsky <mrubinsk@horde.org>
  * @package Mnemo
@@ -47,7 +47,6 @@ class Mnemo_Factory_Driver
     public function create($name = '')
     {
         if (!isset($this->_instances[$name])) {
-
             $driver = $GLOBALS['conf']['storage']['driver'];
             $params = Horde::getDriverConfig('storage', $driver);
             $class = 'Mnemo_Driver_' . ucfirst(basename($driver));
@@ -60,8 +59,10 @@ class Mnemo_Factory_Driver
                 $params = array(
                     'db' => $this->_injector->getInstance('Horde_Db_Adapter'),
                     'table' => 'mnemo_memos',
+                    'charset' => $params['charset'],
                 );
                 break;
+
             case 'Mnemo_Driver_Kolab':
                 $params = array(
                     'storage' => $this->_injector->getInstance('Horde_Kolab_Storage')
@@ -73,5 +74,4 @@ class Mnemo_Factory_Driver
 
         return $this->_instances[$name];
     }
-
 }

@@ -10,22 +10,21 @@
  * 'wsdl' - TODO
  * </pre>
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Jan Schneider <jan@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Horde
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 
-// We have a chicken-and-egg problem here regarding app initialization. Since
-// different RPC servers have different session requirements, we can't call
-// appInit() until we know which server we are requesting. We therefor don't
+// Since different RPC servers have different session requirements, we can't
+// call appInit() until we know which server we are requesting. We  don't
 // initialize the application until after we know the rpc server we want.
 $input = $session_control = null;
 $nocompress = false;
@@ -35,8 +34,10 @@ $params = array();
  * and determine what kind of request this is. */
 if ((!empty($_SERVER['CONTENT_TYPE']) &&
      (strpos($_SERVER['CONTENT_TYPE'], 'application/vnd.ms-sync.wbxml') !== false)) ||
-   (strpos($_SERVER['REQUEST_URI'], 'Microsoft-Server-ActiveSync') !== false)) {
+   (strpos($_SERVER['REQUEST_URI'], 'Microsoft-Server-ActiveSync') !== false) ||
+   (strpos($_SERVER['REQUEST_URI'], 'autodiscover/autodiscover.xml') !== false)) {
     /* ActiveSync Request */
+    $conf['cookie']['path'] = '/Microsoft-Server-ActiveSync';
     $serverType = 'ActiveSync';
     $nocompress = true;
     $session_control = 'none';
@@ -90,12 +91,13 @@ if (($ra = Horde_Util::getGet('requestMissingAuthorization')) !== null) {
 /* Driver specific tasks that require Horde environment. */
 switch ($serverType) {
 case 'ActiveSync':
-    /* Check if we are even enabled for AS */
+    // Check if AS is enabled. Note that we can't check the user perms for it
+    // here since the user is not yet logged into horde at this point.
     if (empty($conf['activesync']['enabled'])) {
         exit;
     }
-    $params['backend'] = $injector->getInstance('Horde_ActiveSyncBackend');
     $params['server'] = $injector->getInstance('Horde_ActiveSyncServer');
+    $params['provisioning'] = $conf['activesync']['securitypolicies']['provisioning'];
     break;
 
 case 'Soap':
@@ -111,20 +113,56 @@ case 'Soap':
 }
 
 /* Load the RPC backend based on $serverType. */
-$server = Horde_Rpc::factory($serverType, $request, $params);
+try {
+    $server = Horde_Rpc::factory($serverType, $request, $params);
+} catch (Horde_Rpc_Exception $e) {
+    Horde::logMessage($e, 'ERR');
+    header('HTTP/1.1 501 Not Implemented');
+    exit;
+}
 
-/* Let the backend check authentication. By default, we look for HTTP
- * basic authentication against Horde, but backends can override this
- * as needed. */
-$server->authorize();
+// Let the backend check authentication. By default, we look for HTTP
+// basic authentication against Horde, but backends can override this
+// as needed. Must reset the authentication argument since we delegate
+// auth to the RPC server.
+$GLOBALS['registry']->setAuthenticationSetting(
+    (array_key_exists($params, 'requireAuthorization') && $params['requireAuthorization'] === false)
+     ? 'none'
+     : 'Authenticate');
+
+try {
+    $server->authorize();
+} catch (Horde_Rpc_Exception $e) {
+    Horde::logMessage($e, 'ERR');
+    header('HTTP/1.0 500 Internal Server Error');
+    echo $e->getMessage();
+    exit;
+}
+
 
 /* Get the server's response. We call $server->getInput() to allow
  * backends to handle input processing differently. */
 if (is_null($input)) {
-    $input = $server->getInput();
+    try {
+        $input = $server->getInput();
+    } catch (Horde_Rpc_Exception $e) {
+        Horde::logMessage($e, 'ERR');
+        header('HTTP/1.0 500 Internal Server Error');
+        echo $e->getMessage();
+        exit;
+    }
 }
 
-$out = $server->getResponse($input);
+try {
+    $out = $server->getResponse($input);
+} catch (Horde_Rpc_Exception $e) {
+    Horde::logMessage($e, 'ERR');
+    header('HTTP/1.0 500 Internal Server Error');
+    echo $e->getMessage();
+    exit;
+}
+
+
 if ($out instanceof PEAR_Error) {
     header('HTTP/1.0 500 Internal Server Error');
     echo $out->getMessage();

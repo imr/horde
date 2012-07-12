@@ -1,6 +1,6 @@
 <?php
 /**
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you
  * did not receive this file, see http://cvs.horde.org/co.php/jonah/LICENSE.
@@ -36,6 +36,12 @@ class Jonah_View_ChannelEdit extends Jonah_View_Base
         /* Get the vars for channel type. */
         $channel_type = $vars->get('channel_type');
 
+        /* Check permissions and deny if not allowed. */
+        if (!Jonah::checkPermissions(Jonah::typeToPermName($channel_type), Horde_Perms::EDIT, $channel_id)) {
+            $notification->push(_("You are not authorised for this action."), 'horde.warning');
+            throw new Horde_Exception_AuthenticationFailure();
+        }
+
         /* Output the extra fields required for this channel type. */
         $form->setExtraFields($channel_id);
         if ($formname && empty($changed_type)) {
@@ -63,12 +69,12 @@ class Jonah_View_ChannelEdit extends Jonah_View_Base
             }
         }
 
-        $renderer = new Horde_Form_Renderer();
-        $title = $form->getTitle();
-        require $registry->get('templates', 'horde') . '/common-header.inc';
+        $GLOBALS['page_output']->header(array(
+            'title' => $form->getTitle()
+        ));
         require JONAH_TEMPLATES . '/menu.inc';
-        $form->renderActive($renderer, $vars, 'edit.php', 'post');
-        require $registry->get('templates', 'horde') . '/common-footer.inc';
+        $form->renderActive(new Horde_Form_Renderer(), $vars, Horde::url('channels/edit.php'), 'post');
+        $GLOBALS['page_output']->footer();
     }
 
 }

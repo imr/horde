@@ -1,7 +1,7 @@
 <?php
 /**
  * @author     Jan Schneider <jan@horde.org>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @category   Horde
  * @package    Alarm
  * @subpackage UnitTests
@@ -31,7 +31,7 @@ class Horde_Alarm_SqlTest extends Horde_Test_Case
         $class = 'Horde_Db_Adapter_' . $adapter;
         self::$db = new $class($conf['alarm']['test']['horde']);
 
-        self::$migrator = new Horde_Db_Migration_Migrator(self::$db, null, array('migrationsPath' => dirname(dirname(dirname(dirname(__FILE__)))) . '/migration/Horde/Alarm'));
+        self::$migrator = new Horde_Db_Migration_Migrator(self::$db, null, array('migrationsPath' => dirname(dirname(dirname(__DIR__))) . '/migration/Horde/Alarm'));
         self::$migrator->up();
     }
 
@@ -88,7 +88,7 @@ class Horde_Alarm_SqlTest extends Horde_Test_Case
     public function testGet()
     {
         $alarm = self::$alarm->get('personalalarm', 'john');
-        $this->assertType('array', $alarm);
+        $this->assertInternalType('array', $alarm);
         $this->assertEquals('personalalarm', $alarm['id']);
         $this->assertEquals('john', $alarm['user']);
         $this->assertEquals(array(), $alarm['methods']);

@@ -2,23 +2,23 @@
 /**
  * S/MIME utilities.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Mike Cochrane <mike@graftonhall.co.nz>
  * @author   Michael Slusarz <slusarz@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('imp');
 
 $imp_smime = $injector->getInstance('IMP_Crypt_Smime');
-$vars = Horde_Variables::getDefaultVariables();
+$vars = $injector->getInstance('Horde_Variables');
 
 /* Run through the action handlers */
 switch ($vars->actionID) {
@@ -98,28 +98,5 @@ case 'process_import_personal_certs':
         $vars->actionID = 'import_personal_certs';
         $imp_smime->importKeyDialog('process_import_personal_certs', $vars->reload);
     }
-    break;
-
-case 'save_attachment_public_key':
-    /* Retrieve the key from the message. */
-    $contents = $injector->getInstance('IMP_Factory_Contents')->create(new IMP_Indices($vars->mailbox, $vars->uid));
-    $mime_part = $contents->getMIMEPart($vars->mime_id);
-    if (empty($mime_part)) {
-        throw new IMP_Exception(_("Cannot retrieve public key from message."));
-    }
-
-    /* Add the public key to the storage system. */
-    try {
-        $stream = $vars->mime_id
-            ? $contents->getBodyPart($vars->mime_id, array('mimeheaders' => true, 'stream' => true))
-            : $contents->fullMessageText();
-        $raw_text = $mime_part->replaceEOL($stream, Horde_Mime_Part::RFC_EOL);
-    } catch (Horde_Exception $e) {
-        throw new IMP_Exception(_("No certificate found."));
-    }
-
-    $sig_result = $imp_smime->verifySignature($raw_text);
-    $imp_smime->addPublicKey($sig_result->cert);
-    echo Horde::wrapInlineScript(array('window.close();'));
     break;
 }

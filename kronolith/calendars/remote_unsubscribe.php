@@ -1,14 +1,14 @@
 <?php
 /**
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Chuck Hagenbuch <chuck@horde.org>
  */
 
-require_once dirname(__FILE__) . '/../lib/Application.php';
+require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('kronolith');
 
 $vars = Horde_Variables::getDefaultVariables();
@@ -51,11 +51,12 @@ if ($form->validate(new Horde_Variables($_POST))) {
 }
 
 $vars->set('url', $calendar['url']);
-$title = $form->getTitle();
-$menu = Horde::menu();
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$menu = Kronolith::menu();
+$page_output->header(array(
+    'title' => $form->getTitle()
+));
 require KRONOLITH_TEMPLATES . '/javascript_defs.php';
 echo $menu;
 $notification->notify(array('listeners' => 'status'));
-echo $form->renderActive($form->getRenderer(), $vars, 'remote_unsubscribe.php', 'post');
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+echo $form->renderActive($form->getRenderer(), $vars, Horde::url('calendars/remote_unsubscribe.php'), 'post');
+$page_output->footer();

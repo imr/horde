@@ -2,10 +2,10 @@
 /**
  * Kronolith_Resource implementation to represent a group of similar resources.
  *
- * Copyright 2009-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2009-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author Michael J. Rubinsky <mrubinsk@horde.org>
  * @package Kronolith
@@ -97,7 +97,8 @@ class Kronolith_Resource_Group extends Kronolith_Resource_Base
         foreach ($resources as $resource_id) {
             $conflict = false;
             $resource = $this->_driver->getResource($resource_id);
-            $busy = Kronolith::listEvents($start, $end, array($resource->get('calendar')));
+            $busy = Kronolith::getDriver('Resource', $resource->get('calendar'))
+                ->listEvents($start, $end, array('show_recurrence' => true));
 
             /* No events at all during time period for requested event */
             if (!count($busy)) {
@@ -124,7 +125,7 @@ class Kronolith_Resource_Group extends Kronolith_Resource_Base
 
                             // Not free, continue to the next resource
                             $conflict = true;
-                            break;
+                            break 2;
                          }
                     }
                 }
@@ -150,7 +151,11 @@ class Kronolith_Resource_Group extends Kronolith_Resource_Base
      */
     public function addEvent($event)
     {
-        throw new Horde_Exception('Events should be added to the Single resource object, not directly to the Group object.');
+        if (!empty($this->_selectedResource)) {
+            $this->_selectedResource->addEvent($event);
+        } else {
+            throw new Horde_Exception('Events should be added to the Single resource object, not directly to the Group object.');
+        }
     }
 
     /**

@@ -8,7 +8,7 @@
  * @package  Kolab_Filter
  * @author   Steffen Hansen <steffen@klaralvdalens-datakonsult.se>
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Server
  */
 
@@ -46,7 +46,7 @@ define('RM_ITIP_TENTATIVE',                 3);
  * Copyright 2004-2010 Klarälvdalens Datakonsult AB
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @package Kolab_Filter
  * @author  Steffen Hansen <steffen@klaralvdalens-datakonsult.se>
@@ -203,7 +203,7 @@ class Kolab_Resource
             'authenticated' => true,
             'userId' => $calendar_user,
             'timestamp' => time(),
-            'credentials' => $secret->write($secret->getKey('auth'),
+            'credentials' => $secret->write($secret->getKey(),
                                             serialize(array('password' => $conf['kolab']['filter']['calendar_pass']))),
             'remote_addr' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : null,
         );

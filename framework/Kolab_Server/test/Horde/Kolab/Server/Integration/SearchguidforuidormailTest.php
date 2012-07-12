@@ -7,27 +7,27 @@
  * @category Kolab
  * @package  Kolab_Server
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Server
  */
 
 /**
  * Require our basic test case definition
  */
-require_once dirname(__FILE__) . '/../LdapTestCase.php';
+require_once __DIR__ . '/../LdapTestCase.php';
 
 /**
  * Test the "GuidForUidOrMail" search using the mock driver.
  *
- * Copyright 2008-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2008-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Server
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Server
  */
 class Horde_Kolab_Server_Integration_SearchguidforuidormailTest
@@ -35,6 +35,7 @@ extends Horde_Kolab_Server_LdapTestCase
 {
     public function setUp()
     {
+        $this->skipIfNoLdap();
         $connection = new Horde_Kolab_Server_Connection_Mock(
             new Horde_Kolab_Server_Connection_Mock_Ldap(
                 array('basedn' => 'dc=test'),

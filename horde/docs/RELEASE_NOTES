@@ -10,12 +10,12 @@
  * Horde_Release::FOCUS_MAJORSECURITY - Major security fixes
  * Horde_Release::FOCUS_DOCS - Documentation improvements
  */
-$this->notes['fm']['focus'] = array(Horde_Release::FOCUS_MINORFEATURE, Horde_Release::FOCUS_MAJORBUG);
+$this->notes['fm']['focus'] = array(Horde_Release::FOCUS_MAJORFEATURE);
 
 /* Mailing list release notes. */
 $this->notes['ml']['changes'] = <<<ML
-The Horde Team is pleased to announce the first beta release of the Horde
-Application Framework version 4.0.
+The Horde Team is pleased to announce the first alpha release of the Horde
+Application Framework version 5.0.0.
 
 The Horde Application Framework is a flexible, modular, general-purpose web
 application framework written in PHP. It provides an extensive array of
@@ -25,86 +25,44 @@ production-level web applications, notably the Horde Groupware suites. For more
 information on Horde or the Horde Groupware suites, visit http://www.horde.org.
 
 IMPORTANT! This is a preview version that should not be used on production
-systems. This version is considered feature complete but there are likely to be
-bugs. You should not use this preview version with existing production
-data. Migration of data from earlier versions has not been fully tested yet and
-is not supported.
+systems. This version is not feature complete yet and there are likely to be
+bugs. You should not use this preview version with existing production data.
 
 We encourage widespread testing and feedback via the mailing lists or our bug
 tracking system. Updated translations are very welcome, though some strings
 might still change before the release candidates are prepared.
 
-The installation method for Horde 4 has been changed to use the PEAR
-installer. To prepare your local PEAR installation to install software from
-Horde's PEAR server, run the following commands from the command line:
+For upgrading instructions, please see
+http://www.horde.org/apps/horde/docs/UPGRADING
 
-  pear channel-discover pear.horde.org
-  pear install horde/horde_role-beta
-  pear run-scripts horde/horde_role
+For detailed installation and configuration instructions, please see
+http://www.horde.org/apps/horde/docs/INSTALL
 
-The last command will ask you for the filessystem location for your Horde
-installation. This should be some path in your web server's document root,
-e.g. /var/www/horde. These commands only need to be run once. You are now
-prepared to install, upgrade and uninstall Horde packages. To install the beta
-release of Horde, run the following commands:
+The major changes compared to the Horde version 4.0 are:
+    * Completely redesigned user interface.
+    * Much improved ActiveSync library including version 12.1 support and email
+      synchronization.
+    * Default to UTF-8 for all e-mail messages.
+    * IMAP groupware storage without dedicated Kolab server.
+    * Improved support for Kolab 2.
+    * Dropped support for Internet Explorer 6.
+    * Many further improvements.
 
-  pear install horde/horde-beta
-
-Just go to the config/ directory of your Horde installation and copy
-conf.php.dist to conf.php:
-
-  cd /var/www/horde/config/
-  cp conf.php.dist conf.php
-
-Then point your browser to the installation location, go to the
-Administration/Configuration screen and start configuring. You probably want
-to:
-
-1. Configure a real authentication backend!
-2. Configure a database backend (Horde configuration, Database tab)
-3. Install the database tables ("Update all DB schemas" button)
-4. Configure any other applications you installed
-
-To upgrade from the earlier alpha release, you only have to run:
-
-  pear upgrade -c horde
-
-Then log in as an administrator and update any outdated configurations and
-database schemas in the configuration interface.
-
-For more detailed installation and configuration instructions, e.g. how to
-install Horde from PEAR into a location other than the system default, please
-see https://github.com/horde/horde/blob/master/horde/docs/INSTALL.
-
-The major changes compared to the Horde version 4.0-ALPHA1 are:
-
-    * More refactored library components
-    * Improved view selection on login screen
-    * Improved standard application interfaces on mobile devices
-    * Fixed updating schemas for individual libraries
-    * Many small bugfixes and improvements
-
-Please see our issue tracker for a list of open bugs on this release:
-http://bugs.horde.org/query/showstoppers4
-
-The full list of changes (from version 4.0-ALPHA1) can be viewed here:
-
-https://github.com/horde/horde/blob/6c7deabf63dd512f0d4e77e843ae3c3bab068638/horde/docs/CHANGES
-
-Have fun!
-
-The Horde Team.
+Known issues:
+   * The new user interface and icon theme is not complete yet.
 ML;
 
 /* Freshmeat release notes, not more than 600 characters. */
 $this->notes['fm']['changes'] = <<<FM
-More refactored library components.
-Improved view selection on login screen.
-Improved standard application interfaces on mobile devices.
-Fixed updating schemas for individual libraries.
-Many small bugfixes and improvements.
+Completely redesigned user interface.
+Much improved ActiveSync library including version 12.1 support and email synchronization.
+Default to UTF-8 for all e-mail messages.
+IMAP groupware storage without dedicated Kolab server.
+Improved support for Kolab 2.
+Dropped support for Internet Explorer 6.
+Many further improvements.
 FM;
 
 $this->notes['name'] = 'Horde';
 $this->notes['fm']['project'] = 'horde';
-$this->notes['fm']['branch'] = 'Horde 4';
+$this->notes['fm']['branch'] = 'Horde 5';

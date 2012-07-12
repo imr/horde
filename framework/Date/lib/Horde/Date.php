@@ -216,8 +216,7 @@ class Horde_Date
             $this->_initializeFromObject($date);
         } elseif (is_array($date)) {
             $this->_initializeFromArray($date);
-        } elseif (preg_match('/(\d{4})-?(\d{2})-?(\d{2})T? ?(\d{2}):?(\d{2}):?(\d{2})(?:\.\d+)?(Z?)/', $date, $parts) &&
-                  empty($parts[7])) {
+        } elseif (preg_match('/^(\d{4})-?(\d{2})-?(\d{2})T? ?(\d{2}):?(\d{2}):?(\d{2})(?:\.\d+)?(Z?)$/', $date, $parts)) {
             $this->_year  = (int)$parts[1];
             $this->_month = (int)$parts[2];
             $this->_mday  = (int)$parts[3];
@@ -246,10 +245,9 @@ class Horde_Date
                 $this->_sec   = $parts['seconds'];
             }
         } else {
-            // Use date_create() so we can catch errors with PHP 5.2. Use
-            // "new DateTime() once we require 5.3.
-            $parsed = date_create($date);
-            if (!$parsed) {
+            try {
+                $parsed = new DateTime($date);
+            } catch (Exception $e) {
                 throw new Horde_Date_Exception(sprintf(Horde_Date_Translation::t("Failed to parse time string (%s)"), $date));
             }
             $parsed->setTimezone(new DateTimeZone(date_default_timezone_get()));
@@ -259,6 +257,7 @@ class Horde_Date
             $this->_hour  = (int)$parsed->format('H');
             $this->_min   = (int)$parsed->format('i');
             $this->_sec   = (int)$parsed->format('s');
+            $this->_initializeTimezone(date_default_timezone_get());
         }
     }
 
@@ -417,29 +416,37 @@ class Horde_Date
     /**
      * Getter for the date and time properties.
      *
-     * @param string $name  One of 'year', 'month', 'mday', 'hour', 'min' or
-     *                      'sec'.
+     * @param string $name  One of 'year', 'month', 'mday', 'hour', 'min',
+     *                      'sec' or 'timezone' (since Horde_Date 2.0.0).
      *
-     * @return integer  The property value, or null if not set.
+     * @return integer|string  The property value, or null if not set.
      */
     public function __get($name)
     {
         if ($name == 'day') {
             $name = 'mday';
         }
-
+        if ($name[0] == '_') {
+            return null;
+        }
         return $this->{'_' . $name};
     }
 
     /**
      * Setter for the date and time properties.
      *
-     * @param string $name    One of 'year', 'month', 'mday', 'hour', 'min' or
-     *                        'sec'.
-     * @param integer $value  The property value.
+     * @param string $name           One of 'year', 'month', 'mday', 'hour',
+     *                               'min', 'sec' or 'timezone' (since
+     *                               Horde_Date 2.0.0).
+     * @param integer|string $value  The property value.
      */
     public function __set($name, $value)
     {
+        if ($name == 'timezone') {
+            $this->_initializeTimezone($value);
+            return;
+        }
+
         if ($name == 'day') {
             $name = 'mday';
         }
@@ -449,8 +456,9 @@ class Horde_Date
             throw new InvalidArgumentException('Undefined property ' . $name);
         }
 
+        $down = $value < $this->{'_' . $name};
         $this->{'_' . $name} = $value;
-        $this->_correct(self::$_corrections[$name]);
+        $this->_correct(self::$_corrections[$name], $down);
         $this->_formatCache = array();
     }
 
@@ -479,7 +487,7 @@ class Horde_Date
     public function add($factor)
     {
         $d = clone($this);
-        if (is_array($factor)) {
+        if (is_array($factor) || is_object($factor)) {
             foreach ($factor as $property => $value) {
                 $d->$property += $value;
             }
@@ -629,8 +637,9 @@ class Horde_Date
         } else {
             $this->_mday = $weekday - $first + 1;
         }
-        $this->_mday += 7 * $nth - 7;
-        $this->_correct(self::MASK_DAY);
+        $diff = 7 * $nth - 7;
+        $this->_mday += $diff;
+        $this->_correct(self::MASK_DAY, $diff < 0);
     }
 
     /**
@@ -936,8 +945,9 @@ class Horde_Date
      * Corrects any over- or underflows in any of the date's members.
      *
      * @param integer $mask  We may not want to correct some overflows.
+     * @param integer $down  Whether to correct the date up or down.
      */
-    protected function _correct($mask = self::MASK_ALLPARTS)
+    protected function _correct($mask = self::MASK_ALLPARTS, $down = false)
     {
         if ($mask & self::MASK_SECOND) {
             if ($this->_sec < 0 || $this->_sec > 59) {
@@ -979,26 +989,46 @@ class Horde_Date
         }
 
         if ($mask & self::MASK_MONTH) {
-            $this->_year += (int)($this->_month / 12);
-            $this->_month %= 12;
-            if ($this->_month < 1) {
-                $this->_year--;
-                $this->_month += 12;
-            }
+            $this->_correctMonth($down);
+            /* When correcting the month, always correct the day too. Months
+             * have different numbers of days. */
+            $mask |= self::MASK_DAY;
         }
 
         if ($mask & self::MASK_DAY) {
             while ($this->_mday > 28 &&
                    $this->_mday > Horde_Date_Utils::daysInMonth($this->_month, $this->_year)) {
-                $this->_mday -= Horde_Date_Utils::daysInMonth($this->_month, $this->_year);
-                ++$this->_month;
-                $this->_correct(self::MASK_MONTH);
+                if ($down) {
+                    $this->_mday -= Horde_Date_Utils::daysInMonth($this->_month + 1, $this->_year) - Horde_Date_Utils::daysInMonth($this->_month, $this->_year);
+                } else {
+                    $this->_mday -= Horde_Date_Utils::daysInMonth($this->_month, $this->_year);
+                    $this->_month++;
+                }
+                $this->_correctMonth($down);
             }
             while ($this->_mday < 1) {
                 --$this->_month;
-                $this->_correct(self::MASK_MONTH);
+                $this->_correctMonth($down);
                 $this->_mday += Horde_Date_Utils::daysInMonth($this->_month, $this->_year);
             }
+        }
+    }
+
+    /**
+     * Corrects the current month.
+     *
+     * This cannot be done in _correct() because that would also trigger a
+     * correction of the day, which would result in an infinite loop.
+     *
+     * @param integer $down  Whether to correct the date up or down.
+     */
+    protected function _correctMonth($down = false)
+    {
+        $this->_year += (int)($this->_month / 12);
+        $this->_month %= 12;
+        if ($this->_month < 1) {
+            $this->_year--;
+            $this->_month += 12;
         }
     }
 
@@ -1058,6 +1088,7 @@ class Horde_Date
             $this->_hour  = (int)$date->format('H');
             $this->_min   = (int)$date->format('i');
             $this->_sec   = (int)$date->format('s');
+            $this->_initializeTimezone($date->getTimezone()->getName());
         } else {
             $is_horde_date = $date instanceof Horde_Date;
             foreach (array('year', 'month', 'mday', 'hour', 'min', 'sec') as $key) {
@@ -1067,6 +1098,8 @@ class Horde_Date
             }
             if (!$is_horde_date) {
                 $this->_correct();
+            } else {
+                $this->_initializeTimezone($date->timezone);
             }
         }
     }

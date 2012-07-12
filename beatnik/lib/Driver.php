@@ -5,7 +5,7 @@
  * Copyright 2005-2007 Alkaloid Networks <http://www.alkaloid.net>
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Ben Klang <ben@alkaloid.net>
  * @package Beatnik
@@ -304,7 +304,7 @@ class Beatnik_Driver {
             }
         }
 
-        require_once dirname(__FILE__) . '/Driver/' . $driver . '.php';
+        require_once __DIR__ . '/Driver/' . $driver . '.php';
         $class = 'Beatnik_Driver_' . $driver;
         if (class_exists($class)) {
             return new $class($params);

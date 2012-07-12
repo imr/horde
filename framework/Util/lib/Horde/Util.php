@@ -2,15 +2,15 @@
 /**
  * The Horde_Util:: class provides generally useful methods.
  *
- * Copyright 1999-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @author   Jon Parise <jon@horde.org>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @package  Util
  */
 class Horde_Util
@@ -31,22 +31,16 @@ class Horde_Util
     );
 
     /**
-     * Temp directory locations.
+     * Are magic quotes in use?
      *
-     * @var array
-     */
-    static public $tmpLocations = array(
-        '/tmp', '/var/tmp', 'c:\WUTemp', 'c:\temp', 'c:\windows\temp',
-        'c:\winnt\temp'
-    );
-
-    /**
-     * TODO
+     * @var boolean
      */
     static protected $_magicquotes = null;
 
     /**
      * TODO
+     *
+     * @var array
      */
     static protected $_shutdowndata = array(
         'dirs' => array(),
@@ -55,7 +49,9 @@ class Horde_Util
     );
 
     /**
-     * TODO
+     * Has the shutdown method been registered?
+     *
+     * @var boolean
      */
     static protected $_shutdownreg = false;
 
@@ -202,22 +198,20 @@ class Horde_Util
     /**
      * If magic_quotes_gpc is in use, run stripslashes() on $var.
      *
-     * @param string &$var  The string to un-quote, if necessary.
+     * @param mixed $var  The string, or an array of strings, to un-quote.
      *
-     * @return string  $var, minus any magic quotes.
+     * @return mixed  $var, minus any magic quotes.
      */
-    static public function dispelMagicQuotes(&$var)
+    static public function dispelMagicQuotes($var)
     {
         if (is_null(self::$_magicquotes)) {
             self::$_magicquotes = get_magic_quotes_gpc();
         }
 
         if (self::$_magicquotes) {
-            if (!is_array($var)) {
-                $var = stripslashes($var);
-            } else {
-                array_walk($var, array(__CLASS__, 'dispelMagicQuotes'));
-            }
+            $var = is_array($var)
+                ? array_map(array(__CLASS__, 'dispelMagicQuotes'), $var)
+                : stripslashes($var);
         }
 
         return $var;
@@ -277,45 +271,6 @@ class Horde_Util
     }
 
     /**
-     * Determines the location of the system temporary directory.
-     *
-     * @return string  A directory name which can be used for temp files.
-     *                 Returns false if one could not be found.
-     */
-    static public function getTempDir()
-    {
-        $tmp = false;
-
-        // Try sys_get_temp_dir() - only available in PHP 5.2.1+.
-        if (function_exists('sys_get_temp_dir')) {
-            $tmp = sys_get_temp_dir();
-        }
-
-        // First, try PHP's upload_tmp_dir directive.
-        if (!$tmp) {
-            $tmp = ini_get('upload_tmp_dir');
-
-            // Otherwise, try to determine the TMPDIR environment
-            // variable.
-            if (!$tmp) {
-                $tmp = getenv('TMPDIR');
-
-                // If we still cannot determine a value, then cycle through a
-                // list of preset possibilities.
-                if (!$tmp) {
-                    foreach (self::$tmpLocations as $tmp_check) {
-                        if (@is_dir($tmp_check)) {
-                            return $tmp_check;
-                        }
-                    }
-                }
-            }
-        }
-
-        return $tmp ? $tmp : false;
-    }
-
-    /**
      * Creates a temporary filename for the lifetime of the script, and
      * (optionally) registers it to be deleted at request shutdown.
      *
@@ -333,7 +288,7 @@ class Horde_Util
                                        $secure = false)
     {
         $tempDir = (empty($dir) || !is_dir($dir))
-            ? null
+            ? sys_get_temp_dir()
             : $dir;
 
         $tempFile = tempnam($tempDir, $prefix);
@@ -372,7 +327,7 @@ class Horde_Util
                                                     $secure = false)
     {
         $tempDir = (empty($dir) || !is_dir($dir))
-            ? self::getTempDir()
+            ? sys_get_temp_dir()
             : $dir;
 
         if (empty($tempDir)) {
@@ -430,7 +385,7 @@ class Horde_Util
     static public function createTempDir($delete = true, $temp_dir = null)
     {
         if (is_null($temp_dir)) {
-            $temp_dir = self::getTempDir();
+            $temp_dir = sys_get_temp_dir();
         }
 
         if (empty($temp_dir)) {
@@ -452,57 +407,6 @@ class Horde_Util
         umask($old_umask);
 
         return $new_dir;
-    }
-
-    /**
-     * Wrapper around fgetcsv().
-     *
-     * Empty lines will be skipped. If the 'length' parameter is provided, all
-     * rows are filled up with empty strings up to this length, or stripped
-     * down to this length.
-     *
-     * @param resource $file  A file pointer.
-     * @param array $params   Optional parameters. Possible values:
-     *                        - 'separator': The field delimiter.
-     *                        - 'quote': The quote character.
-     *                        - 'escape': The escape character.
-     *                        - 'length': The expected number of fields.
-     *
-     * @return array|boolean  A row from the CSV file or false on error or end
-     *                        of file.
-     */
-    static public function getCsv($file, $params = array())
-    {
-        $params += array('separator' => ',', 'quote' => '"', 'escape' => '\\');
-
-        // Detect Mac line endings.
-        $old = ini_get('auto_detect_line_endings');
-        ini_set('auto_detect_line_endings', 1);
-
-        do {
-            // fgetcsv() throws a warning if the quote character is empty.
-            if (!strlen($params['quote']) && $params['escape'] != '\\') {
-                $params['quote'] = '"';
-            }
-            if (!strlen($params['quote'])) {
-                $row = fgetcsv($file, 0, $params['separator']);
-            } else {
-                $row = fgetcsv($file, 0, $params['separator'], $params['quote'], $params['escape']);
-            }
-        } while ($row && $row[0] === null);
-
-        ini_set('auto_detect_line_endings', $old);
-
-        if ($row && !empty($params['length'])) {
-            $length = count($row);
-            if ($length < $params['length']) {
-                $row += array_fill($length, $params['length'] - $length, '');
-            } elseif ($length > $params['length']) {
-                array_splice($row, $params['length']);
-            }
-        }
-
-        return $row;
     }
 
     /**
@@ -679,8 +583,11 @@ class Horde_Util
             return true;
         }
 
-        /* See if we can call dl() at all, by the current ini settings. */
-        if ((ini_get('enable_dl') != 1) || (ini_get('safe_mode') == 1)) {
+        /* See if we can call dl() at all, by the current ini settings.
+         * dl() has been removed in some PHP 5.3 SAPIs. */
+        if ((ini_get('enable_dl') != 1) ||
+            (ini_get('safe_mode') == 1) ||
+            !function_exists('dl')) {
             return false;
         }
 
@@ -705,7 +612,7 @@ class Horde_Util
             }
         }
 
-        return @dl($ext . '.' . $suffix) || @dl('php_' . $ext . '.' . $suffix);
+        return dl($ext . '.' . $suffix) || dl('php_' . $ext . '.' . $suffix);
     }
 
     /**

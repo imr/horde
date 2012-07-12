@@ -7,7 +7,7 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
@@ -15,15 +15,15 @@
  * Parses an object by relying on the MIME capabilities of the backend.
 er.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Data_Parser_Structure
@@ -44,14 +44,47 @@ implements  Horde_Kolab_Storage_Data_Parser
     private $_format;
 
     /**
+     * A log handler.
+     *
+     * @param mixed
+     */
+    private $_logger;
+
+    /**
      * Constructor
      *
      * @param Horde_Kolab_Storage_Driver $driver The backend driver.
      */
-    public function __construct(
-        Horde_Kolab_Storage_Driver $driver
-    ) {
+    public function __construct(Horde_Kolab_Storage_Driver $driver)
+    {
         $this->_driver = $driver;
+    }
+
+    /**
+     * Set the logger.
+     *
+     * @param mixed $logger The log handler (must provide the warn() method).
+     *
+     * @return NULL
+     */
+    public function setLogger($logger)
+    {
+        $this->_logger = $logger;
+    }
+
+    /**
+     * Indicate a problem in the log.
+     *
+     * @param Exception $message The warn message.
+     */
+    private function _warn($message)
+    {
+        if ($this->_logger === null) {
+            throw $message;
+        } else if ($this->_logger === false) {
+            return;
+        }
+        $this->_logger->warn($message->getMessage());
     }
 
     /**
@@ -109,8 +142,12 @@ implements  Horde_Kolab_Storage_Data_Parser
                     'Backend returned a structure without the expected "structure" element.'
                 );
             }
-            //@todo: deal with exceptions
-            $objects[$obid] = $this->getFormat()->parse($folder, $obid, $structure['structure'], $options);
+            try {
+                $objects[$obid] = $this->getFormat()->parse($folder, $obid, $structure['structure'], $options);
+            } catch (Horde_Kolab_Storage_Exception $e) {
+                $objects[$obid] = false;
+                $this->_warn($e);
+            }
             if ($this->_driver->hasCatenateSupport()) {
                 $objects[$obid]['__structure'] = $structure['structure'];
             }
@@ -129,7 +166,7 @@ implements  Horde_Kolab_Storage_Data_Parser
      *
      * @return NULL
      */
-    private function _fetchAttachments(array &$object, $folder, $obid, $options = array())
+    private function _fetchAttachments(&$object, $folder, $obid, $options = array())
     {
         //@todo: implement
     }
@@ -218,6 +255,7 @@ implements  Horde_Kolab_Storage_Data_Parser
         $modifiable = $this->_driver->getModifiable($folder, $obid, $object);
         $new_uid = $this->_format->modify($modifiable, $object, $options);
         $this->_driver->deleteMessages($folder, array($obid));
+        $this->_driver->expunge($folder);
         return $new_uid;
     }
 

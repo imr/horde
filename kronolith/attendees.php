@@ -4,10 +4,10 @@
  * Copyright 2004-2007 Stuart Binge <s.binge@codefusion.co.za>
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  */
 
-require_once dirname(__FILE__) . '/lib/Application.php';
+require_once __DIR__ . '/lib/Application.php';
 Horde_Registry::appInit('kronolith');
 
 if (Kronolith::showAjaxView()) {
@@ -46,7 +46,7 @@ case 'add':
 
         /* Do our best to see what the response will be. Note that this response
          * is only guarenteed once the event is saved. */
-        $date = new Horde_Date(Horde_Util::getFormData('date'));
+        $date = new Horde_Date(Horde_Util::getFormData('startdate'));
         $end = new Horde_Date(Horde_Util::getFormData('enddate'));
         $response = $resource->getResponse(array('start' => $date, 'end' => $end));
         $resources[$resource->getId()] = array(
@@ -70,12 +70,12 @@ case 'edit':
     if (isset($attendees[$actionValue])) {
         if (empty($attendees[$actionValue]['name'])) {
             $editAttendee = $actionValue;
+        } elseif (strpos($actionValue, '@') === false) {
+            $editAttendee = $attendees[$actionValue]['name'];
         } else {
-            $editAttendee = Horde_Mime_Address::trimAddress(
-                $attendees[$actionValue]['name']
-                . (strpos($actionValue, '@') === false
-                   ? ''
-                   : ' <' . $actionValue . '>'));
+            $tmp = new Horde_Mail_Rfc822_Address($actionValue);
+            $tmp->personal = $attendees[$actionValue]['name'];
+            $editAttendee = strval($tmp);
         }
         unset($attendees[$actionValue]);
         $session->set('kronolith', 'attendees', $attendees);
@@ -149,7 +149,7 @@ case 'dismiss':
     if (!empty($url)) {
         $url = new Horde_Url($url, true);
     } else {
-        $date = new Horde_Date(Horde_Util::getFormData('date'));
+        $date = new Horde_Date(Horde_Util::getFormData('startdate'));
         $url = Horde::url($prefs->getValue('defaultview') . '.php', true)
             ->add('date', $date->dateString());
     }
@@ -165,7 +165,7 @@ case 'clear':
 }
 
 /* Get list of resources for select list, and remove those we already added */
-$allResources = Kronolith::getDriver('Resource')->listResources();
+$allResources = Kronolith::getDriver('Resource')->listResources(Horde_Perms::READ, array(), 'name');
 foreach (array_keys($resources) as $id) {
     unset($allResources[$id]);
 }
@@ -254,19 +254,20 @@ if (count($resources)) {
     }
 }
 
-$date = new Horde_Date(Horde_Util::getFormData('date', date('Ymd') . '000000'));
+$date = new Horde_Date(Horde_Util::getFormData('startdate', date('Ymd') . '000000'));
 $end =  new Horde_Date(Horde_Util::getFormData('enddate', date('Ymd') . '000000'));
 
 $vfb_html = $attendee_view->render($date);
 
-// Add the ContactAutoCompleter
-$injector->getInstance('Horde_Core_Factory_Imple')->create(array('kronolith', 'ContactAutoCompleter'), array(
-    'triggerId' => 'newAttendees'
+$injector->getInstance('Horde_Core_Factory_Imple')->create('Kronolith_Ajax_Imple_ContactAutoCompleter', array(
+    'id' => 'newAttendees'
 ));
 
 $title = _("Edit attendees");
-require $registry->get('templates', 'horde') . '/common-header.inc';
+$page_output->header(array(
+    'title' => $title
+));
 require KRONOLITH_TEMPLATES . '/javascript_defs.php';
 $notification->notify(array('listeners' => 'status'));
 require KRONOLITH_TEMPLATES . '/attendees/attendees.inc';
-require $registry->get('templates', 'horde') . '/common-footer.inc';
+$page_output->footer();

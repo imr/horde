@@ -38,7 +38,7 @@
  * @author    Jon Parise <jon@php.net>
  * @author    Chuck Hagenbuch <chuck@horde.org>
  * @copyright 2010 Chuck Hagenbuch
- * @license   http://opensource.org/licenses/bsd-license.php New BSD License
+ * @license   http://www.horde.org/licenses/bsd New BSD License
  */
 
 /**
@@ -103,37 +103,34 @@ class Horde_Mail_Transport_Smtp extends Horde_Mail_Transport
      * Constructor.
      *
      * @param array $params  Additional parameters:
-     * <pre>
-     * 'auth' - (mixed) SMTP authentication.
-     *          This value may be set to true, false or the name of a specific
-     *          authentication method.
-     *          If the value is set to true, the Net_SMTP package will attempt
-     *          to use the best authentication method advertised by the remote
-     *          SMTP server.
-     *          DEFAULT: false.
-     * 'debug' - (boolean) Activate SMTP debug mode?
-     *           DEFAULT: false
-     * 'host' - (string) The server to connect to.
-     *          DEFAULT: localhost
-     * 'localhost' - (string) Hostname or domain that will be sent to the
-     *               remote SMTP server in the HELO / EHLO message.
-     *               DEFAULT: localhost
-     * 'password' - (string) The password to use for SMTP auth.
+     *   - auth: (mixed) SMTP authentication.
+     *           This value may be set to true, false or the name of a
+     *           specific authentication method. If the value is set to true,
+     *           the Net_SMTP package will attempt to use the best
+     *           authentication method advertised by the remote SMTP server.
+     *           DEFAULT: false.
+     *   - debug: (boolean) Activate SMTP debug mode?
+     *            DEFAULT: false
+     *   - host: (string) The server to connect to.
+     *           DEFAULT: localhost
+     *   - localhost: (string) Hostname or domain that will be sent to the
+     *                remote SMTP server in the HELO / EHLO message.
+     *                DEFAULT: localhost
+     *   - password: (string) The password to use for SMTP auth.
+     *               DEFAULT: NONE
+     *   - persist: (boolean) Should the SMTP connection persist?
+     *              DEFAULT: false
+     *   - pipelining: (boolean) Use SMTP command pipelining.
+     *                 Use SMTP command pipelining (specified in RFC 2920) if
+     *                 the SMTP server supports it. This speeds up delivery
+     *                 over high-latency connections.
+     *                 DEFAULT: false (use default value from Net_SMTP)
+     *   - port: (integer) The port to connect to.
+     *           DEFAULT: 25
+     *   - timeout: (integer) The SMTP connection timeout.
      *              DEFAULT: NONE
-     * 'persist' - (boolean) Should the SMTP connection persist?
-     *             DEFAULT: false
-     * 'pipelining' - (boolean) Use SMTP command pipelining.
-     *                Use SMTP command pipelining (specified in RFC 2920) if
-     *                the SMTP server supports it. This speeds up delivery
-     *                over high-latency connections.
-     *                DEFAULT: false (use default value from Net_SMTP)
-     * 'port' - (integer) The port to connect to.
-     *          DEFAULT: 25
-     * 'timeout' - (integer) The SMTP connection timeout.
-     *             DEFAULT: NONE
-     * 'username' - (string) The username to use for SMTP auth.
-     *              DEFAULT: NONE
-     * </pre>
+     *   - username: (string) The username to use for SMTP auth.
+     *               DEFAULT: NONE
      */
     public function __construct(array $params = array())
     {
@@ -153,6 +150,9 @@ class Horde_Mail_Transport_Smtp extends Horde_Mail_Transport
         /* Destructor implementation to ensure that we disconnect from any
          * potentially-alive persistent SMTP connections. */
         register_shutdown_function(array($this, 'disconnect'));
+
+        /* SMTP requires CRLF line endings. */
+        $this->sep = "\r\n";
     }
 
     /**
@@ -214,7 +214,6 @@ class Horde_Mail_Transport_Smtp extends Horde_Mail_Transport
 
         $res = $this->_smtp->mailFrom($from, ltrim($params));
         if ($res instanceof PEAR_Error) {
-            $this->_smtp->rset();
             $this->_error("Failed to set sender: $from", $res, self::ERROR_SENDER);
         }
 
@@ -228,12 +227,12 @@ class Horde_Mail_Transport_Smtp extends Horde_Mail_Transport
         foreach ($recipients as $recipient) {
             $res = $this->_smtp->rcptTo($recipient);
             if ($res instanceof PEAR_Error) {
-                $this->_smtp->rset();
                 $this->_error("Failed to add recipient: $recipient", $res, self::ERROR_RECIPIENT);
             }
         }
 
-        /* Send the message's headers and the body as SMTP data. */
+        /* Send the message's headers and the body as SMTP data. Net_SMTP does
+         * the necessary EOL conversions. */
         $res = $this->_smtp->data($body, $textHeaders);
         list(,$args) = $this->_smtp->getResponse();
 
@@ -248,7 +247,6 @@ class Horde_Mail_Transport_Smtp extends Horde_Mail_Transport
         $this->greeting = $this->_smtp->getGreeting();
 
         if ($res instanceof PEAR_Error) {
-            $this->_smtp->rset();
             $this->_error('Failed to send data', $res, self::ERROR_DATA);
         }
 
@@ -300,7 +298,6 @@ class Horde_Mail_Transport_Smtp extends Horde_Mail_Transport
 
             $res = $this->_smtp->auth($this->_params['username'], $this->_params['password'], $method);
             if ($res instanceof PEAR_Error) {
-                $this->_smtp->rset();
                 $this->_error("$method authentication failure", $res, self::ERROR_AUTH);
             }
         }
@@ -348,6 +345,9 @@ class Horde_Mail_Transport_Smtp extends Horde_Mail_Transport
     {
         /* Split the SMTP response into a code and a response string. */
         list($code, $response) = $this->_smtp->getResponse();
+
+        /* Abort current SMTP transaction. */
+        $this->_smtp->rset();
 
         /* Build our standardized error string. */
         throw new Horde_Mail_Exception($text . ' [SMTP: ' . $error->getMessage() . " (code: $code, response: $response)]", $e_code);

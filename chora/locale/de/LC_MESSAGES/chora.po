@@ -1,12 +1,12 @@
 # German translation for Chora.
-# Copyright 2001-2011 The Horde Project
+# Copyright 2001-2012 Horde LLC (http://www.horde.org/)
 # This file is distributed under the same license as the Chora package.
 # Jan Schneider <jan@horde.org>, 2001-2010.
 msgid ""
 msgstr ""
 "Project-Id-Version: Chora 3.0-git\n"
 "Report-Msgid-Bugs-To: dev@lists.horde.org\n"
-"POT-Creation-Date: 2011-03-15 13:27+0100\n"
+"POT-Creation-Date: 2012-05-01 14:03+0200\n"
 "PO-Revision-Date: 2011-02-02 18:08+0100\n"
 "Last-Translator: Jan Schneider <jan@horde.org>\n"
 "Language-Team: German <dev@lists.horde.org>\n"
@@ -34,7 +34,7 @@ msgstr ""
 msgid "%s Revision %s (%s ago)"
 msgstr "%s Version %s (vor %s)"
 
-#: lib/Application.php:171
+#: lib/Application.php:169
 #, php-format
 msgid "%s: Forbidden by server configuration"
 msgstr "%s: Zugriff per Serverkonfiguration verweigert"
@@ -48,7 +48,7 @@ msgstr "%s: Datei oder Verzeichnis nicht gefunden"
 msgid "Added"
 msgstr "Hinzugefügt"
 
-#: templates/directory/header.inc:7
+#: templates/directory/header.inc:7 templates/log/header.inc:23
 msgid "All Branches"
 msgstr "Alle Branches"
 
@@ -66,7 +66,7 @@ msgstr "Autor"
 msgid "Back"
 msgstr "Zurück"
 
-#: app/views/_logMessage.html.php:15 lib/Chora.php:332 lib/Chora.php:333
+#: app/views/_logMessage.html.php:20 lib/Chora.php:332 lib/Chora.php:333
 #: lib/Chora.php:336 lib/Chora.php:337
 msgid "Branches"
 msgstr "Branches"
@@ -135,11 +135,12 @@ msgstr "Gelöschte Dateien"
 msgid "Description"
 msgstr "Beschreibung"
 
-#: patchsets.php:52 templates/log/header.inc:11
+#: app/views/_logMessage.html.php:10 patchsets.php:52
+#: templates/log/header.inc:11
 msgid "Diff"
 msgstr "Unterschiede"
 
-#: diff.php:52
+#: diff.php:65
 #, php-format
 msgid "Diff for %s between version %s and %s"
 msgstr "Unterschied von %s zwischen den Versionen %s und %s"
@@ -188,11 +189,11 @@ msgstr "Unterschiede herunterladen"
 msgid "Graph for %s"
 msgstr "Grafik für %s"
 
-#: browsedir.php:42
+#: browsedir.php:43
 msgid "Hide Deleted Files"
 msgstr "Gelöschte Dateien verstecken"
 
-#: browsedir.php:42
+#: browsedir.php:43
 msgid "Hide _Deleted Files"
 msgstr "_Gelöschte Dateien verstecken"
 
@@ -216,7 +217,7 @@ msgstr "Position:"
 msgid "Logs"
 msgstr "Änderungen"
 
-#: diff.php:28
+#: diff.php:41
 msgid "Malformed Query"
 msgstr "Ungültige Abfrage"
 
@@ -228,7 +229,7 @@ msgstr "Geändert"
 msgid "No commit ID given"
 msgstr "Keine Commit-ID angegeben"
 
-#: lib/Application.php:114
+#: lib/Application.php:112
 msgid "No repositories found."
 msgstr "Keine Repositories gefunden."
 
@@ -252,7 +253,7 @@ msgstr "Vorige"
 msgid "Removed"
 msgstr "Entfernt"
 
-#: lib/Application.php:181
+#: lib/Application.php:179
 msgid "Repositories"
 msgstr "Repositories"
 
@@ -282,7 +283,7 @@ msgstr "Patchsätze suchen:"
 msgid "Show Branch:"
 msgstr "Branch anzeigen:"
 
-#: browsedir.php:42
+#: browsedir.php:43
 msgid "Show Deleted Files"
 msgstr "Gelöschte Dateien anzeigen"
 
@@ -290,7 +291,7 @@ msgstr "Gelöschte Dateien anzeigen"
 msgid "Show Differences"
 msgstr "Unterschiede anzeigen"
 
-#: browsedir.php:42
+#: browsedir.php:43
 msgid "Show _Deleted Files"
 msgstr "_Gelöschte Dateien anzeigen"
 
@@ -313,7 +314,7 @@ msgstr "Quell-Kommentar von %s (Version %s)"
 msgid "Source Branching View for %s"
 msgstr "Branch Ansicht für %s"
 
-#: lib/Application.php:167
+#: lib/Application.php:165
 msgid ""
 "Sourceroot not found. This could be a misconfiguration by the server "
 "administrator, or the server could be having temporary problems. Please try "
@@ -327,16 +328,16 @@ msgstr ""
 msgid "Statistics"
 msgstr "Statistiken"
 
-#: stats.php:26
+#: stats.php:33
 #, php-format
 msgid "Statistics for %s"
 msgstr "Statistik für %s"
 
-#: app/views/_logMessage.html.php:24 templates/patchsets/ps.inc:8
+#: app/views/_logMessage.html.php:29 templates/patchsets/ps.inc:8
 msgid "Tags"
 msgstr "Tags"
 
-#: lib/Application.php:120
+#: lib/Application.php:118
 #, php-format
 msgid "The repository with the slug '%s' was not found"
 msgstr "Repository mit dem Kurznamen '%s' nicht gefunden"
@@ -359,7 +360,7 @@ msgid "Unmodified"
 msgstr "Keine Änderung"
 
 #: annotate.php:47 templates/directory/header.inc:12
-#: templates/log/header.inc:25
+#: templates/log/header.inc:28
 msgid "View"
 msgstr "Anzeigen"
 
@@ -387,7 +388,7 @@ msgstr "_Autor"
 msgid "_Branches"
 msgstr "_Branches"
 
-#: lib/Application.php:200
+#: lib/Application.php:198
 msgid "_Browse"
 msgstr "_Liste"
 

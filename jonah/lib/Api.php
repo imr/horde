@@ -5,7 +5,7 @@
  * This file defines Jonah's external API interface. Other
  * applications can interact with Jonah through this API.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file LICENSE for license information (BSD). If you did not
  * did not receive this file, see http://cvs.horde.org/co.php/jonah/LICENSE.
@@ -83,6 +83,40 @@ class Jonah_Api extends Horde_Registry_Api
         }
 
         return $story;
+    }
+
+    /**
+     * Publish a new story
+     *
+     * @param integer $channel_id  The channel id
+     * @param array $story         The story array. Can contain:
+     * <pre>
+     *  (string)title       [REQUIRED]    The story title.
+     *  (string)description [REQUIRED]    The short description.
+     *  (string)body_type   [OPTIONAL]    The body type (text/html).
+     *  (string)body        [OPTIONAL]    The story body.
+     *  (string)url         [OPTIONAL]    The url for the story link.
+     *  (array)tags         [OPTIONAL]    Tags
+     *</pre>
+     *
+     *
+     * @throws Horde_Exception_PermissionDenied
+     */
+    public function publish($channel_id, $story)
+    {
+        $driver = $GLOBALS['injector']->getInstance('Jonah_Driver');
+        $channel = $driver->getChannel($channel_id);
+        /* Check permissions. */
+        if (!Jonah::checkPermissions(Jonah::typeToPermName($channel['channel_type']), Horde_Perms::EDIT, $channel_id)) {
+            throw new Horde_Exception_PermissionDenied(_("You are not authorised for this action."));
+        }
+        $story['author'] = $GLOBALS['registry']->getAuth();
+        $story['channel_id'] = $channel_id;
+        $story['published'] = time();
+        if (empty($body) || empty($body_type)) {
+            $story['body_type'] = 'text';
+        }
+        $driver->saveStory($story);
     }
 
     /**
@@ -166,6 +200,8 @@ class Jonah_Api extends Horde_Registry_Api
      *      'view_url' - The URL to view this resource.
      *      'app'      - The Horde application this resource belongs to.
      *    </pre>
+     *
+     * @TODO Refactor to match the other application's searchTags API signature.
      */
     public function searchTags($names, $filter = array(), $raw = false)
     {

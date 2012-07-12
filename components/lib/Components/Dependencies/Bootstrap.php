@@ -8,7 +8,7 @@
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 
@@ -16,15 +16,15 @@
  * The Components_Dependencies_Bootstrap:: class provides the Components
  * dependencies specifically for the bootstrapping process.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Horde
  * @package  Components
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Components
  */
 class Components_Dependencies_Bootstrap
@@ -55,25 +55,33 @@ implements Components_Dependencies
     {
         if (!isset($this->_instances[$interface])) {
             switch ($interface) {
+            case 'Components_Component_Factory':
+                require_once __DIR__ . '/../Component/Factory.php';
+                $this->_instances[$interface] = new $interface(
+                    $this->getInstance('Components_Config'),
+                    $this->getInstance('Components_Pear_Factory'),
+                    new Horde_Http_Client()
+                );
+                break;
             case 'Components_Pear_Factory':
-                require_once dirname(__FILE__) . '/../Pear/Factory.php';
+                require_once __DIR__ . '/../Pear/Factory.php';
                 $this->_instances[$interface] = new $interface($this);
                 break;
             case 'Components_Config':
-                require_once dirname(__FILE__) . '/../Config.php';
-                require_once dirname(__FILE__) . '/../Config/Base.php';
-                require_once dirname(__FILE__) . '/../Config/Bootstrap.php';
+                require_once __DIR__ . '/../Config.php';
+                require_once __DIR__ . '/../Config/Base.php';
+                require_once __DIR__ . '/../Config/Bootstrap.php';
                 $this->_instances[$interface] = new Components_Config_Bootstrap();
                 break;
             case 'Components_Output':
-                require_once dirname(__FILE__) . '/../Output.php';
+                require_once __DIR__ . '/../Output.php';
                 $this->_instances[$interface] = new Components_Output(
                     $this->getInstance('Horde_Cli'),
                     $this->getInstance('Components_Config')->getOptions()
                 );
                 break;
             case 'Horde_Cli':
-                require_once dirname(__FILE__) . '/../../../../framework/Cli/lib/Horde/Cli.php';
+                require_once __DIR__ . '/../../../../framework/Cli/lib/Horde/Cli.php';
                 $this->_instances[$interface] = new Horde_Cli();
                 break;
             }
@@ -91,7 +99,7 @@ implements Components_Dependencies
     public function createInstance($interface)
     {
         switch ($interface) {
-        case 'Components_Pear_InstallLocation':
+        case 'Components_Pear_Environment':
             return new $interface($this->getInstance('Components_Output'));
         case 'Components_Pear_Package':
             return new $interface($this->getInstance('Components_Output'));
@@ -132,6 +140,26 @@ implements Components_Dependencies
     }
 
     /**
+     * Set the CLI parser.
+     *
+     * @param Horde_Argv_Parser $parser The parser.
+     *
+     * @return NULL
+     */
+    public function setParser($parser)
+    {
+    }
+
+    /**
+     * Return the CLI parser.
+     *
+     * @retunr Horde_Argv_Parser The parser.
+     */
+    public function getParser()
+    {
+    }
+
+    /**
      * Returns the continuous integration setup handler.
      *
      * @return Components_Runner_CiSetup The CI setup handler.
@@ -162,13 +190,23 @@ implements Components_Dependencies
     }
 
     /**
-     * Returns the documentation handler for a package.
+     * Returns the website documentation handler for a package.
      *
-     * @return Components_Runner_Document The distribution handler.
+     * @return Components_Runner_Webdocs The documentation handler.
      */
-    public function getRunnerDocument()
+    public function getRunnerWebdocs()
     {
-        return $this->getInstance('Components_Runner_Document');
+        return $this->getInstance('Components_Runner_Webdocs');
+    }
+
+    /**
+     * Returns the documentation fetch handler for a package.
+     *
+     * @return Components_Runner_Fetchdocs The fetch handler.
+     */
+    public function getRunnerFetchdocs()
+    {
+        return $this->getInstance('Components_Runner_Fetchdocs');
     }
 
     /**
@@ -179,6 +217,16 @@ implements Components_Dependencies
     public function getRunnerRelease()
     {
         return $this->getInstance('Components_Runner_Release');
+    }
+
+    /**
+     * Returns the qc handler for a package.
+     *
+     * @return Components_Runner_Qc The qc handler.
+     */
+    public function getRunnerQc()
+    {
+        return $this->getInstance('Components_Runner_Qc');
     }
 
     /**
@@ -224,11 +272,11 @@ implements Components_Dependencies
     /**
      * Returns the package XML handler for a package.
      *
-     * @return Components_Runner_PearPackageXml The package XML handler.
+     * @return Components_Runner_Update The package XML handler.
      */
-    public function getRunnerPearPackageXml()
+    public function getRunnerUpdate()
     {
-        return $this->getInstance('Components_Runner_PearPackageXml');
+        return $this->getInstance('Components_Runner_Update');
     }
 
     /**
@@ -249,6 +297,26 @@ implements Components_Dependencies
     public function getOutput()
     {
         return $this->getInstance('Components_Output');
+    }
+
+    /**
+     * Returns a component instance factory.
+     *
+     * @return Components_Component_Factory The component factory.
+     */
+    public function getComponentFactory()
+    {
+        return $this->getInstance('Components_Component_Factory');
+    }
+
+    /**
+     * Returns the handler for remote PEAR servers.
+     *
+     * @return Horde_Pear_Remote The handler.
+     */
+    public function getRemote()
+    {
+        return $this->getInstance('Horde_Pear_Remote');
     }
 
     /**

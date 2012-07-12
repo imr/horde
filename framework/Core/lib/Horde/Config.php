@@ -4,10 +4,10 @@
  * configuration of Horde applications, writing conf.php files from
  * conf.xml source files, generating user interfaces, etc.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author   Chuck Hagenbuch <chuck@horde.org>
  * @category Horde
@@ -138,6 +138,18 @@ class Horde_Config
     }
 
     /**
+     */
+    public function configFile()
+    {
+        $path = $GLOBALS['registry']->get('fileroot', $this->_app) . '/config';
+        $configFile = $path . '/conf.php';
+        if (is_link($configFile)) {
+            $configFile = readlink($configFile);
+        }
+        return $configFile;
+    }
+
+    /**
      * Reads the application's conf.xml file and builds an associative array
      * from its XML tree.
      *
@@ -185,6 +197,17 @@ class Horde_Config
         $root = $dom->documentElement;
         if ($root->hasChildNodes()) {
             $this->_parseLevel($this->_xmlConfigTree, $root->childNodes, '');
+        }
+
+        /* Parse additional config files. */
+        foreach (glob($path . '/conf.d/*.xml') as $additional) {
+            $dom->load($additional);
+            $root = $dom->documentElement;
+            if ($root->hasChildNodes()) {
+                $tree = array();
+                $this->_parseLevel($tree, $root->childNodes, '');
+                $this->_xmlConfigTree = array_replace_recursive($this->_xmlConfigTree, $tree);
+            }
         }
 
         return $this->_xmlConfigTree;
@@ -244,6 +267,45 @@ class Horde_Config
     }
 
     /**
+     * Generates and writes the content of the application's configuration
+     * file.
+     *
+     * @param Horde_Variables $formvars  The processed configuration form
+     *                                   data.
+     * @param string $php                The content of the generated
+     *                                   configuration file.
+     *
+     * @return boolean  True if the configuration file could be written
+     *                  immediately to the file system.
+     */
+    public function writePHPConfig($formvars, &$php = null)
+    {
+        $php = $this->generatePHPConfig($formvars);
+        $path = $GLOBALS['registry']->get('fileroot', $this->_app) . '/config';
+        $configFile = $this->configFile();
+        if (file_exists($configFile)) {
+            if (@copy($configFile, $path . '/conf.bak.php')) {
+                $GLOBALS['notification']->push(sprintf(_("Successfully saved the backup configuration file %s."), Horde_Util::realPath($path . '/conf.bak.php')), 'horde.success');
+            } else {
+                $GLOBALS['notification']->push(sprintf(_("Could not save the backup configuration file %s."), Horde_Util::realPath($path . '/conf.bak.php')), 'horde.warning');
+            }
+        }
+        if ($fp = @fopen($configFile, 'w')) {
+            /* Can write, so output to file. */
+            fwrite($fp, $php);
+            fclose($fp);
+            $GLOBALS['registry']->rebuild();
+            $GLOBALS['notification']->push(sprintf(_("Successfully wrote %s"), Horde_Util::realPath($configFile)), 'horde.success');
+            return true;
+        }
+
+        /* Cannot write. Save to session. */
+        $GLOBALS['session']->set('horde', 'config/' . $this->_app, $php);
+
+        return false;
+    }
+
+    /**
      * Generates the content of the application's configuration file.
      *
      * @param Horde_Variables $formvars  The processed configuration form
@@ -292,6 +354,10 @@ class Horde_Config
         }
 
         foreach ($section as $name => $configitem) {
+            if (is_array($configitem) && isset($configitem['tab'])) {
+                continue;
+            }
+
             $prefixedname = empty($prefix)
                 ? $name
                 : $prefix . '|' . $name;
@@ -365,7 +431,7 @@ class Horde_Config
                     break;
 
                 case 'int':
-                    if ($val !== '') {
+                    if (strlen($val)) {
                         $value = (int)$val;
                     }
                     break;
@@ -617,7 +683,7 @@ class Horde_Config
                 break;
 
             case 'configsql':
-                $conf[$node->getAttribute('switchname')] = $this->_configSQL($ctx, $node);
+                $conf[$node->getAttribute('switchname')] = $this->configSQL($ctx, $node);
                 break;
 
             case 'configvfs':
@@ -883,8 +949,7 @@ class Horde_Config
      *
      * @return array  An associative array with the SQL configuration tree.
      */
-    protected function _configSQL($ctx, $node = null,
-                                  $switchname = 'driverconfig')
+    public function configSQL($ctx, $node = null, $switchname = 'driverconfig')
     {
         $persistent = array(
             '_type' => 'boolean',
@@ -979,28 +1044,6 @@ class Horde_Config
             'default' => $this->_default($ctx . '|ca', '')
         );
 
-        $oci8_fields = array(
-            'persistent' => $persistent,
-            'username' => $username,
-            'password' => $password
-        );
-        if (function_exists('oci_connect')) {
-            $oci8_fields['database'] = array(
-                '_type' => 'text',
-                'required' => true,
-                'desc' => 'Database name or Easy Connect parameter',
-                'default' => $this->_default($ctx . '|database', 'horde')
-            );
-        } else {
-            $oci8_fields['hostspec'] = array(
-                '_type' => 'text',
-                'required' => true,
-                'desc' => 'Database name or Easy Connect parameter',
-                'default' => $this->_default($ctx . '|hostspec', 'horde')
-            );
-        }
-        $oci8_fields['charset'] = $charset;
-
         $read_hostspec = array(
             '_type' => 'text',
             'required' => true,
@@ -1032,7 +1075,7 @@ class Horde_Config
                             'persistent' => $persistent,
                             'username' => $username,
                             'password' => $password,
-                            'protocol' => $mysql_protocol,
+                            'protocol' => $protocol,
                             'database' => $database,
                             'charset' => $charset
                         )
@@ -1051,7 +1094,7 @@ class Horde_Config
                     'fields' => array()
                 ),
                 'mysql' => array(
-                    'desc' => 'MySQL',
+                    'desc' => 'MySQL / PDO',
                     'fields' => array(
                         'persistent' => $persistent,
                         'username' => $username,
@@ -1061,7 +1104,20 @@ class Horde_Config
                         'charset' => $charset,
                         'ssl' => $ssl,
                         'ca' => $ca,
-                        'splitread' => $splitread
+                        'splitread' => array_replace_recursive(
+                            $splitread,
+                            array(
+                                'switch' => array(
+                                    'true' => array(
+                                        'fields' => array(
+                                            'read' => array(
+                                                'protocol' => $mysql_protocol,
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
                     )
                 ),
                 'mysqli' => array(
@@ -1072,9 +1128,22 @@ class Horde_Config
                         'protocol' => $mysql_protocol,
                         'database' => $database,
                         'charset' => $charset,
-                        'splitread' => $splitread,
                         'ssl' => $ssl,
-                        'ca' => $ca
+                        'ca' => $ca,
+                        'splitread' => array_replace_recursive(
+                            $splitread,
+                            array(
+                                'switch' => array(
+                                    'true' => array(
+                                        'fields' => array(
+                                            'read' => array(
+                                                'protocol' => $mysql_protocol,
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
                     )
                 ),
                 'pgsql' => array(
@@ -1085,7 +1154,8 @@ class Horde_Config
                         'password' => $password,
                         'protocol' => $protocol,
                         'database' => $database,
-                        'charset' => $charset
+                        'charset' => $charset,
+                        'splitread' => $splitread,
                     )
                 ),
                 'sqlite' => array(
@@ -1150,7 +1220,7 @@ class Horde_Config
      */
     protected function _configVFS($ctx, $node)
     {
-        $sql = $this->_configSQL($ctx . '|params');
+        $sql = $this->configSQL($ctx . '|params');
         $default = $node->getAttribute('default');
         $default = empty($default) ? 'horde' : $default;
         list($default, $isDefault) = $this->__default($ctx . '|' . $node->getAttribute('switchname'), $default);
@@ -1160,10 +1230,6 @@ class Horde_Config
             'default' => $default,
             'is_default' => $isDefault,
             'switch' => array(
-                'none' => array(
-                    'desc' => 'None',
-                    'fields' => array()
-                ),
                 'File' => array(
                     'desc' => 'Files on the local system',
                     'fields' => array(
@@ -1428,7 +1494,8 @@ class Horde_Config
                     if ($value->nodeType == XML_ELEMENT_NODE) {
                         if ($value->tagName == 'configspecial') {
                             return $this->_handleSpecials($value);
-                        } elseif ($value->tagName == 'value') {
+                        }
+                        if ($value->tagName == 'value') {
                             $text = $value->textContent;
                             $desc = $value->getAttribute('desc');
                             $values[$text] = empty($desc) ? $text : $desc;
@@ -1485,7 +1552,14 @@ class Horde_Config
      */
     protected function _handleSpecials($node)
     {
-        $app = $GLOBALS['registry']->hasInterface($node->getAttribute('application'));
+        $app = $node->getAttribute('application');
+        try {
+            if (!in_array($app, $GLOBALS['registry']->listApps())) {
+                $app = $GLOBALS['registry']->hasInterface($app);
+            }
+        } catch (Horde_Exception $e) {
+            return array();
+        }
         if (!$app) {
             return array();
         }

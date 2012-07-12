@@ -2,11 +2,11 @@
 /**
  * Require our basic test case definition
  */
-require_once dirname(__FILE__) . '/Autoload.php';
+require_once __DIR__ . '/Autoload.php';
 
 /**
  * @author     Jan Schneider <jan@horde.org>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @category   Horde
  * @package    Util
  * @subpackage UnitTests
@@ -341,6 +341,17 @@ fäücibüs mäüris ämet.
 EOT
 ,
             Horde_String::wordwrap($string));
+        $string = "Lörem ipsüm dölör sit ämet, cönsectetüer ädipiscing elit. Aliqüäm söllicitüdin fäücibüs mäüris ämet.\nLörem ipsüm dölör sit ämet.\nLörem ipsüm dölör sit ämet, cönsectetüer ädipiscing elit. Aliqüäm söllicitüdin fäücibüs mäüris ämet.";
+        $this->assertEquals(
+<<<EOT
+Lörem ipsüm dölör sit ämet, cönsectetüer ädipiscing elit. Aliqüäm
+söllicitüdin fäücibüs mäüris ämet.
+Lörem ipsüm dölör sit ämet.
+Lörem ipsüm dölör sit ämet, cönsectetüer ädipiscing elit. Aliqüäm
+söllicitüdin fäücibüs mäüris ämet.
+EOT
+,
+            Horde_String::wordwrap($string));
 
         // Test overlong words and word cut.
         $string = "Löremipsümdölörsitämet, cönsectetüerädipiscingelit.";
@@ -457,6 +468,14 @@ EOT
             "<html>",
             Horde_String::convertCharset("<html>", 'UTF-8', 'Windows-1258')
         );
+    }
+
+    public function testLongStringsBreakUtf8DetectionRegex()
+    {
+        $string = str_repeat('1 A B', 10000);
+
+        /* Failing test will cause a PHP segfault here. */
+        Horde_String::validUtf8($string);
     }
 
 }

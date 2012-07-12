@@ -118,10 +118,9 @@ abstract class Horde_View_Base
     public function addTemplatePath($path)
     {
         foreach ((array)$path as $dir) {
-            // Attempt to strip any possible separator and append the
-            // system directory separator.
-            $dir = rtrim($dir, '\\/' . DIRECTORY_SEPARATOR)
-                . DIRECTORY_SEPARATOR;
+            // Attempt to strip any possible separator and append a
+            // directory separator.
+            $dir = rtrim($dir, '\\/' . DIRECTORY_SEPARATOR) . '/';
 
             // Add to the top of the stack.
             array_unshift($this->_templatePath, $dir);
@@ -217,7 +216,7 @@ abstract class Horde_View_Base
     {
         foreach ($array as $key => $val) {
             if (isset($this->_protectedProperties[$key])) {
-                throw new Horde_View_Exception('Cannott overwrite internal variables in assign()');
+                throw new Horde_View_Exception('Cannot overwrite internal variables in assign()');
             }
             $this->$key = $val;
         }
@@ -384,4 +383,5 @@ abstract class Horde_View_Base
      * @param array   Any local variables to declare.
      */
     abstract protected function _run();
+
 }

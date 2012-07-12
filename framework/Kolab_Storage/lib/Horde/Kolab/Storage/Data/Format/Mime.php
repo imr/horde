@@ -7,22 +7,22 @@
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 
 /**
  * Bridges a MIME message with Kolab format data parsing.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category Kolab
  * @package  Kolab_Storage
  * @author   Gunnar Wrobel <wrobel@pardus.de>
- * @license  http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link     http://pear.horde.org/index.php?package=Kolab_Storage
  */
 class Horde_Kolab_Storage_Data_Format_Mime
@@ -50,14 +50,13 @@ implements Horde_Kolab_Storage_Data_Format
      * @param Horde_Kolab_Storage_Data_Parser_Structure $structure The MIME based
      *                                                             object handler.
      */
-    public function __construct(
-        Horde_Kolab_Storage_Factory $factory,
-        Horde_Kolab_Storage_Data_Parser_Structure $structure
-    ) {
+    public function __construct(Horde_Kolab_Storage_Factory $factory,
+                                Horde_Kolab_Storage_Data_Parser_Structure $structure)
+    {
         $this->_factory = $factory;
         $this->_structure = $structure;
     }
-    
+
     /**
      * Parses the objects for the specified backend IDs.
      *
@@ -80,7 +79,6 @@ implements Horde_Kolab_Storage_Data_Format
         }
         $mime_id = $this->matchMimeId($options['type'], $data->contentTypeMap());
         if (empty($mime_id)) {
-            //@todo: deal with exceptions
             throw new Horde_Kolab_Storage_Exception(
                 sprintf(
                     'Unable to identify Kolab mime part in message %s in folder %s!',
@@ -92,7 +90,6 @@ implements Horde_Kolab_Storage_Data_Format
 
         $mime_part = $data->getPart($mime_id);
         if (empty($mime_part)) {
-            //@todo: deal with exceptions
             throw new Horde_Kolab_Storage_Exception(
                 sprintf(
                     'Unable to identify Kolab mime part in message %s in folder %s!',
@@ -106,9 +103,21 @@ implements Horde_Kolab_Storage_Data_Format
         );
         $content = $mime_part->getContents(array('stream' => true));
         if (empty($options['raw'])) {
-            //@todo: deal with exceptions
-            return $this->_factory->createFormat('Xml', $options['type'], $options['version'])
-                ->load($content);
+            try {
+                return $this->_factory->createFormat('Xml', $options['type'], $options['version'])
+                    ->load($content);
+            } catch (Horde_Kolab_Format_Exception $e) {
+                throw new Horde_Kolab_Storage_Exception(
+                    sprintf(
+                        'Failed parsing Kolab object %s in folder %s: %s',
+                        $obid,
+                        $folder,
+                        $e->getMessage()
+                    ),
+                    0,
+                    $e
+                );
+            }
         } else {
             return array('content' => $content);
         }
@@ -117,11 +126,20 @@ implements Horde_Kolab_Storage_Data_Format
     public function matchMimeId($type, $types)
     {
         switch ($type) {
+        case 'contact':
+            return array_search('application/x-vnd.kolab.contact', $types);
+            break;
         case 'event':
             return array_search('application/x-vnd.kolab.event', $types);
             break;
         case 'note':
             return array_search('application/x-vnd.kolab.note', $types);
+            break;
+        case 'task':
+            return array_search('application/x-vnd.kolab.task', $types);
+            break;
+        case 'h-prefs':
+            return array_search('application/x-vnd.kolab.h-prefs', $types);
             break;
         case 'h-ledger':
             return array_search('application/x-vnd.kolab.h-ledger', $types);
@@ -136,15 +154,18 @@ implements Horde_Kolab_Storage_Data_Format
     public function getMimeType($type)
     {
         switch ($type) {
+        case 'contact':
+            return 'application/x-vnd.kolab.contact';
         case 'event':
             return 'application/x-vnd.kolab.event';
-            break;
         case 'note':
             return 'application/x-vnd.kolab.note';
-            break;
+        case 'task':
+            return 'application/x-vnd.kolab.task';
+        case 'h-prefs':
+            return 'application/x-vnd.kolab.h-prefs';
         case 'h-ledger':
             return 'application/x-vnd.kolab.h-ledger';
-            break;
         default:
             throw new Horde_Kolab_Storage_Exception(
                 sprintf('Unsupported object type %s!', $type)
@@ -219,12 +240,18 @@ implements Horde_Kolab_Storage_Data_Format
         $kolab = new Horde_Mime_Part();
         $kolab->setType($this->getMimeType($options['type']));
         if (empty($options['raw'])) {
-            $kolab->setContents(
-                $this->_factory
-                ->createFormat('Xml', $options['type'], $options['version'])
-                ->save($object),
-                array('encoding' => 'quoted-printable')
-            );
+            try {
+                $kolab->setContents(
+                    $this->_factory->createFormat(
+                        'Xml', $options['type'], $options['version']
+                    )->save($object),
+                    array('encoding' => 'quoted-printable')
+                );
+            } catch (Horde_Kolab_Format_Exception $e) {
+                throw new Horde_Kolab_Storage_Exception(
+                    'Failed saving Kolab object!', 0, $e
+                );
+            }
         } else {
             $kolab->setContents(
                 $object['content'],
@@ -245,19 +272,19 @@ implements Horde_Kolab_Storage_Data_Format
      * @param array                                 $object     The updated object.
      * @param array                                 $options    Additional options.
      *
-     * @return NULL
+     * @return string The ID of the modified object or true in case the backend
+     *                does not support this return value.
      */
-    public function modify(
-        Horde_Kolab_Storage_Data_Modifiable $modifiable,
-        $object,
-        array $options
-    ) {
+    public function modify(Horde_Kolab_Storage_Data_Modifiable $modifiable,
+                           $object,
+                           array $options)
+    {
         $mime_id = $this->matchMimeId(
             $options['type'], $modifiable->getStructure()->contentTypeMap()
         );
         $modifiable->setPart(
             $mime_id, $this->createKolabPart($object, $options)
-        ); 
-        $modifiable->store();
+        );
+        return $modifiable->store();
     }
 }

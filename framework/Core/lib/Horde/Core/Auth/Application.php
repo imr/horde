@@ -3,7 +3,7 @@
  * The Horde_Core_Auth_Application class provides application-specific
  * authentication built on top of the horde/Auth API.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you did
  * not receive this file, see http://opensource.org/licenses/lgpl-2.1.php
@@ -17,12 +17,9 @@
 class Horde_Core_Auth_Application extends Horde_Auth_Base
 {
     /**
-     * Authentication failure reasons (additions to Horde_Auth:: reasons).
-     *
-     * <pre>
-     * REASON_BROWSER - A browser change was detected
-     * REASON_SESSIONIP - Logout due to change of IP address during session
-     * </pre>
+     * Authentication failure reasons (additions to Horde_Auth:: reasons):
+     *   - REASON_BROWSER: A browser change was detected
+     *   - REASON_SESSIONIP: Logout due to change of IP address during session
      */
     const REASON_BROWSER = 100;
     const REASON_SESSIONIP = 101;
@@ -49,12 +46,11 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
     protected $_base;
 
     /**
-     * The view mode, used to determine if we show dynamic, mobile, traditional
-     * views.
+     * The view mode.
      *
      * @var string
      */
-    protected $_mode;
+    protected $_view = 'auto';
 
     /**
      * Available capabilities.
@@ -69,18 +65,17 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
         'remove',
         'resetpassword',
         'transparent',
-        'update'
+        'update',
+        'validate'
     );
 
     /**
      * Constructor.
      *
      * @param array $params  Required parameters:
-     * <pre>
-     * 'app' - (string) The application which is providing authentication.
-     * 'base' - (Horde_Auth_Base) The base Horde_Auth driver. Only needed if
-                'app' is 'horde'.
-     * </pre>
+     *   - app: (string) The application which is providing authentication.
+     *   - base: (Horde_Auth_Base) The base Horde_Auth driver. Only needed if
+     *           'app' is 'horde'.
      *
      * @throws InvalidArgumentException
      */
@@ -132,9 +127,9 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
             return false;
         }
 
-        /* Remember the user's mode choice, if applicable */
+        /* Remember the user's mode choice, if applicable. */
         if (!empty($credentials['mode'])) {
-            $this->_mode = $credentials['mode'];
+            $this->_view = $credentials['mode'];
         }
 
         return $this->_setAuth();
@@ -168,8 +163,12 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
      */
     public function validateAuth()
     {
-        return $this->_base
-            ? $this->_base->validateAuth()
+        if ($this->_base) {
+            return $this->_base->validateAuth();
+        }
+
+        return $this->hasCapability('validate')
+            ? $GLOBALS['registry']->callAppMethod($this->_app, 'authValidate', array('noperms' => true))
             : parent::validateAuth();
     }
 
@@ -194,7 +193,70 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
             parent::addUser($userId, $credentials);
         }
     }
+    /**
+     * Locks a user indefinitely or for a specified time
+     *
+     * @param string $userId      The userId to lock.
+     * @param integer $time       The duration in seconds, 0 = permanent
+     *
+     * @throws Horde_Auth_Exception
+     */
+    public function lockUser($userId, $time = 0)
+    {
+        if ($this->_base) {
+            $this->_base->lockUser($userId, $time);
+            return;
+        }
 
+        if ($this->hasCapability('lock')) {
+            $GLOBALS['registry']->callAppMethod($this->_app, 'authLockUser', array('args' => array($userId, $time)));
+        } else {
+            parent::lockUser($userId, $time);
+        }
+    }
+
+    /**
+     * Unlocks a user and optionally resets bad login count
+     *
+     * @param string  $userId          The userId to unlock.
+     * @param boolean $resetBadLogins  Reset bad login counter, default no.
+     *
+     * @throws Horde_Auth_Exception
+     */
+    public function unlockUser($userId, $resetBadLogins = false)
+    {
+        if ($this->_base) {
+            $this->_base->unlockUser($userId, $resetBadLogins);
+            return;
+        }
+
+        if ($this->hasCapability('lock')) {
+            $GLOBALS['registry']->callAppMethod($this->_app, 'authUnlockUser', array('args' => array($userId, $resetBadLogins)));
+        } else {
+            parent::unlockUser($userId, $resetBadLogins);
+        }
+    }
+
+    /**
+     * Checks if $userId is currently locked.
+     *
+     * @param string  $userId      The userId to check.
+     * @param boolean $show_details     Toggle array format with timeout.
+     *
+     * @throws Horde_Auth_Exception
+     */
+    public function isLocked($userId, $show_details = false)
+    {
+        if ($this->_base) {
+            return $this->_base->isLocked($userId, $show_details);
+        }
+
+        if ($this->hasCapability('lock')) {
+            return $GLOBALS['registry']->callAppMethod($this->_app, 'authIsLocked', array('args' => array($userId, $show_details)));
+        } else {
+            return parent::isLocked($userId, $show_details);
+        }
+    }
     /**
      * Update a set of authentication credentials.
      *
@@ -283,10 +345,8 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
     {
         global $registry;
 
-        $is_auth = $registry->getAuth();
-
         if (!($userId = $this->getCredential('userId'))) {
-            $userId = $is_auth;
+            $userId = $registry->getAuth();
         }
         if (!($credentials = $this->getCredential('credentials'))) {
             $credentials = $registry->getAuthCredential();
@@ -371,12 +431,10 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
      *
      * @param mixed $name  The credential value to get. If null, will return
      *                     the entire credential list. Valid names:
-     * <pre>
-     * 'change' - (boolean) Do credentials need to be changed?
-     * 'credentials' - (array) The credentials needed to authenticate.
-     * 'expire' - (integer) UNIX timestamp of the credential expiration date.
-     * 'userId' - (string) The user ID.
-     * </pre>
+     *   - change: (boolean) Do credentials need to be changed?
+     *   - credentials: (array) The credentials needed to authenticate.
+     *   - expire: (integer) UNIX timestamp of the credential expiration date.
+     *   - userId: (string) The user ID.
      *
      * @return mixed  Return the credential information, or null if the
      *                credential doesn't exist.
@@ -441,10 +499,8 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
      *
      * @return array  An array with the following keys:
      * <pre>
-     * 'js_code' - (array) A list of javascript statements to be included via
-     *             Horde::addInlineScript().
-     * 'js_files' - (array) A list of javascript files to be included via
-     *              Horde::addScriptFile().
+     * 'js_code' - (array) A list of javascript statements to be included.
+     * 'js_files' - (array) A list of javascript files to be included.
      * 'params' - (array) A list of parameters to display on the login screen.
      *            Each entry is an array with the following entries:
      *            'label' - (string) The label of the entry.
@@ -510,10 +566,10 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
 
         try {
             $result = Horde::callHook($type, array($userId, $credentials), $this->_app);
-        } catch (Horde_Exception $e) {
-            throw new Horde_Auth_Exception($e);
         } catch (Horde_Exception_HookNotSet $e) {
             return $ret_array;
+        } catch (Horde_Exception $e) {
+            throw new Horde_Auth_Exception($e);
         }
 
         unset($credentials['authMethod']);
@@ -560,11 +616,11 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
 
         /* Destroy any existing session on login and make sure to use a
          * new session ID, to avoid session fixation issues. */
-        if (!$registry->getAuth()) {
-            $registry->getCleanSession();
+        if (($userId = $registry->getAuth()) === false) {
+            $GLOBALS['session']->clean();
+            $userId = $this->getCredential('userId');
         }
 
-        $userId = $this->getCredential('userId');
         $credentials = $this->getCredential('credentials');
 
         try {
@@ -580,9 +636,10 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
         ));
 
         /* Only set the view mode on initial authentication */
-        if (!$GLOBALS['session']->get('horde', 'mode')) {
-            $this->_setMode();
+        if (!$GLOBALS['session']->exists('horde', 'view')) {
+            $this->_setView();
         }
+
         if ($this->_base &&
             isset($GLOBALS['notification']) &&
             ($expire = $this->_base->getCredential('expire'))) {
@@ -590,44 +647,93 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
             $GLOBALS['notification']->push(sprintf(Horde_Core_Translation::ngettext("%d day until your password expires.", "%d days until your password expires.", $toexpire), $toexpire), 'horde.warning');
         }
 
-        $registry->callAppMethod($this->_app, 'authAuthenticateCallback', array('noperms' => true));
-
         return true;
     }
 
     /**
      * Sets the default global view mode in the horde session. This can be
-     * checked by applications, and  overridden if desired. Also sets a cookie
+     * checked by applications, and overridden if desired. Also sets a cookie
      * to remember the last view selection if applicable.
      */
-    protected function _setMode()
+    protected function _setView()
     {
-        global $conf, $browser, $prefs, $registry;
+        global $conf, $browser, $notification, $prefs, $registry, $session;
+
+        $mode = $this->_view;
 
         if (empty($conf['user']['force_view'])) {
             if (empty($conf['user']['select_view'])) {
-                // No value from login form, try to detect.
-                // THIS IS A HACK. DO PROPER SMARTPHONE DETECTION.
-                if ($browser->isMobile()) {
-                    $this->_mode = $browser->getBrowser() == 'webkit' ? 'smartmobile' : 'mobile';
-                } else {
-                    // App prefs will decide
-                    $this->_mode = 'auto';
-                }
+                $mode = 'auto';
             } else {
-                setcookie('default_horde_view', $this->_mode, time() + 30 * 86400, $conf['cookie']['path'], $conf['cookie']['domain']);
-                if ($browser->isMobile() && $this->_mode == 'auto') {
-                    $this->_mode = $browser->getBrowser() == 'webkit' ? 'smartmobile' : 'mobile';
-                }
+                setcookie('default_horde_view', $mode, time() + 30 * 86400, $conf['cookie']['path'], $conf['cookie']['domain']);
             }
         } else {
             // Forcing mode as per config.
-            $this->_mode = $conf['user']['force_view'];
+            $mode = $conf['user']['force_view'];
         }
 
-        // Set it in the session.
-        $GLOBALS['session']->set('horde', 'mode', $this->_mode);
+        /* $mode now contains the user's preference for view based on the
+         * login screen parameters and configuration. */
+        switch ($mode) {
+        case 'auto':
+            if ($browser->hasFeature('ajax')) {
+                $mode = $browser->isMobile()
+                    ? 'smartmobile'
+                    : 'dynamic';
+            } else {
+                $mode = $browser->isMobile()
+                    ? 'mobile'
+                    : 'traditional';
+            }
+            break;
+
+        case 'dynamic':
+            if (!$browser->hasFeature('ajax')) {
+                if ($browser->hasFeature('javascript')) {
+                    $notification->push(_("Your browser does not support the dynamic view. Using traditional view instead."), 'horde.warning');
+                    $mode = 'traditional';
+                } else {
+                    $notification->push(_("Your browser does not support the dynmic view. Using minimal view instead."), 'horde.warning');
+                    $mode = 'mobile';
+                }
+            }
+            break;
+
+        case 'smartmobile':
+            if (!$browser->hasFeature('ajax')) {
+                $notification->push(_("Your browser does not support the dynamic view. Using minimal view instead."), 'horde.warning');
+                $mode = 'mobile';
+            }
+            break;
+
+        case 'traditional':
+            if (!$browser->hasFeature('javascript')) {
+                $notification->push(_("Your browser does not support javascript. Using minimal view instead."), 'horde.warning');
+                $mode = 'mobile';
+            }
+            break;
+
+        case 'mobile':
+        default:
+            $mode = 'mobile';
+            break;
+        }
+
+        if (($browser->getBrowser() == 'msie') &&
+            ($browser->getMajor() < 7) &&
+            ($mode != 'traditional')) {
+            $notification->push(_("You are using an old, unsupported version of Internet Explorer. Various page formatting and features may not work properly until you upgrade your browser or, alternatively, use the minimal view instead."), 'horde.warning');
+        }
+
+        $registry_map = array(
+            'dynamic' => Horde_Registry::VIEW_DYNAMIC,
+            'mobile' => Horde_Registry::VIEW_MINIMAL,
+            'smartmobile' => Horde_Registry::VIEW_SMARTMOBILE,
+            'traditional' => Horde_Registry::VIEW_BASIC
+        );
+
+        $this->_view = $mode;
+        $registry->setView($registry_map[$mode]);
     }
 
 }
-

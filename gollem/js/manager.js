@@ -2,18 +2,10 @@
  * Provides the javascript for the manager.php script.
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  */
 
 var Gollem = {
-    toggleRow: function()
-    {
-        $$('table.striped tr').each(function(tr) {
-            var td = tr.select('TD');
-            tr.observe('mouseover', td.invoke.bind(td, 'addClassName', 'selected'));
-            tr.observe('mouseout', td.invoke.bind(td, 'removeClassName', 'selected'));
-        });
-    },
 
     getChecked: function()
     {
@@ -30,6 +22,15 @@ var Gollem = {
     getSelected: function()
     {
         return this.getChecked().pluck('value').join("\n");
+    },
+
+    toggleSelection: function()
+    {
+        var e = this.getElements(),
+            checked = (this.getChecked().size() != e.length);
+        e.each(function(f) {
+            f.checked = checked;
+        });
     },
 
     getItemsArray: function()
@@ -74,7 +75,12 @@ var Gollem = {
                 break;
 
             case 'chmod_modify':
-                $('attributes').show();
+                HordeDialog.display({
+                    form: $('attributes').clone(true).show(),
+                    form_id: 'chmodfrm',
+                    form_opts: { action: GollemVar.actionUrl },
+                    header: GollemText.permissions
+                });
                 break;
 
             case 'cut_items':
@@ -91,27 +97,11 @@ var Gollem = {
         }
     },
 
-    changeDirectory: function(e)
-    {
-        this._prepPopup('changeDirectory', e.element());
-        $('cdfrm_fname').focus();
-        e.stop();
-    },
-
-    createFolder: function(e)
-    {
-        this._prepPopup('createFolder', e.element());
-        $('createfrm_fname').focus();
-        e.stop();
-    },
-
-    _prepPopup: function(elt, elt2)
+    _clearChecks: function()
     {
         this.getChecked().each(function(e) {
             e.checked = false;
         });
-
-        $(elt).clonePosition(elt2, { setWidth: false, setHeight: false, offsetTop: elt2.getHeight() }).show();
     },
 
     renameItems: function()
@@ -119,9 +109,12 @@ var Gollem = {
         var c = this.getChecked();
         if (c.size()) {
             c[0].checked = false;
-            $('rename').show();
             $('renamefrm_oldname').setValue(c[0].value);
-            $('renamefrm_newname').setValue(c[0].value).focus();
+            HordeDialog.display({
+                form_id: 'renamefrm',
+                input_val: c[0].value,
+                text: GollemText.rename
+            });
         }
     },
 
@@ -147,68 +140,30 @@ var Gollem = {
         }
     },
 
-    toggleSelection: function()
-    {
-        var e = this.getElements(),
-            checked = (this.getChecked().size() != e.length);
-        e.each(function(f) {
-            f.checked = checked;
-        });
-    },
-
     createFolderOK: function()
     {
-        $('createFolder').hide();
-        if ($F('createfrm_fname')) {
-            $('new_folder').setValue($F('createfrm_fname'));
+        if ($F('dialog_input')) {
+            $('new_folder').setValue($F('dialog_input'));
             $('actionID').setValue('create_folder');
             $('manager').submit();
         }
     },
 
-    createFolderKeyCheck: function(e)
-    {
-        switch (e.keyCode) {
-        case Event.KEY_ESC:
-            this.createFolderCancel();
-            return false;
-
-        case EVENT.KEY_RETURN:
-            this.createFolderOK();
-            return false;
-        }
-        return true;
-    },
-
-    createFolderCancel: function()
-    {
-        $('createFolder').hide();
-        $('createfrm').reset();
-    },
-
-    chmodCancel: function()
-    {
-        $('attributes').hide();
-        $('chmodfrm').reset();
-    },
-
-    chmodSave: function()
+    chmodOK: function()
     {
         var all = group = owner = 0;
 
         $('chmodfrm').getElements().each(function(e) {
-            if (e.name == "owner[]" && e.checked) {
+            if (e.name == 'owner[]' && e.checked) {
                 owner |= e.value;
-            } else if (e.name == "group[]" && e.checked) {
+            } else if (e.name == 'group[]' && e.checked) {
                 group |= e.value;
-            } else if (e.name == "all[]" && e.checked) {
+            } else if (e.name == 'all[]' && e.checked) {
                 all |= e.value;
             }
         });
 
-        $('attributes').hide();
-
-        $('chmod').setValue("0" + owner + "" + group + "" + all);
+        $('chmod').setValue('0' + owner + '' + group + '' + all);
         $('actionID').setValue('chmod_modify');
         $('manager').submit();
     },
@@ -216,20 +171,20 @@ var Gollem = {
     renameOK: function()
     {
         var c = this.getChecked(),
-            newname = $F('renamefrm_newname'),
+            newname = $F('dialog_input'),
             newNames = $F('new_names'),
             oldname = $F('renamefrm_oldname'),
             oldNames = $F('old_names');
 
         if (newname && newname != oldname) {
-            newNames += "|" + newname;
-            oldNames += "|" + oldname;
+            newNames += '|' + newname;
+            oldNames += '|' + oldname;
         }
 
-        if (newNames.startsWith("|")) {
+        if (newNames.startsWith('|')) {
             newNames = newNames.substring(1);
         }
-        if (oldNames.startsWith("|")) {
+        if (oldNames.startsWith('|')) {
             oldNames = oldNames.substring(1);
         }
 
@@ -237,65 +192,30 @@ var Gollem = {
         $('old_names').setValue(oldNames);
 
         if (c.size()) {
-            c[0].checked = false;
-            found = true;
-            $('rename').show();
-            $F(c[0]).focus();
+            this.renameItems.defer();
         } else {
             $('actionID').setValue('rename_items');
             $('manager').submit();
         }
-
-        return false;
-    },
-
-    renameCancel: function()
-    {
-        $('new_names', 'old_names').invoke('setValue', '');
-        $('rename').hide();
-    },
-
-    renameKeyCheck: function(e)
-    {
-        switch (e.keyCode) {
-        case Event.KEY_ESC:
-            this.renameCancel();
-            return false;
-
-        case EVENT.KEY_RETURN:
-            this.renameOK();
-            return false;
-        }
-        return true;
     },
 
     changeDirectoryOK: function()
     {
-        $('changeDirectory').hide();
-        if ($F('cdfrm_fname')) {
-            $('dir').setValue($F('cdfrm_fname'));
+        if ($F('dialog_input')) {
+            $('dir').setValue($F('dialog_input'));
             $('manager').submit();
         }
     },
 
-    changeDirectoryKeyCheck: function(e)
+    applyFilter: function()
     {
-        switch (e.keyCode) {
-        case Event.KEY_ESC:
-            this.changeDirectoryCancel();
-            return false;
-
-        case EVENT.KEY_RETURN:
-            this.changeDirectoryOK();
-            return false;
-        }
-        return true;
+        $('manager').submit();
     },
 
-    changeDirectoryCancel: function()
+    clearFilter: function()
     {
-        $('changeDirectory').hide();
-        $('cdfrm').reset();
+        $('filter').setValue('');
+        this.applyFilter();
     },
 
     uploadFields: function()
@@ -311,17 +231,6 @@ var Gollem = {
             $('actionID').setValue('upload_file');
             $('manager').submit();
         }
-    },
-
-    applyFilter: function()
-    {
-        $('manager').submit();
-    },
-
-    clearFilter: function()
-    {
-        $('filter').setValue('');
-        this.applyFilter();
     },
 
     uploadsExist: function()
@@ -359,30 +268,104 @@ var Gollem = {
         }
     },
 
-    doPrefsUpdate: function(column, sortDown)
+    clickHandler: function(e)
     {
-        try {
-            new Ajax.Request(GollemVar.URI_AJAX + 'setPrefValue', { parameters: { pref: 'sortby', value: column.substring(1) } });
-            new Ajax.Request(GollemVar.URI_AJAX + 'setPrefValue', { parameters: { pref: 'sortdir', value: sortDown } });
-        } catch (e) {}
+        if (e.isRightClick()) {
+            return;
+        }
+
+        var id, tmp,
+            elt = e.element();
+
+        while (Object.isElement(elt)) {
+            id = elt.readAttribute('id');
+
+            switch (id) {
+            case 'changefolder':
+                this._clearChecks();
+                HordeDialog.display({
+                    form_id: 'cdfrm',
+                    text: GollemText.change_directory
+                });
+                e.stop();
+                return;
+
+            case 'checkall':
+                this.toggleSelection();
+                break;
+
+            case 'createfolder':
+                this._clearChecks();
+                HordeDialog.display({
+                    form_id: 'createfrm',
+                    text: GollemText.create_folder
+                });
+                e.stop();
+                return;
+
+            case 'filterapply':
+                this.applyFilter();
+                break;
+
+            case 'filterclear':
+                this.clearFilter();
+                break;
+
+            case 'uploadfile':
+                this.uploadFile();
+                break;
+            }
+
+            elt = elt.up();
+        }
+    },
+
+    okHandler: function(e)
+    {
+        switch (e.element().identify()) {
+        case 'cdfrm':
+            Gollem.changeDirectoryOK();
+            break;
+
+        case 'chmodfrm':
+            Gollem.chmodOK();
+            break;
+
+        case 'createfrm':
+            Gollem.createFolderOK();
+            break;
+
+        case 'renamefrm':
+            Gollem.renameOK();
+            break;
+        }
+    },
+
+    closeHandler: function(e)
+    {
+        $('new_names', 'old_names').invoke('setValue', '');
+    },
+
+    onDomLoad: function()
+    {
+        var tmp;
+
+        // Observe actual event since IE does not bubble change events.
+        if (tmp = $('action1')) {
+            tmp.observe('change', function() {
+                this.chooseAction(1);
+                $('action1').selectedIndex = 0;
+            }.bind(this));
+        }
+
+        if (tmp = $('file_upload_1')) {
+            tmp.observe('change', this.uploadChanged.bind(this));
+        }
     }
+
 };
 
-function table_sortCallback(tableId, column, sortDown)
-{
-    if (Gollem.prefs_update_timeout) {
-        window.clearTimeout(Gollem.prefs_update_timeout);
-    }
-    Gollem.prefs_update_timeout = Gollem.doPrefsUpdate.bind(this, column, sortDown).delay(0.3);
-}
-
-document.observe('dom:loaded', function() {
-    var tmp;
-    Gollem.toggleRow()
-    if (tmp = $('createfolder')) {
-        tmp.observe('click', Gollem.createFolder.bindAsEventListener(Gollem));
-    }
-    if (tmp = $('changefolder')) {
-        tmp.observe('click', Gollem.changeDirectory.bindAsEventListener(Gollem));
-    }
-});
+document.observe('dom:loaded', Gollem.onDomLoad.bind(Gollem));
+document.observe('click', Gollem.clickHandler.bindAsEventListener(Gollem));
+document.observe('HordeDialog:onClick', Gollem.okHandler.bindAsEventListener(Gollem));
+document.observe('HordeDialog:close', Gollem.closeHandler.bindAsEventListener(Gollem));

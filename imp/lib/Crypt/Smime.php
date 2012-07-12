@@ -3,14 +3,14 @@
  * The IMP_Crypt_Smime:: class contains all functions related to handling
  * S/MIME messages within IMP.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author   Mike Cochrane <mike@graftonhall.co.nz>
  * @category Horde
- * @license  http://www.fsf.org/copyleft/gpl.html GPL
+ * @license  http://www.horde.org/licenses/gpl GPL
  * @package  IMP
  */
 class IMP_Crypt_Smime extends Horde_Crypt_Smime
@@ -121,11 +121,11 @@ class IMP_Crypt_Smime extends Horde_Crypt_Smime
      *
      * @param string $cert  A public certificate to add.
      *
-     * @throws Horde_Crypt_Exception
+     * @throws Horde_Exception
      */
     public function addPublicKey($cert)
     {
-        list($name, $mail) = $this->publicKeyInfo($cert);
+        list($name, $email) = $this->publicKeyInfo($cert);
 
         $GLOBALS['registry']->call('contacts/addField', array($email, $name, self::PUBKEY_FIELD, $cert, $GLOBALS['prefs']->getValue('add_source')));
     }
@@ -146,43 +146,39 @@ class IMP_Crypt_Smime extends Horde_Crypt_Smime
             throw new Horde_Crypt_Exception(_("Not a valid public key."));
         }
 
-        /* Get the name corresponding to this key. */
-        if (isset($key_info['subject']['CN'])) {
-            $name = $key_info['subject']['CN'];
-        } elseif (isset($key_info['subject']['OU'])) {
-            $name = $key_info['subject']['OU'];
-        } else {
-            throw new Horde_Crypt_Exception(_("Not a valid public key."));
-        }
-
         /* Add key to the user's address book. */
         $email = $this->getEmailFromKey($cert);
         if (is_null($email)) {
             throw new Horde_Crypt_Exception(_("No email information located in the public key."));
         }
 
-        return array($name, $mail);
+        /* Get the name corresponding to this key. */
+        if (isset($key_info['subject']['CN'])) {
+            $name = $key_info['subject']['CN'];
+        } elseif (isset($key_info['subject']['OU'])) {
+            $name = $key_info['subject']['OU'];
+        } else {
+            $name = $email;
+        }
+
+        return array($name, $email);
     }
 
     /**
      * Returns the params needed to encrypt a message being sent to the
      * specified email address.
      *
-     * @param string $address  The e-mail address of the recipient.
+     * @param Horde_Mail_Rfc822_Address $address  The e-mail address of the
+     *                                            recipient.
      *
      * @return array  The list of parameters needed by encrypt().
      * @throws Horde_Crypt_Exception
      */
-    protected function _encryptParameters($address)
+    protected function _encryptParameters(Horde_Mail_Rfc822_Address $address)
     {
         /* We can only encrypt if we are sending to a single person. */
-        $addrOb = Horde_Mime_Address::bareAddress($address, $GLOBALS['session']->get('imp', 'maildomain'), true);
-        $key_addr = array_pop($addrOb);
-
-        $public_key = $this->getPublicKey($key_addr);
-
         return array(
-            'pubkey' => $public_key,
+            'pubkey' => $this->getPublicKey($address->bare_address),
             'type' => 'message'
         );
     }
@@ -294,7 +290,12 @@ class IMP_Crypt_Smime extends Horde_Crypt_Smime
      */
     public function decryptMessage($text)
     {
-        return $this->decrypt($text, array('type' => 'message', 'pubkey' => $this->getPersonalPublicKey(), 'privkey' => $this->getPersonalPrivateKey(), 'passphrase' => $this->getPassphrase()));
+        return $this->decrypt($text, array(
+            'type' => 'message',
+            'pubkey' => $this->getPersonalPublicKey(),
+            'privkey' => $this->getPersonalPrivateKey(),
+            'passphrase' => $this->getPassphrase()
+        ));
     }
 
     /**
@@ -315,7 +316,7 @@ class IMP_Crypt_Smime extends Horde_Crypt_Smime
 
         if ($session->exists('imp', 'smime_passphrase')) {
             $secret = $GLOBALS['injector']->getInstance('Horde_Secret');
-            return $secret->read($secret->getKey('imp'), $session->get('imp', 'smime_passphrase'));
+            return $secret->read($secret->getKey(), $session->get('imp', 'smime_passphrase'));
         } elseif (!$session->exists('imp', 'smime_null_passphrase')) {
             $session->set(
                 'imp',
@@ -343,7 +344,7 @@ class IMP_Crypt_Smime extends Horde_Crypt_Smime
         }
 
         $secret = $GLOBALS['injector']->getInstance('Horde_Secret');
-        $GLOBALS['session']->set('imp', 'smime_passphrase', $secret->write($secret->getKey('imp'), $passphrase));
+        $GLOBALS['session']->set('imp', 'smime_passphrase', $secret->write($secret->getKey(), $passphrase));
 
         return true;
     }
@@ -360,36 +361,17 @@ class IMP_Crypt_Smime extends Horde_Crypt_Smime
     }
 
     /**
-     * Generates the javascript code for saving public keys.
-     *
-     * @param string $mailbox  The mailbox of the message.
-     * @param integer $uid     The UID of the message.
-     * @param string $id       The MIME ID of the message.
-     *
-     * @return string  The URL for saving public keys.
-     */
-    public function savePublicKeyURL($mailbox, $uid, $id)
-    {
-        $params = array(
-            'actionID' => 'save_attachment_public_key',
-            'mailbox' => $mailbox,
-            'uid' => $uid,
-            'mime_id' => $id
-        );
-        return Horde::popupJs(Horde::url('smime.php'), array('params' => $params, 'height' => 200, 'width' => 450));
-    }
-
-    /**
      * Encrypt a MIME_Part using S/MIME using IMP defaults.
      *
-     * @param MIME_Part $mime_part  The MIME_Part object to encrypt.
-     * @param mixed $to_address     The e-mail address of the key to use for
-     *                              encryption.
+     * @param Horde_Mime_Part $mime_part             The object to encrypt.
+     * @param Horde_Mail_Rfc822_Address $to_address  The e-mail address of the
+     *                                               key to use for encryption.
      *
      * @return MIME_Part  See Horde_Crypt_Smime::encryptMIMEPart().
      * @throws Horde_Crypt_Exception
      */
-    public function IMPencryptMIMEPart($mime_part, $to_address)
+    public function IMPencryptMIMEPart($mime_part,
+                                       Horde_Mail_Rfc822_Address $to_address)
     {
         return $this->encryptMIMEPart($mime_part, $this->_encryptParameters($to_address));
     }
@@ -410,14 +392,16 @@ class IMP_Crypt_Smime extends Horde_Crypt_Smime
     /**
      * Sign and encrypt a MIME_Part using S/MIME using IMP defaults.
      *
-     * @param MIME_Part $mime_part  The MIME_Part object to sign and encrypt.
-     * @param string $to_address    The e-mail address of the key to use for
-     *                              encryption.
+     * @param Horde_Mime_Part $mime_part             The object to sign and
+     *                                               encrypt.
+     * @param Horde_Mail_Rfc822_Address $to_address  The e-mail address of the
+     *                                               key to use for encryption.
      *
      * @return MIME_Part  See Horde_Crypt_Smime::signAndencryptMIMEPart().
      * @throws Horde_Crypt_Exception
      */
-    public function IMPsignAndEncryptMIMEPart($mime_part, $to_address)
+    public function IMPsignAndEncryptMIMEPart($mime_part,
+                                              Horde_Mail_Rfc822_Address $to_address)
     {
         return $this->signAndEncryptMIMEPart($mime_part, $this->_signParameters(), $this->_encryptParameters($to_address));
     }
@@ -505,14 +489,19 @@ class IMP_Crypt_Smime extends Horde_Crypt_Smime
      */
     public function importKeyDialog($target, $reload)
     {
-        $title = _("Import S/MIME Key");
-        require IMP_TEMPLATES . '/common-header.inc';
+        IMP::header(_("Import S/MIME Key"));
+
+        /* Need to use regular status notification - AJAX notifications won't
+         * show in popup windows. */
+        if ($GLOBALS['registry']->getView() == Horde_Registry::VIEW_DYNAMIC) {
+            $GLOBALS['notification']->detach('status');
+            $GLOBALS['notification']->attach('status');
+        }
         IMP::status();
 
         $t = $GLOBALS['injector']->createInstance('Horde_Template');
         $t->setOption('gettext', true);
         $t->set('selfurl', Horde::url('smime.php'));
-        $t->set('broken_mp_form', $GLOBALS['browser']->hasQuirk('broken_multipart_form'));
         $t->set('reload', htmlspecialchars($reload));
         $t->set('target', $target);
         $t->set('forminput', Horde_Util::formInput());

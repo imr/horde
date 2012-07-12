@@ -3,34 +3,34 @@
  * Test cases for Ingo_Script_sieve:: class
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author     Jason M. Felice <jason.m.felice@gmail.com>
  * @package    Ingo
  * @subpackage UnitTests
  */
 
-require_once dirname(__FILE__) . '/TestBase.php';
+require_once __DIR__ . '/TestBase.php';
 
 class Ingo_MaildropTest extends Ingo_TestBase {
 
     function store($ob)
     {
-        return $GLOBALS['ingo_storage']->store($ob);
+        $GLOBALS['ingo_storage']->store($ob);
     }
 
     function setUp()
     {
-        $GLOBALS['ingo_storage'] = Ingo_Storage::factory(
-            'mock',
-            array('maxblacklist' => 3,
-                  'maxwhitelist' => 3));
-        $GLOBALS['ingo_script'] = Ingo_Script::factory(
-            'maildrop',
-            array('path_style' => 'mbox',
-                  'spam_compare' => 'string',
-                  'spam_header' => 'X-Spam-Level',
-                  'spam_char' => '*'));
+        $GLOBALS['ingo_storage'] = new Ingo_Storage_Mock(array(
+            'maxblacklist' => 3,
+            'maxwhitelist' => 3
+        ));
+        $GLOBALS['ingo_script'] = new Ingo_Script_Maildrop(array(
+            'path_style' => 'mbox',
+            'spam_compare' => 'string',
+            'spam_header' => 'X-Spam-Level',
+            'spam_char' => '*'
+        ));
     }
 
     function testForwardKeep()

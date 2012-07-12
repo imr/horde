@@ -9,12 +9,10 @@
  * - user:     The user name for HTTP Basic Authentication.
  * - password: The password for HTTP Basic Authentication.
  *
- * Copyright 2004-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2004-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
- *
- * @todo Replace session cache
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @author  Chuck Hagenbuch <chuck@horde.org>
  * @author  Jan Schneider <jan@horde.org>
@@ -84,33 +82,43 @@ class Kronolith_Driver_Ical extends Kronolith_Driver
      * Lists all events in the time range, optionally restricting results to
      * only events with alarms.
      *
-     * @param Horde_Date $startInterval  Start of range date object.
-     * @param Horde_Date $endInterval    End of range data object.
-     * @param boolean $showRecurrence    Return every instance of a recurring
-     *                                   event? If false, will only return
-     *                                   recurring events once inside the
-     *                                   $startDate - $endDate range.
-     * @param boolean $hasAlarm          Only return events with alarms?
-     * @param boolean $json              Store the results of the events'
-     *                                   toJson() method?
-     * @param boolean $coverDates        Whether to add the events to all days
-     *                                   that they cover.
+     * @param Horde_Date $startDate  The start of range date.
+     * @param Horde_Date $endDate    The end of date range.
+     * @param array $options         Additional options:
+     *   - show_recurrence: (boolean) Return every instance of a recurring
+     *                       event?
+     *                      DEFAULT: false (Only return recurring events once
+     *                      inside $startDate - $endDate range)
+     *   - has_alarm:       (boolean) Only return events with alarms.
+     *                      DEFAULT: false (Return all events)
+     *   - json:            (boolean) Store the results of the event's toJson()
+     *                      method?
+     *                      DEFAULT: false
+     *   - cover_dates:     (boolean) Add the events to all days that they
+     *                      cover?
+     *                      DEFAULT: true
+     *   - hide_exceptions: (boolean) Hide events that represent exceptions to
+     *                      a recurring event.
+     *                      DEFAULT: false (Do not hide exception events)
+     *   - fetch_tags:      (boolean) Fetch tags for all events.
+     *                      DEFAULT: false (Do not fetch event tags)
      *
-     * @return array  Events in the given time range.
      * @throws Kronolith_Exception
      */
-    public function listEvents($startDate = null, $endDate = null,
-                               $showRecurrence = false, $hasAlarm = false,
-                               $json = false, $coverDates = true)
+    protected function _listEvents(Horde_Date $startDate = null,
+                                   Horde_Date $endDate = null,
+                                   array $options = array())
     {
         if ($this->isCalDAV()) {
-            return $this->_listCalDAVEvents($startDate, $endDate,
-                                            $showRecurrence, $hasAlarm,
-                                            $json, $coverDates);
+            return $this->_listCalDAVEvents(
+                $startDate, $endDate, $options['show_recurrence'],
+                $options['has_alarm'], $options['json'],
+                $options['cover_dates']);
         }
-        return $this->_listWebDAVEvents($startDate, $endDate,
-                                        $showRecurrence, $hasAlarm,
-                                        $json, $coverDates);
+        return $this->_listWebDAVEvents(
+            $startDate, $endDate, $options['show_recurrence'],
+            $options['has_alarm'], $options['json'],
+            $options['cover_dates']);
     }
 
     /**
@@ -235,7 +243,7 @@ class Kronolith_Driver_Ical extends Kronolith_Driver
         $url = $this->_getUrl();
         list($response, $events) = $this->_request('REPORT', $url, $xml,
                                           array('Depth' => 1));
-        if (!$events->response) {
+        if (!$events->children('DAV:')->response) {
             return array();
         }
         if (!($path = $response->getHeader('content-location'))) {
@@ -244,10 +252,13 @@ class Kronolith_Driver_Ical extends Kronolith_Driver
         }
 
         $results = array();
-        foreach ($events->response as $response) {
+        foreach ($events->children('DAV:')->response as $response) {
+            if (!$response->children('DAV:')->propstat) {
+                continue;
+            }
             $ical = new Horde_Icalendar();
             try {
-                $result = $ical->parsevCalendar($response->propstat->prop->children('urn:ietf:params:xml:ns:caldav')->{'calendar-data'});
+                $result = $ical->parsevCalendar($response->children('DAV:')->propstat->prop->children('urn:ietf:params:xml:ns:caldav')->{'calendar-data'});
             } catch (Horde_Icalendar_Exception $e) {
                 throw new Kronolith_Exception($e);
             }
@@ -349,7 +360,9 @@ class Kronolith_Driver_Ical extends Kronolith_Driver
     public function getEvent($eventId = null)
     {
         if (!$eventId) {
-            return new Kronolith_Event_Ical($this);
+            $event = new Kronolith_Event_Ical($this);
+            $event->permission = $this->getPermission();
+            return $event;
         }
 
         if ($this->isCalDAV()) {
@@ -433,8 +446,8 @@ class Kronolith_Driver_Ical extends Kronolith_Driver
 
         $response = $this->_saveEvent($event);
         if (!in_array($response->code, array(200, 201, 204))) {
-            Horde::logMessage(sprintf('Failed to create event on remote calendar: url = "%s", status = %s',
-                                      $url, $response->code), 'INFO');
+            Horde::logMessage(sprintf('Failed to create event on remote calendar: status = %s',
+                                      $response->code), 'INFO');
             throw new Kronolith_Exception(_("The event could not be added to the remote server."));
         }
         return $event->id;
@@ -500,9 +513,9 @@ class Kronolith_Driver_Ical extends Kronolith_Driver
     }
 
     /**
-     * Fetches a remote calendar into the session and return the data.
+     * Fetches a remote calendar into the cache and return the data.
      *
-     * @param boolean $cache  Whether to return data from the session cache.
+     * @param boolean $cache  Whether to return data from the cache.
      *
      * @return Horde_Icalendar  The calendar data.
      * @throws Kronolith_Exception
@@ -541,7 +554,7 @@ class Kronolith_Driver_Ical extends Kronolith_Driver
             $body = $response->getBody();
             if ($body) {
                 $error .= ' ' . _("This is what the server said:")
-                    . ' ' . Horde_String::truncate($body);
+                    . ' ' . Horde_String::truncate(strip_tags($body));
             }
             if ($cache) {
                 $cacheOb->set($signature, serialize($error));
@@ -606,7 +619,7 @@ class Kronolith_Driver_Ical extends Kronolith_Driver
             }
             $this->_davSupport = preg_split('/,\s*/', $dav);
             if (!in_array('3', $this->_davSupport)) {
-                throw new Kronolith_Exception(_("This remote server only supports an outdated WebDAV protocol."));
+                Horde::logMessage(sprintf('The remote server at %s doesn\'t support an WebDAV protocol version 3.', $url), 'WARN');
             }
             if (!in_array('calendar-access', $this->_davSupport)) {
                 return false;
@@ -624,13 +637,13 @@ class Kronolith_Driver_Ical extends Kronolith_Driver
             $xml->endDocument();
             list(, $properties) = $this->_request('PROPFIND', $url, $xml,
                                                   array('Depth' => 0));
-            if (!$properties->response->propstat->prop->resourcetype->collection) {
+            if (!$properties->children('DAV:')->response->propstat->prop->resourcetype->collection) {
                 throw new Kronolith_Exception(_("The remote server URL does not point to a CalDAV directory."));
             }
 
             /* Read ACLs. */
-            if ($properties->response->propstat->prop->{'current-user-privilege-set'}) {
-                foreach ($properties->response->propstat->prop->{'current-user-privilege-set'}->privilege as $privilege) {
+            if ($properties->children('DAV:')->response->propstat->prop->{'current-user-privilege-set'}) {
+                foreach ($properties->children('DAV:')->response->propstat->prop->{'current-user-privilege-set'}->privilege as $privilege) {
                     if ($privilege->all) {
                         $this->_permission = Horde_Perms::ALL;
                         break;
@@ -735,10 +748,6 @@ class Kronolith_Driver_Ical extends Kronolith_Driver
      */
     protected function _getClient()
     {
-        if ($this->_client) {
-            return $this->_client;
-        }
-
         $options = array('request.timeout' => isset($this->_params['timeout'])
                                               ? $this->_params['timeout']
                                               : 5);

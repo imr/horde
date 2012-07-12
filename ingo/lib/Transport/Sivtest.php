@@ -3,41 +3,36 @@
  * Ingo_Transport_Sivtest implements the Sieve_Driver api to allow scripts to
  * be installed and set active via the Cyrus sivtest command line utility.
  *
- * Copyright 2003-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2003-2012 Horde LLC (http://www.horde.org/)
  * Copyright 2004-2007 Liam Hoekenga <liamr@umich.edu>
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author  Mike Cochrane <mike@graftonhall.co.nz>
  * @author  Jan Schneider <jan@horde.org>
  * @author  Liam Hoekenga <liamr@umich.edu>
  * @package Ingo
  */
-class Ingo_Transport_Sivtest extends Ingo_Transport
+class Ingo_Transport_Sivtest extends Ingo_Transport_Timsieved
 {
-    /**
-     * The Net_Sieve object.
-     *
-     * @var Net_Sieve
-     */
-    protected $_sieve;
-
     /**
      * Constructor.
      */
-    public function __construct($params = array())
+    public function __construct(array $params = array())
     {
         $default_params = array(
             'hostspec'   => 'localhost',
             'logintype'  => '',
-            'port'       => 2000,
+            'port'       => 4190,
             'scriptname' => 'ingo',
             'admin'      => '',
             'usetls'     => true,
             'command'    => '',
             'socket'     => '',
         );
+
+        $this->_supportShares = false;
 
         parent::__construct(array_merge($default_params, $params));
     }
@@ -57,53 +52,23 @@ class Ingo_Transport_Sivtest extends Ingo_Transport
             $this->_params['username'],
             $this->_params['password'],
             $this->_params['hostspec']);
-        $domain_socket = 'unix://' . $this->_params['socket'];
+
         $this->_sieve = new Net_Sieve(
             $this->_params['username'],
             $this->_params['password'],
-            $domain_socket,
+            'unix://' . $this->_params['socket'],
             0,
             null,
             null,
             false,
             true,
             $this->_params['usetls']);
+
         $res = $this->_sieve->getError();
         if ($res instanceof PEAR_Error) {
             unset($this->_sieve);
             throw new Ingo_Exception($res);
         }
-    }
-
-    /**
-     * Sets a script running on the backend.
-     *
-     * @param string $script  The sieve script.
-     *
-     * @throws Ingo_Exception
-     */
-    public function setScriptActive($script)
-    {
-        $this->_connect();
-
-        $res = $this->_sieve->haveSpace($this->_params['scriptname'], strlen($script));
-        if ($res instanceof PEAR_Error) {
-            throw new Ingo_Exception($res);
-        }
-
-        return $this->_sieve->installScript($this->_params['scriptname'], $script, true);
-    }
-
-    /**
-     * Returns the content of the currently active script.
-     *
-     * @return string  The complete ruleset of the specified user.
-     * @throws Ingo Exception
-     */
-    public function getScript()
-    {
-        $this->_connect();
-        return $this->_sieve->getScript($this->_sieve->getActive());
     }
 
     /**
@@ -122,8 +87,8 @@ class Ingo_Transport_Sivtest extends Ingo_Transport
         $command = '';
         $error_return = '';
 
-        if (strtolower($this->_params['logintype']) == 'gssapi'
-            && isset($_SERVER['KRB5CCNAME'])) {
+        if (strtolower($this->_params['logintype']) == 'gssapi' &&
+            isset($_SERVER['KRB5CCNAME'])) {
             $command .= 'KRB5CCNAME=' . $_SERVER['KRB5CCNAME'];
         }
 

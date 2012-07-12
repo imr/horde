@@ -2,24 +2,12 @@
 <package packagerversion="1.9.2" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
  <name>Horde_Kolab_Config</name>
  <channel>pear.horde.org</channel>
- <summary>A package for reading the Kolab server configuration.</summary>
+ <summary>A package for reading the Kolab server configuration</summary>
  <description>This package reads the various Kolab server configuration files. It should also support retrieving configuration parameters from LDAP but this is not yet implemented.</description>
  <lead>
   <name>Gunnar Wrobel</name>
   <user>wrobel</user>
   <email>p@rdus.de</email>
-  <active>yes</active>
- </lead>
- <lead>
-  <name>Chuck Hagenbuch</name>
-  <user>chuck</user>
-  <email>chuck@horde.org</email>
-  <active>yes</active>
- </lead>
- <lead>
-  <name>Jan Schneider</name>
-  <user>jan</user>
-  <email>jan@horde.org</email>
   <active>yes</active>
  </lead>
  <date>2011-03-07</date>
@@ -32,9 +20,9 @@
   <release>beta</release>
   <api>beta</api>
  </stability>
- <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+ <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
  <notes>
-*
+* [jan] Fix tests to work with PHPUnit 3.6.
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
@@ -83,7 +71,7 @@
  <dependencies>
   <required>
    <php>
-    <min>5.2.0</min>
+    <min>5.3.0</min>
    </php>
    <pearinstaller>
     <min>1.7.0</min>
@@ -93,9 +81,9 @@
    <package>
     <name>Horde_Test</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0beta1</min>
-    <max>2.0.0</max>
-    <exclude>2.0.0</exclude>
+    <min>2.0.0alpha1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
   </optional>
  </dependencies>
@@ -126,7 +114,7 @@
     <api>alpha</api>
    </stability>
    <date>2011-03-07</date>
-   <license uri="http://www.gnu.org/copyleft/lesser.html">LGPL</license>
+   <license uri="http://www.horde.org/licenses/lgpl21">LGPL-2.1</license>
    <notes>
 * First alpha release for Horde 4.
    </notes>

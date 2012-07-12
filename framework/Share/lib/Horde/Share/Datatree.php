@@ -3,11 +3,11 @@
  * Horde_Share_Datatree provides the datatree backend for the horde share
  * driver.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  * Copyright 2002-2007 Infoteck Internet <webmaster@infoteck.qc.ca>
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @author  Joel Vandal <joel@scopserv.com>
  * @author  Mike Cochrame <mike@graftonhall.co.nz>
@@ -161,7 +161,7 @@ class Horde_Share_Datatree extends Horde_Share_Base
     {
         $key = serialize(array($userid, $params['perm'], $params['attributes']));
         if (empty($this->_listCache[$key])) {
-            $criteria = $this->getShareCriteria($userid, $params['perm'],
+            $criteria = $this->_getShareCriteria($userid, $params['perm'],
                                                 $params['attributes']);
             $sharelist = $this->_datatree->getByAttributes($criteria,
                                                            DATATREE_ROOT,
@@ -195,7 +195,7 @@ class Horde_Share_Datatree extends Horde_Share_Base
     protected function _countShares($userid, $perm = Horde_Perms::SHOW,
                                     $attributes = null)
     {
-        $criteria = $this->getShareCriteria($userid, $perm, $attributes);
+        $criteria = $this->_getShareCriteria($userid, $perm, $attributes);
         return $this->_datatree->countByAttributes($criteria, DATATREE_ROOT, true, 'id');
     }
 
@@ -242,6 +242,19 @@ class Horde_Share_Datatree extends Horde_Share_Base
     }
 
     /**
+     * Renames a share in the shares system.
+     *
+     * @param Horde_Share_Object $share  The share to rename.
+     * @param string $name               The share's new name.
+     *
+     * @throws Horde_Share_Exception
+     */
+    protected function _renameShare(Horde_Share_Object $share, $name)
+    {
+        Horde_Exception_Pear::catchError($this->_datatree->rename($share->datatreeObject, $name));
+    }
+
+    /**
      * Checks if a share exists in the system.
      *
      * @param string $share  The share to check.
@@ -281,7 +294,7 @@ class Horde_Share_Datatree extends Horde_Share_Base
      *
      * @return array  The criteria tree for fetching this user's shares.
      */
-    public function getShareCriteria($userid, $perm = Horde_Perms::SHOW,
+    protected function _getShareCriteria($userid, $perm = Horde_Perms::SHOW,
                                          $attributes = null)
     {
         if (!empty($userid)) {

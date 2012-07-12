@@ -3,13 +3,13 @@
  * Horde_Form for editing resources.
  *
  * See the enclosed file COPYING for license information (GPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/gpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/gpl.
  *
  * @package Kronolith
  */
 
 /**
- * The Kronolith_EditResourceForm class provides the form for editing a
+ * The Kronolith_Form_EditResource class provides the form for editing a
  * resource.
  *
  * @author  Chuck Hagenbuch <chuck@horde.org>
@@ -62,7 +62,6 @@ class Kronolith_Form_EditResource extends Horde_Form
      */
     public function execute()
     {
-        $original_name = $this->_resource->get('name');
         $new_name = $this->_vars->get('name');
         $this->_resource->set('name', $new_name);
         $this->_resource->set('description', $this->_vars->get('description'));
@@ -104,7 +103,7 @@ class Kronolith_Form_EditResource extends Horde_Form
         }
 
         try {
-            $result = $this->_resource->save();
+            $this->_resource->save();
         } catch (Exception $e) {
             throw new Kronolith_Exception(sprintf(_("Unable to save resource \"%s\": %s"), $new_name, $e->getMessage()));
         }

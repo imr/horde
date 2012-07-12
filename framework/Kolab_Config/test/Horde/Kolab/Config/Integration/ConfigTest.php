@@ -8,14 +8,14 @@
  * @package    Kolab_Config
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Kolab_Config
  */
 
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/../Autoload.php';
+require_once __DIR__ . '/../Autoload.php';
 
 /**
  * Test the Kolab configuration handler.
@@ -23,13 +23,13 @@ require_once dirname(__FILE__) . '/../Autoload.php';
  * Copyright 2010 Klarälvdalens Datakonsult AB
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category   Kolab
  * @package    Kolab_Config
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Kolab_Config
  */
 class Horde_Kolab_Config_Integration_ConfigTest
@@ -45,7 +45,7 @@ extends Horde_Kolab_Config_ConfigStoryTestCase
             ->then('the Config Object will throw an exception of type', 'Horde_Kolab_Config_Exception')
             ->and('the exception has the message',
                   'No configuration files found in '
-                  . realpath(dirname(__FILE__) . '/../fixture/empty') . '.'
+                  . realpath(__DIR__ . '/../fixture/empty') . '.'
             );
     }
 

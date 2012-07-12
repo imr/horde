@@ -2,96 +2,37 @@
 /**
  * Turba Base Class.
  *
- * @author  Chuck Hagenbuch <chuck@horde.org>
- * @author  Jon Parise <jon@horde.org>
- * @package Turba
+ * Copyright 2000-2012 Horde LLC (http://www.horde.org/)
+ *
+ * See the enclosed file LICENSE for license information (ASL).  If you did
+ * did not receive this file, see http://www.horde.org/licenses/apache.
+ *
+ * @author   Chuck Hagenbuch <chuck@horde.org>
+ * @author   Jon Parise <jon@horde.org>
+ * @category Horde
+ * @license  http://www.horde.org/licenses/apache ASL
+ * @package  Turba
  */
 class Turba
 {
     /**
-     *  The virtual path to use for VFS data.
+     * The virtual path to use for VFS data.
      */
     const VFS_PATH = '.horde/turba/documents';
 
     /**
-     * @todo Consolidate on a single mail/compose method.
+     * The current source.
      *
-     * @param mixed $data  Either a single email address or an array of email
-     *                     addresses to format.
-     * @param string $name  The personal name phrase.
-     *
-     * @return mixed Either the formatted address or an array of formatted
-     *               addresses.
+     * @var string
      */
-    static public function formatEmailAddresses($data, $name)
-    {
-        global $registry;
-        static $useRegistry;
+    static public $source;
 
-        if (!isset($useRegistry)) {
-            $useRegistry = $registry->hasMethod('mail/batchCompose');
-        }
-
-        $array = is_array($data);
-        if (!$array) {
-            $data = array($data);
-        }
-
-        $addresses = array();
-        foreach ($data as $i => $email_vals) {
-            $email_vals = explode(',', $email_vals);
-            foreach ($email_vals as $j => $email_val) {
-                $email_val = trim($email_val);
-
-                // Format the address according to RFC822.
-                $mailbox_host = explode('@', $email_val);
-                if (!isset($mailbox_host[1])) {
-                    $mailbox_host[1] = '';
-                }
-                $address = Horde_Mime_Address::writeAddress($mailbox_host[0], $mailbox_host[1], $name);
-
-                // Get rid of the trailing @ (when no host is included in
-                // the email address).
-                $addresses[$i . ':' . $j] = array('to' => addslashes(str_replace('@>', '>', $address)));
-            }
-        }
-
-        if ($useRegistry) {
-            try {
-                $addresses = $GLOBALS['registry']->call('mail/batchCompose', array($addresses));
-            } catch (Horde_Exception $e) {
-                $useRegistry = false;
-                $addresses = array();
-            }
-        } else {
-            $addresses = array();
-        }
-
-        foreach ($data as $i => $email_vals) {
-            $email_vals = explode(',', $email_vals);
-            $email_values = false;
-            foreach ($email_vals as $j => $email_val) {
-                if (isset($addresses[$i . ':' . $j])) {
-                    $mail_link = $addresses[$i . ':' . $j];
-                } else {
-                    $mail_link = 'mailto:' . urlencode($email_val);
-                }
-
-                $email_value = Horde::link($mail_link) . htmlspecialchars($email_val) . '</a>';
-                if ($email_values) {
-                    $email_values .= ', ' . $email_value;
-                } else {
-                    $email_values = $email_value;
-                }
-            }
-        }
-
-        if ($array) {
-            return $email_values[0];
-        } else {
-            return $email_values;
-        }
-    }
+    /**
+     * Cached data.
+     *
+     * @var array
+     */
+    static protected $_cache = array();
 
     /**
      * Returns the source entries from config/backends.php that have been
@@ -120,29 +61,31 @@ class Turba
      *
      * @return array  The filtered, ordered $cfgSources entries.
      */
-    static public function getAddressBooks($permission = Horde_Perms::READ, array $options = array())
+    static public function getAddressBooks($permission = Horde_Perms::READ,
+                                           array $options = array())
     {
         $addressbooks = array();
         foreach (array_keys(self::getAddressBookOrder()) as $addressbook) {
             $addressbooks[$addressbook] = $GLOBALS['cfgSources'][$addressbook];
         }
 
-        if (!$addressbooks) {
-            $addressbooks = $GLOBALS['cfgSources'];
-        }
-
-        return self::permissionsFilter($addressbooks, $permission, $options);
+        return self::permissionsFilter(
+            empty($addressbooks) ? $GLOBALS['cfgSources'] : $addressbooks,
+            $permission,
+            $options
+        );
     }
 
     /**
      * Get the order the user selected for displaying address books.
      *
-     * @return array  An array describing the order to display the address books.
+     * @return array  An array describing the order to display the address
+     *                books.
      */
-    function getAddressBookOrder()
+    static public function getAddressBookOrder()
     {
-        $lines = json_decode($GLOBALS['prefs']->getValue('addressbooks'));
         $addressbooks = array();
+        $lines = json_decode($GLOBALS['prefs']->getValue('addressbooks'));
 
         if (!empty($lines)) {
             $i = 0;
@@ -153,6 +96,7 @@ class Turba
                 }
             }
         }
+
         return $addressbooks;
     }
 
@@ -163,21 +107,16 @@ class Turba
      */
     static public function getDefaultAddressbook()
     {
-        $lines = json_decode($GLOBALS['prefs']->getValue('addressbooks'));
-        if (!empty($lines)) {
-            foreach ($lines as $line) {
-                $line = trim($line);
-                if ($line && isset($GLOBALS['cfgSources'][$line])) {
-                    return $line;
-                }
-            }
+        if ($abooks = self::getAddressBookOrder()) {
+            reset($abooks);
+            return key($abooks);
         }
 
         /* In case of shares select first user owned address book as default */
         if (!empty($_SESSION['turba']['has_share'])) {
             try {
                 $owned_shares = self::listShares(true);
-                if (count($owned_shares) > 0) {
+                if (count($owned_shares)) {
                     return key($owned_shares);
                 }
             } catch (Exception $e) {}
@@ -188,7 +127,9 @@ class Turba
     }
 
     /**
-     * Returns the sort order selected by the user
+     * Returns the sort order selected by the user.
+     *
+     * @return array  TODO
      */
     static public function getPreferredSortOrder()
     {
@@ -196,19 +137,28 @@ class Turba
     }
 
     /**
-     * Retrieves a column's field name
+     * Retrieves a column's field name.
+     *
+     * @param integer $i      TODO
+     * @param array $columns  TODO
+     *
+     * @return string  TODO
      */
     static public function getColumnName($i, $columns)
     {
-        return $i == 0 ? 'name' : $columns[$i - 1];
+        return ($i == 0)
+            ? 'name'
+            : $columns[$i - 1];
     }
 
     /**
+     * TODO
      */
-    function getColumns()
+    static public function getColumns()
     {
         $columns = array();
         $lines = explode("\n", $GLOBALS['prefs']->getValue('columns'));
+
         foreach ($lines as $line) {
             $line = trim($line);
             if ($line) {
@@ -221,6 +171,19 @@ class Turba
         }
 
         return $columns;
+    }
+
+    /**
+     * Builds and cleans up a composite field.
+     *
+     * @param string $format  The sprintf field format.
+     * @param array $fields   The fields that compose the composite field.
+     *
+     * @return string  The formatted composite field.
+     */
+    static public function formatCompositeField($format, $fields)
+    {
+        return preg_replace('/ +/', ' ', trim(vsprintf($format, $fields), " \t\n\r\0\x0B,"));
     }
 
     /**
@@ -245,14 +208,17 @@ class Turba
             $namelist = explode(' ', $name);
             $name = $namelist[($nameindex = (count($namelist) - 1))];
 
-            while (!empty($name) && Horde_String::length($name) < 5 &&
-                   strspn($name[(Horde_String::length($name) - 1)], '.:-') &&
+            while (!empty($name) &&
+                   (($nlength = Horde_String::length($name)) < 5) &&
+                   strspn($name[($nlength - 1)], '.:-') &&
                    !empty($namelist[($nameindex - 1)])) {
-                $nameindex--;
-                $name = $namelist[$nameindex];
+                $name = $namelist[--$nameindex];
             }
         }
-        return strlen($name) ? $name : null;
+
+        return strlen($name)
+            ? $name
+            : null;
     }
 
     /**
@@ -273,46 +239,88 @@ class Turba
      */
     static public function formatName(Turba_Object $ob, $name_format = null)
     {
-        static $default_format;
-
         if (!$name_format) {
-            if (!isset($default_format)) {
-                $default_format = $GLOBALS['prefs']->getValue('name_format');
+            if (!isset(self::$_cache['defaultFormat'])) {
+                self::$_cache['defaultFormat'] = $GLOBALS['prefs']->getValue('name_format');
             }
-            $name_format = $default_format;
+            $name_format = self::$_cache['defaultFormat'];
         }
 
-        /* if no formatting, return original name */
-        if ($name_format != 'first_last' && $name_format != 'last_first') {
+        /* If no formatting, return original name. */
+        if (!in_array($name_format, array('first_last', 'last_first'))) {
             return $ob->getValue('name');
         }
 
         /* See if we have the name fields split out explicitly. */
         if ($ob->hasValue('firstname') && $ob->hasValue('lastname')) {
-            if ($name_format == 'last_first') {
-                return $ob->getValue('lastname') . ', ' . $ob->getValue('firstname');
-            } else {
-                return $ob->getValue('firstname') . ' ' . $ob->getValue('lastname');
-            }
-        } else {
-            /* One field, we'll have to guess. */
-            $name = $ob->getValue('name');
-            $lastname = self::guessLastname($name);
-            if ($name_format == 'last_first' &&
-                !is_int(strpos($name, ',')) &&
-                Horde_String::length($name) > Horde_String::length($lastname)) {
-                $name = preg_replace('/\s+' . preg_quote($lastname, '/') . '/', '', $name);
-                $name = $lastname . ', ' . $name;
-            }
-            if ($name_format == 'first_last' &&
-                is_int(strpos($name, ',')) &&
-                Horde_String::length($name) > Horde_String::length($lastname)) {
-                $name = preg_replace('/' . preg_quote($lastname, '/') . ',\s*/', '', $name);
-                $name = $name . ' ' . $lastname;
-            }
-
-            return $name;
+            return ($name_format == 'last_first')
+                ? $ob->getValue('lastname') . ', ' . $ob->getValue('firstname')
+                : $ob->getValue('firstname') . ' ' . $ob->getValue('lastname');
         }
+
+        /* One field, we'll have to guess. */
+        $name = $ob->getValue('name');
+        $lastname = self::guessLastname($name);
+        if (($name_format == 'last_first') &&
+            !is_int(strpos($name, ',')) &&
+            (Horde_String::length($name) > Horde_String::length($lastname))) {
+            return $lastname . ', ' . preg_replace('/\s+' . preg_quote($lastname, '/') . '/', '', $name);
+        }
+
+        if (($name_format == 'first_last') &&
+            is_int(strpos($name, ',')) &&
+            (Horde_String::length($name) > Horde_String::length($lastname))) {
+            return preg_replace('/' . preg_quote($lastname, '/') . ',\s*/', '', $name) . ' ' . $lasname;
+        }
+
+        return $name;
+    }
+
+    /**
+     * TODO
+     *
+     * @param mixed $data   Either a single email address or an array of email
+     *                      addresses to format.
+     * @param string $name  The personal name phrase.
+     *
+     * @return mixed  Either the formatted address or an array of formatted
+     *                addresses.
+     */
+    static public function formatEmailAddresses($data, $name)
+    {
+        if (!isset(self::$_cache['useRegistry'])) {
+            self::$_cache['useRegistry'] = $GLOBALS['registry']->hasMethod('mail/batchCompose');
+        }
+
+        $out = array();
+        $rfc822 = $GLOBALS['injector']->getInstance('Horde_Mail_Rfc822');
+
+        if (!is_array($data)) {
+            $data = array($data);
+        }
+
+        foreach ($data as $i => $email_vals) {
+            foreach ($rfc822->parseAddressList($email_vals) as $ob) {
+                $addr = strval($ob);
+                $tmp = null;
+
+                if (self::$_cache['useRegistry']) {
+                    try {
+                        $tmp = $GLOBALS['registry']->call('mail/batchCompose', array(array($addr)));
+                    } catch (Horde_Exception $e) {
+                        $self::$_cache['useRegistry'] = false;
+                    }
+                }
+
+                $tmp = empty($tmp)
+                    ? 'mailto:' . urlencode($addr)
+                    : reset($tmp);
+
+                $out[] = Horde::link($tmp) . htmlspecialchars($addr) . '</a>';
+            }
+        }
+
+        return implode(', ', $out);
     }
 
     /**
@@ -324,18 +332,20 @@ class Turba
      */
     static public function getUserName($uid)
     {
-        static $names = array();
-
-        if (!isset($names[$uid])) {
-            $ident = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Identity')->create($uid);
-            $ident->setDefault($ident->getDefault());
-            $names[$uid] = $ident->getValue('fullname');
-            if (empty($names[$uid])) {
-                $names[$uid] = $uid;
-            }
+        if (!isset(self::$_cache['names'])) {
+            self::$_cache['names'] = array();
         }
 
-        return $names[$uid];
+        if (!isset(self::$_cache['names'][$uid])) {
+            $ident = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Identity')->create($uid);
+            $ident->setDefault($ident->getDefault());
+            $name = $ident->getValue('fullname');
+            self::$_cache['names'][$uid] = empty($name)
+                ? $uid
+                : $name;
+        }
+
+        return self::$_cache['names'][$uid];
     }
 
     /**
@@ -348,7 +358,8 @@ class Turba
      * @return mixed  The requested extended permissions value, or true if it
      *                doesn't exist.
      */
-    static public function getExtendedPermission(Turba_Driver $addressBook, $permission)
+    static public function getExtendedPermission(Turba_Driver $addressBook,
+                                                 $permission)
     {
         // We want to check the base source as extended permissions
         // are enforced per backend, not per share.
@@ -381,23 +392,22 @@ class Turba
      *
      * @return array  The filtered data.
      */
-    static public function permissionsFilter(array $in, $permission = Horde_Perms::READ, array $options = array())
+    static public function permissionsFilter(array $in,
+                                             $permission = Horde_Perms::READ,
+                                             array $options = array())
     {
+        $factory = $GLOBALS['injector']->getInstance('Turba_Factory_Driver');
         $out = array();
 
         foreach ($in as $sourceId => $source) {
             try {
-                $driver = $GLOBALS['injector']->getInstance('Turba_Factory_Driver')->create($sourceId);
+                $driver = $factory->create($sourceId);
+                if ($driver->hasPermission($permission) &&
+                    (empty($options['require_add']) || $driver->canAdd())) {
+                    $out[$sourceId] = $source;
+                }
             } catch (Turba_Exception $e) {
                 Horde::logMessage($e, 'ERR');
-                continue;
-            }
-
-            if ($driver->hasPermission($permission)) {
-                if (!empty($options['require_add']) && !$driver->canAdd()) {
-                    continue;
-                }
-                $out[$sourceId] = $source;
             }
         }
 
@@ -410,8 +420,7 @@ class Turba
      *
      * This will only sync shares that are unique to Horde (such as a SQL
      * source).  Any backend that supports ACLs or similar mechanism should be
-     * configured from within backends.php or
-     * _horde_hook_share_* calls.
+     * configured from within backends.php or via Horde's share_* hooks.
      *
      * @param array $sources  The default $cfgSources array.
      *
@@ -428,16 +437,32 @@ class Turba
             return $sources;
         }
 
+        /* See if any of our sources are configured to handle all otherwise
+         * unassigned Horde_Share objects. */
+        $all_shares = null;
+        foreach ($sources as $key => $cfg) {
+            if (!empty($cfg['all_shares'])) {
+                // Indicate the source handler that catches unassigned shares.
+                $all_shares = $key;
+            }
+        }
+
+        $auth_user = $GLOBALS['registry']->getAuth();
         $sortedSources = $defaults = $vbooks = array();
         $personal = false;
+
         foreach ($shares as $name => &$share) {
             if (isset($sources[$name])) {
                 continue;
             }
 
-            $personal |= $share->get('owner') == $GLOBALS['registry']->getAuth();
+            $personal |= ($share->get('owner') == $auth_user);
 
             $params = @unserialize($share->get('params'));
+            if (empty($params['source']) && !empty($all_shares)) {
+                $params['source'] = $all_shares;
+            }
+
             if (isset($params['type']) && $params['type'] == 'vbook') {
                 // We load vbooks last in case they're based on other shares.
                 $params['share'] = $share;
@@ -447,7 +472,11 @@ class Turba
                 if (empty($params['name'])) {
                     $params['name'] = $name;
                     $share->set('params', serialize($params));
-                    $share->save();
+                    try {
+                        $share->save();
+                    } catch (Horde_Share_Exception $e) {
+                        Horde::logMessage($e, 'ERR');
+                    }
                 }
 
                 $info = $sources[$params['source']];
@@ -468,15 +497,21 @@ class Turba
                 $newSources[$source] = $sources[$source];
                 continue;
             }
+
             if (isset($sortedSources[$source])) {
                 $newSources = array_merge($newSources, $sortedSources[$source]);
             }
-            if ($GLOBALS['registry']->getAuth() && !$personal) {
+
+            if (!empty($GLOBALS['conf']['share']['auto_create']) &&
+                $auth_user &&
+                !$personal) {
                 // User's default share is missing.
                 try {
-                    $driver = $GLOBALS['injector']->getInstance('Turba_Factory_Driver')->create($source);
+                    $driver = $GLOBALS['injector']
+                        ->getInstance('Turba_Factory_Driver')
+                        ->create($source);
                 } catch (Turba_Exception $e) {
-                    $GLOBALS['notification']->push($driver, 'horde.error');
+                    $GLOBALS['notification']->push($e->getMessage(), 'horde.error');
                     continue;
                 }
 
@@ -488,38 +523,36 @@ class Turba
                             'params' => array(
                                 'source' => $source,
                                 'default' => true,
-                                'name' => $GLOBALS['registry']->getAuth()
+                                'name' => $auth_user
                             )
                         )
                     );
+
+                    $source_config = $sources[$source];
+                    $source_config['params']['share'] = $share;
+                    $newSources[$sourceKey] = $source_config;
+                    $personal = true;
                 } catch (Horde_Share_Exception $e) {
                     Horde::logMessage($e, 'ERR');
-                    continue;
                 }
-
-                $source_config = $sources[$source];
-                $source_config['params']['share'] = $share;
-                $newSources[$sourceKey] = $source_config;
-                $personal = true;
             }
         }
 
         // Add vbooks now that all available address books are loaded.
         foreach ($vbooks as $name => $params) {
-            if (!isset($newSources[$params['source']])) {
-                continue;
+            if (isset($newSources[$params['source']])) {
+                $newSources[$name] = array(
+                    'title' => $shares[$name]->get('name'),
+                    'type' => 'vbook',
+                    'params' => $params,
+                    'export' => true,
+                    'browse' => true,
+                    'map' => $newSources[$params['source']]['map'],
+                    'search' => $newSources[$params['source']]['search'],
+                    'strict' => $newSources[$params['source']]['strict'],
+                    'use_shares' => false,
+                );
             }
-            $newSources[$name] = array(
-                'title' => $shares[$name]->get('name'),
-                'type' => 'vbook',
-                'params' => $params,
-                'export' => true,
-                'browse' => true,
-                'map' => $newSources[$params['source']]['map'],
-                'search' => $newSources[$params['source']]['search'],
-                'strict' => $newSources[$params['source']]['strict'],
-                'use_shares' => false,
-            );
         }
 
         return $newSources;
@@ -535,7 +568,7 @@ class Turba
     static public function getSourceFromShare(Horde_Share $share)
     {
         // Require a fresh config file.
-        $cfgSources = Turba::availableSources();
+        $cfgSources = self::availableSources();
 
         $params = @unserialize($share->get('params'));
         $newConfig = $cfgSources[$params['source']];
@@ -558,27 +591,26 @@ class Turba
      *
      * @return array  Shares the user has the requested permissions to.
      */
-    static public function listShares($owneronly = false, $permission = Horde_Perms::READ)
+    static public function listShares($owneronly = false,
+                                      $permission = Horde_Perms::READ)
     {
-        if (!$GLOBALS['session']->get('turba', 'has_share')) {
-            // No backends are configured to provide shares
-            return array();
-        }
-        if ($owneronly && !$GLOBALS['registry']->getAuth()) {
+        if (!$GLOBALS['session']->get('turba', 'has_share') ||
+            ($owneronly && !$GLOBALS['registry']->getAuth())) {
             return array();
         }
 
         try {
-            $sources = $GLOBALS['turba_shares']->listShares(
+            return $GLOBALS['injector']->getInstance('Turba_Shares')->listShares(
                 $GLOBALS['registry']->getAuth(),
-                array('perm' => $permission,
-                      'attributes' => $owneronly ? $GLOBALS['registry']->getAuth() : null));
+                array(
+                    'attributes' => $owneronly ? $GLOBALS['registry']->getAuth() : null,
+                    'perm' => $permission
+                )
+            );
         } catch (Horde_Share_Exception $e) {
             Horde::logMessage($e, 'ERR');
             return array();
         }
-
-        return $sources;
     }
 
     /**
@@ -592,18 +624,19 @@ class Turba
      */
     static public function createShare($share_name, $params)
     {
-        if (!isset($params['name'])) {
-            /* Sensible default for empty display names */
-            $identity = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Identity')->create();
-            $name = sprintf(_("Address book of %s"), $identity->getName());
-        } else {
+        if (isset($params['name'])) {
             $name = $params['name'];
             unset($params['name']);
+        } else {
+            /* Sensible default for empty display names */
+            $name = sprintf(_("Address book of %s"), $GLOBALS['injector']->getInstance('Horde_Core_Factory_Identity')->create()->getName());
         }
 
         /* Generate the new share. */
         try {
-            $share = $GLOBALS['turba_shares']->newShare($GLOBALS['registry']->getAuth(), $share_name, $name);
+            $turba_shares = $GLOBALS['injector']->getInstance('Turba_Shares');
+
+            $share = $turba_shares->newShare($GLOBALS['registry']->getAuth(), $share_name, $name);
 
             /* Now any other params. */
             foreach ($params as $key => $value) {
@@ -612,7 +645,7 @@ class Turba
                 }
                 $share->set($key, $value);
             }
-            $GLOBALS['turba_shares']->addShare($share);
+            $turba_shares->addShare($share);
             $result = $share->save();
         } catch (Horde_Share_Exception $e) {
             Horde::logMessage($e, 'ERR');
@@ -639,15 +672,32 @@ class Turba
      */
     static public function addBrowseJs()
     {
-        Horde::addScriptFile('browse.js', 'turba');
-        Horde::addInlineJsVars(array(
+        global $page_output;
+
+        $page_output->addScriptFile('browse.js');
+        $page_output->addInlineJsVars(array(
             'TurbaBrowse.confirmdelete' => _("Are you sure that you want to delete %s?"),
             'TurbaBrowse.contact1' => _("You must select at least one contact first."),
-            'TurbaBrowse.contact2' => ("You must select a target contact list."),
+            'TurbaBrowse.contact2' => _("You must select a target contact list."),
             'TurbaBrowse.contact3' => _("Please name the new contact list:"),
             'TurbaBrowse.copymove' => _("You must select a target address book."),
             'TurbaBrowse.submit' => _("Are you sure that you want to delete the selected contacts?")
         ));
     }
 
+    /**
+     * Build Turba's menu.
+     *
+     * @return string  The menu output.
+     */
+    static public function menu()
+    {
+        $sidebar = Horde::menu(array('menu_ob' => true))->render();
+
+        if (count($GLOBALS['addSources'])) {
+            $sidebar->addNewButton(_("_New Contact"), Horde::url('add.php'));
+        }
+
+        return $sidebar;
+    }
 }

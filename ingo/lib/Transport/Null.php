@@ -4,7 +4,7 @@
  * the UI and storage.
  *
  * See the enclosed file LICENSE for license information (ASL).  If you
- * did not receive this file, see http://www.horde.org/licenses/asl.php.
+ * did not receive this file, see http://www.horde.org/licenses/apache.
  *
  * @author  Brent J. Nordquist <bjn@horde.org>
  * @package Ingo
@@ -15,9 +15,10 @@ class Ingo_Transport_Null extends Ingo_Transport
     /**
      * Constructor.
      */
-    public function __construct($params = array())
+    public function __construct(array $params = array())
     {
-        $this->_support_shares = true;
+        $this->_supportShares = true;
+
         parent::__construct($params);
     }
 

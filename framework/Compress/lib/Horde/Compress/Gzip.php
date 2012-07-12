@@ -2,17 +2,23 @@
 /**
  * The Horde_Compress_Gzip class allows gzip files to be read.
  *
- * Copyright 2002-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2002-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
- * @author  Michael Cochrane <mike@graftonhall.co.nz>
- * @author  Michael Slusarz <slusarz@horde.org>
- * @package Compress
+ * @author   Michael Cochrane <mike@graftonhall.co.nz>
+ * @author   Michael Slusarz <slusarz@horde.org>
+ * @category Horde
+ * @license  http://www.horde.org/licenses/lgpl21 LGPL 2.1
+ * @package  Compress
  */
-class Horde_Compress_Gzip extends Horde_Compress
+class Horde_Compress_Gzip extends Horde_Compress_Base
 {
+    /**
+     */
+    public $canDecompress = true;
+
     /**
      * Gzip file flags.
      *
@@ -27,26 +33,20 @@ class Horde_Compress_Gzip extends Horde_Compress
     );
 
     /**
-     * Decompress a gzip file and get information from it.
-     *
-     * @param string $data   The tar file data.
-     * @param array $params  The parameter array (Unused).
-     *
      * @return string  The uncompressed data.
-     * @throws Horde_Exception
      */
-    public function decompress($data, $params = array())
+    public function decompress($data, array $params = array())
     {
         /* If gzip is not compiled into PHP, return now. */
         if (!Horde_Util::extensionExists('zlib')) {
-            throw new Horde_Exception(Horde_Compress_Translation::t("This server can't uncompress gzip files."));
+            throw new Horde_Compress_Exception(Horde_Compress_Translation::t("This server can't uncompress gzip files."));
         }
 
         /* Gzipped File - decompress it first. */
         $position = 0;
         $info = @unpack('CCM/CFLG/VTime/CXFL/COS', substr($data, $position + 2));
         if (!$info) {
-            throw new Horde_Exception(Horde_Compress_Translation::t("Unable to decompress data."));
+            throw new Horde_Compress_Exception(Horde_Compress_Translation::t("Unable to decompress data."));
         }
         $position += 10;
 
@@ -76,7 +76,7 @@ class Horde_Compress_Gzip extends Horde_Compress
 
         $result = @gzinflate(substr($data, $position, strlen($data) - $position));
         if (empty($result)) {
-            throw new Horde_Exception(Horde_Compress_Translation::t("Unable to decompress data."));
+            throw new Horde_Compress_Exception(Horde_Compress_Translation::t("Unable to decompress data."));
         }
 
         return $result;

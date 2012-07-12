@@ -429,6 +429,21 @@ class Horde_Form_Type_stringarray extends Horde_Form_Type_stringlist {
 
 class Horde_Form_Type_phone extends Horde_Form_Type {
 
+    /**
+     * The size of the input field.
+     *
+     * @var integer
+     */
+    var $_size;
+
+    /**
+     * @param integer $size  The size of the input field.
+     */
+    function init($size = 15)
+    {
+        $this->_size = $size;
+    }
+
     function isValid(&$var, &$vars, $value, &$message)
     {
         if (!strlen(trim($value))) {
@@ -444,12 +459,23 @@ class Horde_Form_Type_phone extends Horde_Form_Type {
         return true;
     }
 
+    function getSize()
+    {
+        return $this->_size;
+    }
+
     /**
      * Return info about field type.
      */
     function about()
     {
-        return array('name' => Horde_Form_Translation::t("Phone number"));
+        return array(
+            'name' => Horde_Form_Translation::t("Phone number"),
+            'params' => array(
+                'size'      => array('label' => Horde_Form_Translation::t("Size"),
+                                     'type'  => 'int'),
+            ),
+        );
     }
 
 }
@@ -984,6 +1010,13 @@ class Horde_Form_Type_image extends Horde_Form_Type {
 
     function onSubmit(&$var, &$vars)
     {
+        /* Are we removing an image? */
+        if ($vars->get('remove_' . $var->getVarName())) {
+            $GLOBALS['session']->remove('horde', 'form/' . $this->getRandomId());
+            $this->_img = null;
+            return;
+        }
+
         /* Get the upload. */
         $this->getImage($vars, $var);
 
@@ -1000,6 +1033,11 @@ class Horde_Form_Type_image extends Horde_Form_Type {
 
     function isValid(&$var, &$vars, $value, &$message)
     {
+
+        if ($vars->get('remove_' . $var->getVarName())) {
+            return true;
+        }
+
         /* Get the upload. */
         $this->getImage($vars, $var);
         $field = $vars->get($var->getVarName());
@@ -1147,6 +1185,14 @@ class Horde_Form_Type_image extends Horde_Form_Type {
 
             /* File has not been uploaded. */
             $upload = $vars->get($var->getVarName());
+
+            /* File is explicitly removed */
+            if ($vars->get('remove_' . $var->getVarName())) {
+                $this->_img = null;
+                $session->remove('horde', 'form/' . $upload['hash']);
+                return;
+            }
+
             if ($this->_uploaded->getCode() == 4 &&
                 !empty($upload['hash']) &&
                 $session->exists('horde', 'form/' . $upload['hash'])) {
@@ -1396,23 +1442,32 @@ class Horde_Form_Type_email extends Horde_Form_Type {
     var $_delimiters = ',';
 
     /**
+     * The size of the input field.
+     *
+     * @var integer
+     */
+    var $_size;
+
+    /**
      * @param boolean $allow_multi   Allow multiple addresses?
      * @param boolean $strip_domain  Protect address from spammers?
      * @param boolean $link_compose  Link the email address to the compose page
      *                               when displaying?
      * @param string $link_name      The name to use when linking to the
-                                     compose page.
+     *                               compose page.
      * @param string $delimiters     Character to split multiple addresses with.
+     * @param integer $size          The size of the input field.
      */
     function init($allow_multi = false, $strip_domain = false,
                   $link_compose = false, $link_name = null,
-                  $delimiters = ',')
+                  $delimiters = ',', $size = null)
     {
         $this->_allow_multi = $allow_multi;
         $this->_strip_domain = $strip_domain;
         $this->_link_compose = $link_compose;
         $this->_link_name = $link_name;
         $this->_delimiters = $delimiters;
+        $this->_size = $size;
     }
 
     /**
@@ -1435,7 +1490,7 @@ class Horde_Form_Type_email extends Horde_Form_Type {
                 continue;
             }
             if (!$this->validateEmailAddress($email)) {
-                $message = sprintf(Horde_Form_Translation::t("\"%s\" is not a valid email address."), $email);
+                $message = sprintf(Horde_Form_Translation::t("\"%s\" is not a valid email address."), htmlspecialchars($email));
                 return false;
             }
             ++$nonEmpty;
@@ -1586,6 +1641,11 @@ class Horde_Form_Type_email extends Horde_Form_Type {
         return substr($result, 0, 1) == '2';
     }
 
+    function getSize()
+    {
+        return $this->_size;
+    }
+
     /**
      * Return info about field type.
      */
@@ -1609,6 +1669,9 @@ class Horde_Form_Type_email extends Horde_Form_Type {
                 'delimiters' => array(
                     'label' => Horde_Form_Translation::t("Character to split multiple addresses with"),
                     'type' => 'text'),
+                'size' => array(
+                    'label' => Horde_Form_Translation::t("Size"),
+                    'type'  => 'int'),
             ),
         );
     }
@@ -1853,7 +1916,7 @@ class Horde_Form_Type_email extends Horde_Form_Type {
 
 
         #
-        # restrictuions on domain-literals from RFC2821 section 4.1.3
+        # restrictions on domain-literals from RFC2821 section 4.1.3
         #
 
         if (strlen($bits['domain-literal'])){
@@ -2065,24 +2128,22 @@ class Horde_Form_Type_emailConfirm extends Horde_Form_Type {
         if ($value['original'] != $value['confirm']) {
             $message = Horde_Form_Translation::t("Email addresses must match.");
             return false;
-        } else {
-            try {
-                $parsed_email = Horde_Mime_Address::parseAddressList($value['original'], array('validate' => true));
-            } catch (Horde_Mime_Exception $e) {
-                $message = $e->getMessage();
-                return false;
-            }
-            if (count($parsed_email) > 1) {
-                $message = Horde_Form_Translation::t("Only one email address allowed.");
-                return false;
-            }
-            if (empty($parsed_email[0]->mailbox)) {
-                $message = Horde_Form_Translation::t("You did not enter a valid email address.");
-                return false;
-            }
         }
 
-        return true;
+        $addr_ob = $GLOBALS['injector']->getInstance('Horde_Mail_Rfc822')->parseAddressList($value['original']);
+
+        switch (count($addr_ob)) {
+        case 0:
+            $message = Horde_Form_Translation::t("You did not enter a valid email address.");
+            return false;
+
+        case 1:
+            return true;
+
+        default:
+            $message = Horde_Form_Translation::t("Only one email address allowed.");
+            return false;
+        }
     }
 
     /**
@@ -2363,6 +2424,15 @@ class Horde_Form_Type_keyval_multienum extends Horde_Form_Type_multienum {
         }
     }
 
+    /**
+     * Return info about field type.
+     */
+    function about()
+    {
+        $about = parent::about();
+        $about['name'] = Horde_Form_Translation::t("Multiple selection, preserving keys");
+    }
+
 }
 
 class Horde_Form_Type_radio extends Horde_Form_Type_enum {
@@ -2470,31 +2540,18 @@ class Horde_Form_Type_date extends Horde_Form_Type {
     {
         if ($date === null) {
             return '';
-        } elseif (!is_array($date)) {
-            /* Date is not array, so assume timestamp. Work out the component
-             * parts using date(). */
-            $date = array('day'   => date('j', $date),
-                          'month' => date('n', $date),
-                          'year'  => date('Y', $date));
         }
 
-        $diffdays = Date_Calc::dateDiff((int)$date['day'],
-                                        (int)$date['month'],
-                                        (int)$date['year'],
-                                        date('j'), date('n'), date('Y'));
-
-        /* An error occured. */
-        if ($diffdays == -1) {
-            return;
+        try {
+            $today = new Horde_Date(time());
+            $date = new Horde_Date($date);
+            $ago = $date->toDays() - $today->toDays();
+        } catch (Horde_Date_Exception $e) {
+            return '';
         }
 
-        $ago = $diffdays * Date_Calc::compareDates((int)$date['day'],
-                                                   (int)$date['month'],
-                                                   (int)$date['year'],
-                                                   date('j'), date('n'),
-                                                   date('Y'));
         if ($ago < -1) {
-            return sprintf(Horde_Form_Translation::t(" (%s days ago)"), $diffdays);
+            return sprintf(Horde_Form_Translation::t(" (%s days ago)"), abs($ago));
         } elseif ($ago == -1) {
             return Horde_Form_Translation::t(" (yesterday)");
         } elseif ($ago == 0) {
@@ -2502,7 +2559,7 @@ class Horde_Form_Type_date extends Horde_Form_Type {
         } elseif ($ago == 1) {
             return Horde_Form_Translation::t(" (tomorrow)");
         } else {
-            return sprintf(Horde_Form_Translation::t(" (in %s days)"), $diffdays);
+            return sprintf(Horde_Form_Translation::t(" (in %s days)"), $ago);
         }
     }
 
@@ -2605,7 +2662,7 @@ class Horde_Form_Type_hourminutesecond extends Horde_Form_Type {
      *                         YYYY-MM-DD HH:MM:SS, timestamp YYYYMMDDHHMMSS and
      *                         UNIX epoch).
      *
-     * @return Date  The time object.
+     * @return Horde_Date  The time object.
      */
     function getTimeOb($time_in)
     {
@@ -2852,7 +2909,7 @@ class Horde_Form_Type_monthdayyear extends Horde_Form_Type {
      *                         YYYY-MM-DD HH:MM:SS, timestamp YYYYMMDDHHMMSS
      *                         and UNIX epoch) plus the fourth YYYY-MM-DD.
      *
-     * @return Date  The date object.
+     * @return Horde_Date  The date object.
      */
     function getDateOb($date_in)
     {
@@ -2886,7 +2943,7 @@ class Horde_Form_Type_monthdayyear extends Horde_Form_Type {
      */
     function formatDate($date)
     {
-        if (!is_a($date, 'Date')) {
+        if (!($date instanceof Horde_Date)) {
             $date = $this->getDateOb($date);
         }
 
@@ -3582,25 +3639,13 @@ class Horde_Form_Type_obrowser extends Horde_Form_Type {
 
 class Horde_Form_Type_dblookup extends Horde_Form_Type_enum {
 
-    function init($dsn, $sql, $prompt = null)
+    function init($db, $sql, $prompt = null)
     {
         $values = array();
-        $db = DB::connect($dsn);
-        if (!($db instanceof PEAR_Error)) {
-            // Set DB portability options.
-            switch ($db->phptype) {
-            case 'mssql':
-                $db->setOption('portability', DB_PORTABILITY_LOWERCASE | DB_PORTABILITY_ERRORS | DB_PORTABILITY_RTRIM);
-                break;
-
-            default:
-                $db->setOption('portability', DB_PORTABILITY_LOWERCASE | DB_PORTABILITY_ERRORS);
-            }
-
-            $col = $db->getCol($sql);
-            if (!($col instanceof PEAR_Error)) {
-                $values = array_combine($col, $col);
-            }
+        try {
+            $col = $db->selectValues($sql);
+            $values = array_combine($col, $col);
+        } catch (Horde_Db_Exception $e) {
         }
         parent::init($values, $prompt);
     }

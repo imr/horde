@@ -8,28 +8,28 @@
  * @package    Components
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Components
  */
 
 /**
  * Prepare the test setup.
  */
-require_once dirname(__FILE__) . '/../Autoload.php';
+require_once __DIR__ . '/../Autoload.php';
 
 /**
  * Test the Components entry point.
  *
- * Copyright 2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2011-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  *
  * @category   Horde
  * @package    Components
  * @subpackage UnitTests
  * @author     Gunnar Wrobel <wrobel@pardus.de>
- * @license    http://www.fsf.org/copyleft/lgpl.html LGPL
+ * @license    http://www.horde.org/licenses/lgpl21 LGPL 2.1
  * @link       http://pear.horde.org/index.php?package=Components
  */
 class Components_Unit_ComponentsTest
@@ -40,10 +40,21 @@ extends Components_TestCase
         $_SERVER['argv'] = array(
             'horde-components'
         );
-        $output = $this->_callStrictComponents();
         $this->assertContains(
             Components::ERROR_NO_COMPONENT,
-            $output
+            $this->_callStrictComponents()
+        );
+    }
+
+    public function testHelp()
+    {
+        $_SERVER['argv'] = array(
+            'horde-components',
+            '--help'
+        );
+        $this->assertRegExp(
+            '/-h,[ ]*--help[ ]*show this help message and exit/',
+            $this->_callStrictComponents()
         );
     }
 
@@ -52,7 +63,7 @@ extends Components_TestCase
         $_SERVER['argv'] = array(
             'horde-components',
             '--list-deps',
-            dirname(__FILE__) . '/../fixture/framework/Install/package.xml'
+            __DIR__ . '/../fixture/framework/Install/package.xml'
         );
         $output = $this->_callUnstrictComponents();
         $this->assertContains(
@@ -66,7 +77,7 @@ extends Components_TestCase
         $_SERVER['argv'] = array(
             'horde-components',
             '--list-deps',
-            dirname(__FILE__) . '/../fixture/framework/Install'
+            __DIR__ . '/../fixture/framework/Install'
         );
         $output = $this->_callUnstrictComponents();
         $this->assertContains(
@@ -78,7 +89,7 @@ extends Components_TestCase
     public function testWithinComponent()
     {
         $oldcwd = getcwd();
-        chdir(dirname(__FILE__) . '/../fixture/framework/Install');
+        chdir(__DIR__ . '/../fixture/framework/Install');
         $_SERVER['argv'] = array(
             'horde-components',
             '--list-deps',
@@ -94,7 +105,7 @@ extends Components_TestCase
     public function testWithinComponentNoAction()
     {
         $oldcwd = getcwd();
-        chdir(dirname(__FILE__) . '/../fixture/framework/Install');
+        chdir(__DIR__ . '/../fixture/framework/Install');
         $_SERVER['argv'] = array(
             'horde-components',
         );

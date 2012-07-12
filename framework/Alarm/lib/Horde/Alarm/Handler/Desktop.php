@@ -2,10 +2,10 @@
 /**
  * @package Alarm
  *
- * Copyright 2010-2011 The Horde Project (http://www.horde.org/)
+ * Copyright 2010-2012 Horde LLC (http://www.horde.org/)
  *
  * See the enclosed file COPYING for license information (LGPL). If you
- * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
+ * did not receive this file, see http://www.horde.org/licenses/lgpl21.
  */
 
 /**
@@ -43,24 +43,16 @@ class Horde_Alarm_Handler_Desktop extends Horde_Alarm_Handler
      */
     public function __construct(array $params = null)
     {
-        /*
         if (!isset($params['js_notify'])) {
             throw new InvalidArgumentException('Parameter \'js_notify\' missing.');
         }
         if (!is_callable($params['js_notify'])) {
-            throw new Horde_Alarm_Exception('Parameter \'js_notify\' is not a Horde_Notification_Handler object.');
+            throw new Horde_Alarm_Exception('Parameter \'js_notify\' is not a valid callback.');
         }
-        $this->_jsNotify = $params['jsNotify'];
+        $this->_jsNotify = $params['js_notify'];
         if (isset($params['icon'])) {
             $this->_icon = $params['icon'];
         }
-        */
-        $this->_jsNotify = isset($params['js_notify'])
-            ? $params['js_notify']
-            : array('Horde', 'addInlineScript');
-        $this->_icon = isset($params['icon'])
-            ? $params['icon']
-            : (string)Horde_Themes::img('alerts/alarm.png');
     }
 
     /**
@@ -74,7 +66,7 @@ class Horde_Alarm_Handler_Desktop extends Horde_Alarm_Handler
                       $this->_icon,
                       addslashes($alarm['title']),
                       isset($alarm['text']) ? addslashes($alarm['text']) : '');
-        call_user_func($this->_jsNotify($js));
+        call_user_func($this->_jsNotify, $js);
     }
 
     /**

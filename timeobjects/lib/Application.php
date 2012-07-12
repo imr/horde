@@ -4,13 +4,13 @@
  * can interact with Content through this API.
  *
  * @author Michael J. Rubinsky <mrubinsk@horde.org>
- * @license  http://opensource.org/licenses/bsd-license.php BSD
+ * @license  http://www.horde.org/licenses/bsd BSD
  * @category Horde
  * @package TimeObjects
  */
 /* Determine the base directories. */
 if (!defined('TIMEOBJECTS_BASE')) {
-    define('TIMEOBJECTS_BASE', dirname(__FILE__) . '/..');
+    define('TIMEOBJECTS_BASE', __DIR__ . '/..');
 }
 
 if (!defined('HORDE_BASE')) {
@@ -29,5 +29,5 @@ require_once HORDE_BASE . '/lib/core.php';
 
 class Timeobjects_Application extends Horde_Registry_Application
 {
-    public $version = '1.0-BETA1';
+    public $version = 'H5 (2.0-git)';
 }
