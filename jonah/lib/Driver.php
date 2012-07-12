@@ -35,17 +35,6 @@ class Jonah_Driver
     }
 
     /**
-     * Remove a channel from storage.
-     *
-     * @param array $info  A channel info array. (@TODO: Look at passing just
-     *                     the id?)
-     */
-    public function deleteChannel($info)
-    {
-        return $this->_deleteChannel($info['channel_id']);
-    }
-
-    /**
      * Returns the most recent or all stories from a channel.
      *
      * @param integer $criteria    An associative array of attributes on which
@@ -186,11 +175,12 @@ class Jonah_Driver
      */
     public function getStoryLink($channel, $story)
     {
+        $channel_url = $channel->get('story_url');
         if (!empty($story['url']) && empty($story['body'])) {
             $url = $story['url'];
         } elseif ((empty($story['url']) || !empty($story['body'])) &&
-            !empty($channel['channel_story_url'])) {
-            $url = $channel['channel_story_url'];
+            !empty($channel_url)) {
+            $url = $channel_url;
         } else {
             $url = Horde::url('stories/view.php', true, -1)->add(array('channel_id' => '%c', 'id' => '%s'))->setRaw(false);
         }

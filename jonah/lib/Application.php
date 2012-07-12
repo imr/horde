@@ -31,6 +31,7 @@ class Jonah_Application extends Horde_Registry_Application
      */
     protected function _bootstrap()
     {
+        $GLOBALS['injector']->bindFactory('Jonah_Driver', 'Jonah_Factory_Driver', 'create');
         $GLOBALS['injector']->bindFactory('Jonah_Shares', 'Jonah_Factory_Shares', 'create');
     }
 
