@@ -43,7 +43,7 @@
       <td><?php $url = Horde::url($feed->getName()); echo Horde::link($url, _("Click or copy this URL to display this feed"), '', '_blank') . htmlspecialchars($url) . '</a>' ?></td>
       <td><?php $url = Horde::url('/' . $feed->getName() . '/rss'); echo Horde::link($url, _("Click or copy this URL to display this feed"), '', '_blank') . htmlspecialchars($url) . '</a>' ?></td>
      </tr>
-<?php endforeach; ?>
+     <?php endforeach; ?>
     </tbody>
     </table>
     <div id="feeds-empty">
