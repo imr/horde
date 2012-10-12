@@ -394,7 +394,7 @@ class IMP_Mailbox implements Serializable
             }
 
             try {
-                return (bool)$injector->getInstance('IMP_Factory_Imap')->create()->listMailboxes($this->_mbox, null, array('flat' => true));
+                return (bool)$injector->getInstance('IMP_Factory_Imap')->create()->listMailboxes(Horde_Imap_Client_Mailbox::get($this->_mbox), null, array('flat' => true));
             } catch (IMP_Imap_Exception $e) {
                 return false;
             }
@@ -648,7 +648,7 @@ class IMP_Mailbox implements Serializable
             return $this->get(array_merge(array($this->_mbox), $this->subfolders_only));
 
         case 'subfolders_only':
-            return $this->get($injector->getInstance('IMP_Factory_Imap')->create()->listMailboxes($this->_mbox . $this->namespace_delimiter . '*', null, array('flat' => true)));
+            return $this->get($injector->getInstance('IMP_Factory_Imap')->create()->listMailboxes(Horde_Imap_Client_Mailbox::get($this->_mbox)->list_escape . $this->namespace_delimiter . '*', null, array('flat' => true)));
 
         case 'systemquery':
             return $injector->getInstance('IMP_Search')->isSystemQuery($this->_mbox);
@@ -698,7 +698,7 @@ class IMP_Mailbox implements Serializable
             return $injector->getInstance('IMP_Search')->isVinbox($this->_mbox);
 
         case 'vtrash':
-            return $injector->getInstance('IMP_Search')->isVtrash($this->_mbox);
+            return $injector->getInstance('IMP_Search')->isVTrash($this->_mbox);
         }
 
         return false;
@@ -733,7 +733,7 @@ class IMP_Mailbox implements Serializable
      */
     public function create(array $opts = array())
     {
-        global $injector, $notification, $prefs, $registry;
+        global $injector, $notification, $prefs;
 
         if ($this->exists) {
             return true;
@@ -805,7 +805,7 @@ class IMP_Mailbox implements Serializable
      */
     public function delete(array $opts = array())
     {
-        global $conf, $injector, $notification;
+        global $injector, $notification;
 
         if ($this->vfolder) {
             if ($this->editvfolder) {
@@ -905,6 +905,11 @@ class IMP_Mailbox implements Serializable
     public function subscribe($sub)
     {
         global $injector, $notification;
+
+        /* Skip non-IMAP/container mailboxes. */
+        if ($this->nonimap || $this->container) {
+            return false;
+        }
 
         if (!$sub && $this->inbox) {
             $notification->push(sprintf(_("You cannot unsubscribe from \"%s\"."), $this->display), 'horde.error');
@@ -1070,7 +1075,7 @@ class IMP_Mailbox implements Serializable
             /* If using Virtual Trash, only show deleted messages in
              * the Virtual Trash mailbox. */
             return $this->get($prefs->getValue('trash_folder'))->vtrash
-                ? $this->vtrash
+                ? !$this->vtrash
                 : ($prefs->getValue('delhide_trash') ? true : $deleted);
         }
 
@@ -1433,19 +1438,22 @@ class IMP_Mailbox implements Serializable
      */
     static public function getSpecialMailboxesSort()
     {
-        $tmp = array();
+        $out = array();
 
         foreach (array_filter(self::getSpecialMailboxes()) as $val) {
-            if (!is_array($val)) {
-                $val = array($val);
-            }
-            foreach ($val as $val2) {
-                $tmp[strval($val2)] = $val2->abbrev_label;
+            if (is_array($val)) {
+                $tmp = array();
+                foreach ($val as $val2) {
+                    $tmp[strval($val2)] = $val2->abbrev_label;
+                }
+                asort($tmp, SORT_LOCALE_STRING);
+                $out = array_merge($out, array_keys($tmp));
+            } else {
+                $out[] = $val;
             }
         }
 
-        asort($tmp, SORT_LOCALE_STRING);
-        return self::get(array_keys($tmp));
+        return self::get($out);
     }
 
     /**
@@ -1465,7 +1473,7 @@ class IMP_Mailbox implements Serializable
             strpos($mbox, $empty_ns['delimiter']) === 0) {
             /* Prefixed with delimiter => from empty namespace. */
             return substr($mbox, strlen($empty_ns['delimiter']));
-        } elseif (($ns = $imp_imap->getNamespace($mbox, true)) == null) {
+        } elseif ($imp_imap->getNamespace($mbox, true) === null) {
             /* No namespace prefix => from personal namespace. */
             return $def_ns['name'] . $mbox;
         }
@@ -1576,7 +1584,7 @@ class IMP_Mailbox implements Serializable
             if (!empty($ns_info['translation']) && $this->namespace) {
                 $this->_cache[self::CACHE_DISPLAY] = $ns_info['translation'];
                 $this->_changed = self::CHANGED_YES;
-                return $d;
+                return $ns_info['translation'];
             }
 
             /* Strip namespace information. */

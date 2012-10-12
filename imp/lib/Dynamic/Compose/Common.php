@@ -19,7 +19,6 @@ class IMP_Dynamic_Compose_Common
      *
      * @param IMP_Dynamic_Base $base  Base dynamic view object.
      * @param array $args             Configuration parameters:
-     *   - composeCache: (string) The cache ID of the IMP_Compose object.
      *   - redirect: (string) Display the redirect interface?
      *   - show_editor: (boolean) Show the HTML editor?
      *   - template: (string) Display the edit template interface?
@@ -64,7 +63,7 @@ class IMP_Dynamic_Compose_Common
      */
     protected function _compose($base, $view, $args)
     {
-        global $conf, $injector, $page_output, $registry, $prefs, $session;
+        global $conf, $injector, $registry, $prefs, $session;
 
         $view->title = $args['title'];
 
@@ -74,8 +73,6 @@ class IMP_Dynamic_Compose_Common
 
         /* Generate identities list. */
         $injector->getInstance('IMP_Ui_Compose')->addIdentityJs();
-
-        $imp_compose = $injector->getInstance('IMP_Factory_Compose')->create(isset($args['composeCache']) ? $args['composeCache'] : null);
 
         if ($session->get('imp', 'rteavail')) {
             $view->compose_html = !empty($args['show_editor']);
@@ -101,6 +98,7 @@ class IMP_Dynamic_Compose_Common
 
                 $flist = array();
                 $imaptree = $injector->getInstance('IMP_Imap_Tree');
+                $imaptree->setIteratorFilter();
 
                 foreach ($imaptree as $val) {
                     $tmp = array(
@@ -162,7 +160,7 @@ class IMP_Dynamic_Compose_Common
      */
     protected function _addComposeVars($base)
     {
-        global $browser, $conf, $prefs, $session;
+        global $browser, $conf, $prefs, $registry;
 
         /* Context menu definitions. */
         $base->js_context['ctx_msg_other'] = new stdClass;
@@ -176,6 +174,9 @@ class IMP_Dynamic_Compose_Common
 
         /* Variables used in compose page. */
         $compose_cursor = $prefs->getValue('compose_cursor');
+        $drafts_mbox = IMP_Mailbox::getPref('drafts_folder');
+        $templates_mbox = IMP_Mailbox::getPref('composetemplates_mbox');
+
         $base->js_conf += array_filter(array(
             'URI_MAILBOX' => strval(IMP_Dynamic_Mailbox::url()),
 
@@ -185,13 +186,13 @@ class IMP_Dynamic_Compose_Common
             'cc' => intval($prefs->getValue('compose_cc')),
             'close_draft' => intval($prefs->getValue('close_draft')),
             'compose_cursor' => ($compose_cursor ? $compose_cursor : 'top'),
-            'drafts_mbox' => IMP_Mailbox::getPref('drafts_folder')->form_to,
+            'drafts_mbox' => $drafts_mbox ? $drafts_mbox->form_to : null,
             'rte_avail' => intval($browser->hasFeature('rte')),
             'spellcheck' => intval($prefs->getValue('compose_spellcheck')),
-            'templates_mbox' => IMP_Mailbox::getPref('composetemplates_mbox')->form_to
+            'templates_mbox' => $templates_mbox ? $templates_mbox->form_to : null
         ));
 
-        if ($session->get('imp', 'csearchavail')) {
+        if ($registry->hasMethod('contacts/search')) {
             $base->js_conf['URI_ABOOK'] = strval(Horde::url('contacts.php'));
         }
 
@@ -230,11 +231,11 @@ class IMP_Dynamic_Compose_Common
         /* Gettext strings used in compose page. */
         $base->js_text += array(
             'compose_cancel' => _("Cancelling this message will permanently discard its contents and will delete auto-saved drafts.\nAre you sure you want to do this?"),
-            'nosubject' => _("The message does not have a Subject entered.") . "\n" . _("Send message without a Subject?"),
+            'nosubject' => _("The message does not have a subject entered.") . "\n" . _("Send message without a subject?"),
             'remove' => _("Remove"),
             'replyall' => _("%d recipients"),
             'spell_noerror' => _("No spelling errors found."),
-            'toggle_html' => _("Really discard all formatting information? This operation cannot be undone."),
+            'toggle_html' => _("Discard all text formatting information (by converting from HTML to plain text)? This conversion cannot be reversed."),
             'uploading' => _("Uploading..."),
         );
     }

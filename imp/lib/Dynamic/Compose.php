@@ -47,14 +47,12 @@ class IMP_Dynamic_Compose extends IMP_Dynamic_Base
 
         /* Check for JSON encoded information. */
         foreach (array('to', 'cc', 'bcc') as $val) {
+            $alist = $injector->getInstance('IMP_Dynamic_AddressList');
             $var_name = $val . '_json';
             if (isset($this->vars->$var_name)) {
-                $header[$val] = strval(IMP_Dimp::parseDimpAddressList($this->vars->$var_name));
+                $header[$val] = strval($alist->parseAddressList($this->vars->$var_name));
             }
         }
-
-        $msg = strval($this->vars->body);
-        $msg_type = null;
 
         $identity = $injector->getInstance('IMP_Identity');
         if (!$prefs->isLocked('default_identity') &&
@@ -67,8 +65,9 @@ class IMP_Dynamic_Compose extends IMP_Dynamic_Base
         $imp_ui = new IMP_Ui_Compose();
         $compose_ajax = new IMP_Ajax_Application_Compose($imp_compose, $this->vars->type);
 
-        $show_editor = false;
-        $title = '';
+        $compose_opts = array(
+            'title' => _("New Message")
+        );
 
         switch ($this->vars->type) {
         case 'reply':
@@ -87,22 +86,21 @@ class IMP_Dynamic_Compose extends IMP_Dynamic_Base
             ));
 
             $onload = $compose_ajax->getResponse($result);
-            $msg_type = $result['type'];
 
             switch ($result['type']) {
             case IMP_Compose::REPLY_SENDER:
-                $title = _("Reply");
+                $compose_opts['title'] = _("Reply");
                 break;
 
             case IMP_Compose::REPLY_ALL:
-                $title = _("Reply to All");
+                $compose_opts['title'] = _("Reply to All");
                 break;
 
             case IMP_Compose::REPLY_LIST:
-                $title = _("Reply to List");
+                $compose_opts['title'] = _("Reply to List");
                 break;
             }
-            $title .= ': ' . $result['headers']['subject'];
+            $compose_opts['title'] .= ': ' . $result['headers']['subject'];
 
             $show_editor = ($result['format'] == 'html');
             break;
@@ -121,7 +119,7 @@ class IMP_Dynamic_Compose extends IMP_Dynamic_Base
                 }
 
                 try {
-                    $subject = $title = $imp_compose->attachImapMessage($indices);
+                    $subject = $compose_opts['title'] = $imp_compose->attachImapMessage($indices);
                 } catch (IMP_Compose_Exception $e) {
                     $notification->push($e, 'horde.error');
                     break;
@@ -146,8 +144,10 @@ class IMP_Dynamic_Compose extends IMP_Dynamic_Base
                 $result = $imp_compose->forwardMessage($compose_ajax->forward_map[$this->vars->type], $contents);
                 $onload = $compose_ajax->getResponse($result);
 
-                $msg_type = $result['type'];
-                $title = $result['headers']['title'];
+                if (in_array($result['type'], array(IMP_Compose::FORWARD_ATTACH, IMP_Compose::FORWARD_BOTH))) {
+                    $compose_opts['fwdattach'] = true;
+                }
+                $compose_opts['title'] = $result['headers']['title'];
 
                 $show_editor = ($result['format'] == 'html');
             }
@@ -156,10 +156,11 @@ class IMP_Dynamic_Compose extends IMP_Dynamic_Base
         case 'forward_redirect':
             try {
                 $imp_compose->redirectMessage($imp_ui->getIndices($this->vars));
-                $title = _("Redirect");
+                $compose_opts['title'] = _("Redirect");
             } catch (IMP_Compose_Exception $e) {
                 $notification->push($e, 'horde.error');
             }
+            $onload = $compose_ajax->getBaseResponse();
             break;
 
         case 'editasnew':
@@ -180,17 +181,21 @@ class IMP_Dynamic_Compose extends IMP_Dynamic_Base
 
                 case 'template':
                     $result = $imp_compose->useTemplate($indices_ob);
+                    $compose_opts['template'] = true;
                     break;
 
                 case 'template_edit':
                     $result = $imp_compose->editTemplate($indices_ob);
+                    $compose_opts['template'] = true;
                     break;
                 }
 
                 $onload = $compose_ajax->getResponse($result);
                 $onload->header = array_merge($header, $onload->header);
 
-                $msg_type = $result['type'];
+                if (in_array($result['type'], array(IMP_Compose::FORWARD_ATTACH, IMP_Compose::FORWARD_BOTH))) {
+                    $compose_opts['fwdattach'] = true;
+                }
                 $show_editor = ($result['format'] == 'html');
             } catch (IMP_Compose_Exception $e) {
                 $notification->push($e);
@@ -202,6 +207,7 @@ class IMP_Dynamic_Compose extends IMP_Dynamic_Base
             $show_editor = ($prefs->getValue('compose_html') && $session->get('imp', 'rteavail'));
 
             $onload = $compose_ajax->getBaseResponse();
+            $onload->body = strval($this->vars->body);
             $onload->header = $header;
             if ($show_editor) {
                 $onload->format = 'html';
@@ -210,7 +216,8 @@ class IMP_Dynamic_Compose extends IMP_Dynamic_Base
         }
 
         /* Attach spellchecker & auto completer. */
-        if ($this->vars->type == 'redirect') {
+        if ($this->vars->type == 'forward_redirect') {
+            $compose_opts['redirect'] = true;
             $imp_ui->attachAutoCompleter(array('redirect_to'));
         } else {
             $acomplete = array('to', 'redirect_to');
@@ -221,22 +228,14 @@ class IMP_Dynamic_Compose extends IMP_Dynamic_Base
             }
             $imp_ui->attachAutoCompleter($acomplete);
             $imp_ui->attachSpellChecker();
-
-            $page_output->addInlineJsVars(array(
-                'DimpCompose.onload_show' => $onload
-            ));
         }
 
-        $this->title = $title;
-
-        $this->view->compose = $injector->getInstance('IMP_Dynamic_Compose_Common')->compose($this, array(
-            'composeCache' => $imp_compose->getCacheId(),
-            'fwdattach' => in_array($msg_type, array(IMP_Compose::FORWARD_ATTACH, IMP_Compose::FORWARD_BOTH)),
-            'redirect' => ($this->vars->type == 'redirect'),
-            'show_editor' => $show_editor,
-            'template' => in_array($this->vars->type, array('template_edit', 'template_new')),
-            'title' => $title
+        $page_output->addInlineJsVars(array(
+            'DimpCompose.onload_show' => $onload
         ));
+
+        $this->title = $compose_opts['title'];
+        $this->view->compose = $injector->getInstance('IMP_Dynamic_Compose_Common')->compose($this, $compose_opts);
 
         Horde::startBuffer();
         IMP::status();

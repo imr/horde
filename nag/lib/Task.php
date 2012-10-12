@@ -8,6 +8,8 @@
  *
  * @author  Jan Schneider <jan@horde.org>
  * @package Nag
+ *
+ * @property tags array  An array of tags this task is tagged with.
  */
 class Nag_Task
 {
@@ -108,13 +110,6 @@ class Nag_Task
      * @var integer
      */
     public $completed_date;
-
-    /**
-     * The task category
-     *
-     * @var string
-     */
-    public $category;
 
     /**
      * The task alarm threshold.
@@ -221,7 +216,7 @@ class Nag_Task
      * @var integer
      * @see each()
      */
-    protected $_pointer;
+    protected $_pointer = 0;
 
     /**
      * Task id => pointer dictionary.
@@ -229,6 +224,20 @@ class Nag_Task
      * @var array
      */
     protected $_dict = array();
+
+    /**
+     * Task tags from the storage backend (e.g. Kolab)
+     *
+     * @var array
+     */
+    public $internaltags;
+
+    /**
+     * Task tags (lazy loaded).
+     *
+     * @var array
+     */
+    protected $_tags;
 
     /**
      * Constructor.
@@ -246,6 +255,54 @@ class Nag_Task
         if ($task) {
             $this->merge($task);
         }
+    }
+
+    /**
+     * Getter.
+     *
+     * Returns the 'id' and 'creator' properties.
+     *
+     * @param string $name  Property name.
+     *
+     * @return mixed  Property value.
+     */
+    public function __get($name)
+    {
+        switch ($name) {
+
+        case 'tags':
+            if (!isset($this->_tags)) {
+                $this->synchronizeTags(Nag::getTagger()->getTags($this->uid, 'task'));
+            }
+            return $this->_tags;
+        }
+
+        $trace = debug_backtrace();
+        trigger_error('Undefined property via __get(): ' . $name
+                      . ' in ' . $trace[0]['file']
+                      . ' on line ' . $trace[0]['line'],
+                      E_USER_NOTICE);
+        return null;
+    }
+
+    /**
+     * Setter.
+     *
+     * @param string $name  Property name.
+     * @param mixed $value  Property value.
+     */
+    public function __set($name, $value)
+    {
+        switch ($name) {
+        case 'tags':
+            $this->_tags = $value;
+            return;
+        }
+        $trace = debug_backtrace();
+        trigger_error('Undefined property via __set(): ' . $name
+                      . ' in ' . $trace[0]['file']
+                      . ' on line ' . $trace[0]['line'],
+                      E_USER_NOTICE);
     }
 
     /**
@@ -278,7 +335,7 @@ class Nag_Task
      */
     public function save()
     {
-        $this->_storage->modify($this->id, $this->toHash());
+        $this->_storage->modify($this->id, $this->toHash(true));
     }
 
     /**
@@ -301,9 +358,11 @@ class Nag_Task
      */
     public function add(Nag_Task $task)
     {
-        $this->_dict[$task->id] = count($this->children);
-        $task->parent = $this;
-        $this->children[] = $task;
+        if (!isset($this->_dict[$task->id])) {
+            $this->_dict[$task->id] = count($this->children);
+            $task->parent = $this;
+            $this->children[] = $task;
+        }
     }
 
     /**
@@ -388,6 +447,28 @@ class Nag_Task
     }
 
     /**
+     * Returns whether any tasks in the list are overdue.
+     *
+     * @return boolean  True if any task or sub tasks are overdue.
+     */
+    public function childrenOverdue()
+    {
+        if (!empty($this->due)) {
+            $due = new Horde_Date($this->due);
+            if ($due->compareDate(new Horde_Date(time())) <= 0) {
+                return true;
+            }
+        }
+        foreach ($this->children as $task) {
+            if ($task->childrenOverdue()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Returns the number of tasks including this and any sub tasks.
      *
      * @return integer  The number of tasks and sub tasks.
@@ -432,6 +513,8 @@ class Nag_Task
      */
     public function toggleComplete()
     {
+        $horde_alarm = $GLOBALS['injector']->getInstance('Horde_Alarm');
+
         if ($this->completed) {
             $this->completed_date = null;
             $this->completed = false;
@@ -446,8 +529,14 @@ class Nag_Task
                         substr($completion, 6, 2));
                 }
             }
+            $alarm = $this->toAlarm();
+            if ($alarm) {
+                $horde_alarm->set($alarm);
+            }
             return;
         }
+
+        $horde_alarm->delete($this->uid);
 
         if ($this->recurs()) {
             /* Get current occurrence (task due date) */
@@ -462,8 +551,13 @@ class Nag_Task
                 $current->mday++;
                 /* Only mark this due date completed if there is another
                  * occurence. */
-                if ($this->recurrence->nextActiveRecurrence($current)) {
+                if ($next = $this->recurrence->nextActiveRecurrence($current)) {
                     $this->completed = false;
+                    $alarm = $this->toAlarm();
+                    if ($alarm) {
+                        $alarm['start'] = new Horde_Date($next);
+                        $horde_alarm->set($alarm);
+                    }
                     return;
                 }
             }
@@ -545,8 +639,7 @@ class Nag_Task
             return $this;
         }
         if ($this->_pointer >= count($this->children)) {
-            $task = false;
-            return $task;
+            return false;
         }
         $next = $this->children[$this->_pointer]->each();
         if ($next) {
@@ -590,24 +683,23 @@ class Nag_Task
         }
 
         if (!isset($view_url_list[$this->tasklist])) {
-            $view_url_list[$this->tasklist] = Horde_Util::addParameter(Horde::url('view.php'), 'tasklist', $this->tasklist);
-            $task_url_list[$this->tasklist] = Horde_Util::addParameter(Horde::url('task.php'), 'tasklist', $this->tasklist);
+            $view_url_list[$this->tasklist] = Horde::url('view.php')->add('tasklist', $this->tasklist);
+            $task_url_list[$this->tasklist] = Horde::url('task.php')->add('tasklist', $this->tasklist);
         }
 
         /* Obscure private tasks. */
         if ($this->private && $this->owner != $GLOBALS['registry']->getAuth()) {
             $this->name = _("Private Task");
             $this->desc = '';
-            $this->category = _("Private");
         }
 
         /* Create task links. */
-        $this->view_link = Horde_Util::addParameter($view_url_list[$this->tasklist], 'task', $this->id);
+        $this->view_link = $view_url_list[$this->tasklist]->copy()->add('task', $this->id);
 
-        $task_url_task = Horde_Util::addParameter($task_url_list[$this->tasklist], 'task', $this->id);
+        $task_url_task = $task_url_list[$this->tasklist]->copy()->add('task', $this->id);
         $this->complete_link = Horde::url('t/complete')->add(array('url' => Horde::url('list.php'), 'task' => $this->id, 'tasklist' => $this->tasklist));
-        $this->edit_link = Horde_Util::addParameter($task_url_task, 'actionID', 'modify_task');
-        $this->delete_link = Horde_Util::addParameter($task_url_task, 'actionID', 'delete_task');
+        $this->edit_link = $task_url_task->copy()->add('actionID', 'modify_task');
+        $this->delete_link = $task_url_task->copy()->add('actionID', 'delete_task');
     }
 
     /**
@@ -641,6 +733,55 @@ class Nag_Task
     }
 
     /**
+     * Recursively loads tags for all tasks contained in this object.
+     */
+    public function loadTags()
+    {
+        $ids = array();
+        if (!isset($this->_tags)) {
+            $ids[] = $this->uid;
+        }
+        foreach ($this->children as $task) {
+            $ids[] = $task->uid;
+        }
+        if (!$ids) {
+            return;
+        }
+
+        $results = Nag::getTagger()->getTags($ids);
+
+        $this->synchronizeTags($results[$this->uid]);
+        foreach ($this->children as $task) {
+            $task->synchronizeTags($results[$task->uid]);
+            $task->loadTags();
+        }
+    }
+
+    /**
+     * Syncronizes tags from the tagging backend with the task storage backend,
+     * if necessary.
+     *
+     * @param array $tags  Tags from the tagging backend.
+     */
+    public function synchronizeTags($tags)
+    {
+        if (isset($this->internaltags)) {
+            usort($tags, 'strcoll');
+            if (array_diff($this->internaltags, $tags)) {
+                Nag::getTagger()->replaceTags(
+                    $this->uid,
+                    $this->internaltags,
+                    $this->owner,
+                    'task'
+                );
+            }
+            $this->_tags = $this->internaltags;
+        } else {
+            $this->_tags = $tags;
+        }
+    }
+
+    /**
      * Sorts sub tasks by the given criteria.
      *
      * @param string $sortby     The field by which to sort
@@ -656,7 +797,6 @@ class Nag_Task
         $sort_functions = array(
             Nag::SORT_PRIORITY => 'ByPriority',
             Nag::SORT_NAME => 'ByName',
-            Nag::SORT_CATEGORY => 'ByCategory',
             Nag::SORT_DUE => 'ByDue',
             Nag::SORT_START => 'ByStart',
             Nag::SORT_COMPLETION => 'ByCompletion',
@@ -708,32 +848,35 @@ class Nag_Task
      */
     public function toHash()
     {
-        return array('tasklist_id' => $this->tasklist,
-                     'task_id' => $this->id,
-                     'uid' => $this->uid,
-                     'parent' => $this->parent_id,
-                     'owner' => $this->owner,
-                     'assignee' => $this->assignee,
-                     'name' => $this->name,
-                     'desc' => $this->desc,
-                     'category' => $this->category,
-                     'start' => $this->start,
-                     'due' => $this->due,
-                     'priority' => $this->priority,
-                     'estimate' => $this->estimate,
-                     'completed' => $this->completed,
-                     'completed_date' => $this->completed_date,
-                     'alarm' => $this->alarm,
-                     'methods' => $this->methods,
-                     'private' => $this->private,
-                     'recurrence' => $this->recurrence);
+        $hash = array(
+            'tasklist_id' => $this->tasklist,
+            'task_id' => $this->id,
+            'uid' => $this->uid,
+            'parent' => $this->parent_id,
+            'owner' => $this->owner,
+            'assignee' => $this->assignee,
+            'name' => $this->name,
+            'desc' => $this->desc,
+            'start' => $this->start,
+            'due' => $this->due,
+            'priority' => $this->priority,
+            'estimate' => $this->estimate,
+            'completed' => $this->completed,
+            'completed_date' => $this->completed_date,
+            'alarm' => $this->alarm,
+            'methods' => $this->methods,
+            'private' => $this->private,
+            'recurrence' => $this->recurrence,
+            'tags' => $this->tags);
+
+        return $hash;
     }
 
     /**
      * Returns a simple object suitable for json transport representing this
      * task.
      *
-     * @param boolean $full        Whether to return all event details.
+     * @param boolean $full        Whether to return all task details.
      * @param string $time_format  The date() format to use for time formatting.
      *
      * @return object  A simple object.
@@ -760,6 +903,7 @@ class Nag_Task
         if ($this->recurs()) {
             $json->r = $this->recurrence->getRecurType();
         }
+        $json->t = array_values($this->tags);
 
         if ($full) {
             // @todo: do we really need all this?
@@ -770,14 +914,15 @@ class Nag_Task
                 $json->dd = $date->strftime('%x');
                 $json->dt = $date->format($time_format);
             }
-            /*
-            $json->p = $this->parent_id;
-            $json->o = $this->owner;
             $json->as = $this->assignee;
             if ($this->estimate) {
                 $date = new Horde_Date($this->estimate);
                 $json->e = $date->toJson();
             }
+            /*
+            $json->p = $this->parent_id;
+            $json->o = $this->owner;
+
             if ($this->completed_date) {
                 $date = new Horde_Date($this->completed_date);
                 $json->cd = $date->toJson();
@@ -941,8 +1086,8 @@ class Nag_Task
             }
         }
 
-        if (!empty($this->category)) {
-            $vTodo->setAttribute('CATEGORIES', $this->category);
+        if ($this->tags) {
+            $vTodo->setAttribute('CATEGORIES', implode(', ', $this->tags));
         }
 
         /* Get the task's history. */
@@ -987,7 +1132,7 @@ class Nag_Task
      *
      * @return Horde_ActiveSync_Message_Task
      */
-    function toASTask(array $options = array())
+    public function toASTask(array $options = array())
     {
         $message = new Horde_ActiveSync_Message_Task(array(
             'protocolversion' => $options['protocolversion'])
@@ -1067,7 +1212,7 @@ class Nag_Task
      *
      * @param Horde_Icalendar_Vtodo $vTodo  The iCalendar data to update from.
      */
-    function fromiCalendar(Horde_Icalendar_Vtodo $vTodo)
+    public function fromiCalendar(Horde_Icalendar_Vtodo $vTodo)
     {
         try {
             $name = $vTodo->getAttribute('SUMMARY');
@@ -1147,7 +1292,9 @@ class Nag_Task
 
         try {
             $cat = $vTodo->getAttribute('CATEGORIES');
-            if (!is_array($cat)) { $this->category = $cat; }
+            if (!is_array($cat)) {
+                $this->tags = $cat;
+            }
         } catch (Horde_Icalendar_Exception $e) {}
 
         try {
@@ -1169,7 +1316,7 @@ class Nag_Task
      *
      * @param Horde_ActiveSync_Message_Task $message  The task object
      */
-    function fromASTask(Horde_ActiveSync_Message_Task $message)
+    public function fromASTask(Horde_ActiveSync_Message_Task $message)
     {
         /* Owner is always current user for ActiveSync */
         $this->owner = $GLOBALS['registry']->getAuth();
@@ -1223,24 +1370,6 @@ class Nag_Task
         }
 
         $this->tasklist = $GLOBALS['prefs']->getValue('default_tasklist');
-    }
-
-    /**
-     * CSS formatting.
-     *
-     * @return string  CSS formatting.
-     */
-    public function getCssStyle()
-    {
-        $cManager = new Horde_Prefs_CategoryManager();
-        $colors = $cManager->colors();
-        if (!isset($colors[$this->category])) {
-            return '';
-        }
-        $fgColors = $cManager->fgColors();
-
-        return 'color:' . (isset($fgColors[$this->category]) ? $fgColors[$this->category] : $fgColors['_default_']) . ';' .
-            'background:' . $colors[$this->category] . ';';
     }
 
 }

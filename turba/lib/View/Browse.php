@@ -31,30 +31,7 @@ class Turba_View_Browse
     public function updateSortOrderFromVars()
     {
         extract($this->_params, EXTR_REFS);
-
-        if (strlen($sortby = $vars->get('sortby'))) {
-            $sources = Turba::getColumns();
-            $columns = isset($sources[$source]) ? $sources[$source] : array();
-            $column_name = Turba::getColumnName($sortby, $columns);
-            $append = true;
-            $ascending = ($vars->get('sortdir') == 0);
-            if ($vars->get('sortadd')) {
-                $sortorder = Turba::getPreferredSortOrder();
-                foreach ($sortorder as $i => $elt) {
-                    if ($elt['field'] == $column_name) {
-                        $sortorder[$i]['ascending'] = $ascending;
-                        $append = false;
-                    }
-                }
-            } else {
-                $sortorder = array();
-            }
-            if ($append) {
-                $sortorder[] = array('field' => $column_name,
-                                     'ascending' => $ascending);
-            }
-            $prefs->setValue('sortorder', serialize($sortorder));
-        }
+        Turba::setPreferredSortOrder($vars, $source);
     }
 
     public function run()
@@ -436,7 +413,7 @@ class Turba_View_Browse
             // We might get here from the search page but are not allowed to browse
             // the current address book.
             if ($actionID && empty($cfgSources[$source]['browse'])) {
-                Horde::url($prefs->getValue('initial_page'), true)
+                Horde::url($GLOBALS['prefs']->getValue('initial_page'), true)
                     ->redirect();
             }
         }
@@ -519,7 +496,7 @@ class Turba_View_Browse
         $page_output->header(array(
             'title' => $title
         ));
-        require TURBA_TEMPLATES . '/menu.inc';
+        $notification->notify(array('listeners' => 'status'));
         foreach ($templates as $template) {
             require TURBA_TEMPLATES . $template;
         }

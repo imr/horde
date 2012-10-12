@@ -1,4 +1,9 @@
 /* Mailbox page styling. */
+#mailboxLabel {
+    margin-left: 20px;
+    white-space: nowrap;
+}
+
 .mboxheader {
     font-size: 110%;
     text-align: left;
@@ -52,9 +57,6 @@ div.partsTreeDiv span span:last-child {
     background-color: lightblue;
     border: 1px solid gray;
     margin: 2px;
-    -moz-border-radius: 4px;
-    -webkit-border-radius: 4px;
-    border-radius: 4px;
 }
 .searchElement em {
     font-style: normal;
@@ -167,53 +169,98 @@ div.partsTreeDiv span span:last-child {
     vertical-align: sub;
 }
 
+.msgflags.iconImg {
+    width: 16px;
+}
 .msgflags.flagPersonal {
-    background-image: url("graphics/mail_personal.png");
+    background-image: url("graphics/flags/personal.png");
 }
 .msgflags.flagHighpriority {
-    background-image: url("graphics/mail_priority_high.png");
+    background-image: url("graphics/flags/priority_high.png");
 }
 .msgflags.flagLowpriority {
-    background-image: url("graphics/mail_priority_low.png");
+    background-image: url("graphics/flags/priority_low.png");
 }
 .msgflags.flagSignedmsg {
-    background-image: url("graphics/signed.png");
+    background-image: url("graphics/flags/signed.png");
 }
 .msgflags.flagEncryptmsg {
-    background-image: url("graphics/encrypted.png");
+    background-image: url("graphics/flags/encrypted.png");
 }
 .msgflags.flagAttachmsg {
-    background-image: url("graphics/attachment.png");
+    background-image: url("graphics/flags/attachment.png");
 }
 .msgflags.flagList {
-    background-image: url("graphics/group.png");
+    background-image: url("graphics/flags/group.png");
 }
 .msgflags.flagJunk, span.iconImg.flagJunk {
-    background-image: url("graphics/spam.png");
+    background-image: url("graphics/flags/spam.png");
 }
 .msgflags.flagNotJunk, span.iconImg.flagNotJunk {
-    background-image: url("graphics/innocent.png");
-}
-span.iconImg.flagSeen {
-    background-image: url("graphics/mail_seen.png");
+    background-image: url("graphics/flags/innocent.png");
 }
 .msgflags.flagUnseen, span.iconImg.flagUnseen {
-    background-image: url("graphics/mail_unseen.png");
+    background-image: url("graphics/flags/unseen.png");
 }
 .msgflags.flagAnswered, span.iconImg.flagAnswered {
-    background-image: url("graphics/mail_answered.png");
+    background-image: url("graphics/flags/answered.png");
 }
 .msgflags.flagDraft, span.iconImg.flagDraft {
-    background-image: url("graphics/mail_draft.png");
+    background-image: url("graphics/flags/draft.png");
 }
 .msgflags.flagForwarded, span.iconImg.flagForwarded {
-    background-image: url("graphics/mail_forwarded.png");
+    background-image: url("graphics/flags/forwarded.png");
 }
-.msgflags.flagFlagged, span.iconImg.flagFlagged {
-    background-image: url("graphics/mail_flagged.png");
+.msgflags.flagFlagged {
+    background-image: url("graphics/flags/flagged.png");
 }
 .msgflags.flagDeleted, span.iconImg.flagDeleted {
-    background-image: url("graphics/mail_deleted.png");
+    background-image: url("graphics/flags/deleted.png");
+}
+.selectedRow .msgflags.flagPersonal {
+    background-image: url("graphics/flags/personal-inv.png");
+}
+.selectedRow .msgflags.flagHighpriority {
+    background-image: url("graphics/flags/priority_high-inv.png");
+}
+.selectedRow .msgflags.flagLowpriority {
+    background-image: url("graphics/flags/priority_low-inv.png");
+}
+.selectedRow .msgflags.flagSignedmsg {
+    background-image: url("graphics/flags/signed-inv.png");
+}
+.selectedRow .msgflags.flagEncryptmsg {
+    background-image: url("graphics/flags/encrypted-inv.png");
+}
+.selectedRow .msgflags.flagAttachmsg {
+    background-image: url("graphics/flags/attachment-inv.png");
+}
+.selectedRow .msgflags.flagList {
+    background-image: url("graphics/flags/group-inv.png");
+}
+.selectedRow .msgflags.flagJunk {
+    background-image: url("graphics/flags/spam-inv.png");
+}
+.selectedRow .msgflags.flagNotJunk {
+    background-image: url("graphics/flags/innocent-inv.png");
+}
+.selectedRow .msgflags.flagUnseen {
+    background-image: url("graphics/flags/unseen-inv.png");
+}
+.selectedRow .msgflags.flagAnswered {
+    background-image: url("graphics/flags/answered-inv.png");
+}
+.selectedRow .msgflags.flagDraft {
+    background-image: url("graphics/flags/draft-inv.png");
+}
+.selectedRow .msgflags.flagForwarded {
+    background-image: url("graphics/flags/forwarded-inv.png");
+}
+.selectedRow .msgflags.flagFlagged {
+    background-image: url("graphics/flags/flagged-inv.png");
+}
+.selectedRow .msgflags.flagDeleted {
+    background-image: url("graphics/flags/deleted-inv.png");
 }
 
 /* Prefs management styles. */
@@ -257,9 +304,6 @@ table.searchesmanagement .vfolderenabled {
     border: 1px solid black;
     margin: 5px 0;
     padding: 4px;
-    -moz-border-radius: 4px;
-    -webkit-border-radius: 4px;
-    border-radius: 4px;
 }
 .prefsPgpHeader, .prefsSmimeHeader {
     margin-bottom: 5px;
@@ -292,22 +336,13 @@ table.searchesmanagement .vfolderenabled {
 }
 
 /* Quota styles. */
-#quota {
-    border-collapse: collapse;
-    width: 100%;
-}
-#quota td {
-    padding: 3px;
-    vertical-align: middle;
-    text-align: center;
-}
 .quotawarn {
-    color: #000;
-    background: yellow;
+    color: yellow;
+    font-weight:bold;
 }
 .quotaalert {
-    color: #fff;
-    background: #f00;
+    color: #f00;
+    font-weight:bold;
 }
 
 /* Contacts styles. */
@@ -362,15 +397,12 @@ table.searchesmanagement .vfolderenabled {
     display: inline-block;
     margin-bottom: 3px;
     padding: 4px;
-    -moz-border-radius: 4px;
-    -webkit-border-radius: 4px;
-    border-radius: 4px;
 }
 .mimeStatusIcon {
     width: 22px;
 }
 div.mimeStatusMessage, div.mimePartInfo {
-    margin-bottom: 10px;
+    margin-bottom: 7px;
 }
 .mimePartInfo div {
     background: #eceff0;
@@ -386,7 +418,7 @@ div.mimeStatusMessage, div.mimePartInfo {
     background-image: url("graphics/attachment.png");
     background-position: 2px 50%;
     background-repeat: no-repeat;
-    padding-left: 25px;
+    padding-left: 35px;
 }
 span.mimePartInfoSize {
     color: #666;
@@ -446,8 +478,10 @@ span.mimePartInfoSize {
 .editImg {
     background-image: url("graphics/edit.png");
 }
-.searchImg, .horde-buttonbar li.searchImg {
-    background-image: url("graphics/search.png"), url('graphics/button-split.png');
+.searchImg {
+    background-image: url("graphics/search.png");
+    background-position: left center;
+    background-repeat: no-repeat;
 }
 .readonlyImg, .horde-buttonbar li.readonlyImg {
     background-image: url("graphics/locked.png");
@@ -461,23 +495,12 @@ span.mimePartInfoSize {
 .spellcheckImg {
     background-image: url("graphics/spellcheck.png");
 }
-.emptytrashImg, .horde-buttonbar li.emptytrashImg {
-    background-image: url("graphics/empty_trash.png"), url('graphics/button-split.png');
+.emptytrashImg {
+    background-image: url("graphics/empty_trash.png");
 }
-
-.filtersIcon, .horde-buttonbar li.filtersIcon {
-    background-image: url("graphics/filters.png"), url('graphics/button-split.png');
+.filtersIcon {
+    background-image: url("graphics/filters.png");
 }
-
-/* iTip styles. */
-.itipconflicts {
-    border-spacing: 0;
-}
-.itipconflicts tr.itipcollision {
-    background-color: #f00;
-    color: #fff;
-}
-
-.itipconflicts tr.itipnearcollision {
-    background-color: #ee0;
+.refreshIcon {
+    background-image: url("graphics/reload.png");
 }

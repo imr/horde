@@ -59,6 +59,11 @@ abstract class IMP_Dynamic_Base
     );
 
     /**
+     * @var boolean
+     */
+    public $topbar = false;
+
+    /**
      */
     public function __construct(Horde_Variables $vars)
     {
@@ -73,6 +78,9 @@ abstract class IMP_Dynamic_Base
         $page_output->addScriptFile('indices.js');
         $page_output->addScriptFile('contextsensitive.js', 'horde');
         $page_output->addScriptFile('imple.js', 'horde');
+
+        $mimecss = new Horde_Themes_Element('mime.css');
+        $page_output->addStylesheet($mimecss->fs, $mimecss->uri);
 
         $this->_init();
 
@@ -168,7 +176,7 @@ abstract class IMP_Dynamic_Base
 
         /* Gettext strings used in core javascript files. */
         $this->js_text = array(
-            'allparts_label' => _("All Message Parts"),
+            'allparts_label' => _("Parts"),
             'loading' => _("Loading..."),
             'strip_warn' => _("Are you sure you wish to PERMANENTLY delete this attachment?"),
             'verify' => _("Verifying...")

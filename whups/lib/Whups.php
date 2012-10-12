@@ -152,8 +152,7 @@ class Whups
                     $param = array('query' => $data);
                 }
                 $url = $controller == 'query' ? 'query/run.php' : 'query/rss.php';
-                $url = Horde_Util::addParameter($url, $param);
-                return Horde::url($url, $full, $append_session);
+                return Horde::url($url, $full, $append_session)->add($param);
             }
             break;
         }
@@ -696,7 +695,7 @@ class Whups
                 self::$_users[$user]['name'] = '';
                 self::$_users[$user]['email'] = $whups_driver->getGuestEmail($user);
 
-                $addr_ob = new Horde_Mail_Rfc822_Address(self::$_user[$user]['email']);
+                $addr_ob = new Horde_Mail_Rfc822_Address(self::$_users[$user]['email']);
                 if ($addr_ob->valid) {
                     self::$_users[$user]['name'] = is_null($addr_ob->personal)
                         ? ''
@@ -1007,11 +1006,11 @@ class Whups
         $mime_part->setType(Horde_Mime_Magic::extToMime($file['type']));
         $viewer = $GLOBALS['injector']->getInstance('Horde_Core_Factory_MimeViewer')->create($mime_part);
         if ($viewer && !($viewer instanceof Horde_Mime_Viewer_Default)) {
-            $url = Horde_Util::addParameter(Horde::url('view.php'),
-                                      array('actionID' => 'view_file',
-                                            'type' => $file['type'],
-                                            'file' => $file['name'],
-                                            'ticket' => $ticket));
+            $url = Horde::url('view.php')->add(array(
+                'actionID' => 'view_file',
+                'type' => $file['type'],
+                'file' => $file['name'],
+                'ticket' => $ticket));
             $link .= Horde::link($url, $file['name'], null, '_blank') . $file['name'] . '</a>';
         } else {
             $link .= $file['name'];
@@ -1025,8 +1024,7 @@ class Whups
 
         // Admins can delete attachments.
         if (self::hasPermission($queue, 'queue', Horde_Perms::DELETE)) {
-            $url = Horde_Util::addParameter(
-                Horde::url('ticket/delete_attachment.php'),
+            $url = Horde::url('ticket/delete_attachment.php')->add(
                 array('file' => $file['name'],
                       'id' => $ticket,
                       'url' => Horde::selfUrl(true, false, true)));

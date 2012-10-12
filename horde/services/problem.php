@@ -18,7 +18,7 @@ Horde_Registry::appInit('horde', array('authentication' => 'none'));
 
 $redirect_url = new Horde_Url(Horde_Util::getFormData('return_url', Horde::url('login.php', true, array('app' => 'horde'))));
 
-if (!Horde_Menu::showService('problem')) {
+if (!$registry->showService('problem')) {
     $redirect_url->redirect();
 }
 
@@ -75,7 +75,7 @@ case 'send_problem_report':
                 ));
 
             try {
-                $registry->call('tickets/addTicket', array($info));
+                $ticketId = $registry->call('tickets/addTicket', array($info));
             } catch (Horde_Exception $e) {
                 $notification->push($e);
                 break;
@@ -85,7 +85,7 @@ case 'send_problem_report':
                 $registry->hasMethod('tickets/addAttachment')) {
                 try {
                     $registry->call('tickets/addAttachment', array(
-                        'ticket_id' => $result,
+                        'ticket_id' => $ticketId,
                         'name' => $attachment['name'],
                         'data' => file_get_contents($attachment['tmp_name'])
                     ));
@@ -150,15 +150,16 @@ case 'cancel_problem_report':
     break;
 }
 
+$page_output->sidebar = false;
 $page_output->addInlineJsVars(array(
     'HordeProblem.message_text' => _("You must describe the problem before you can send the problem report."),
     'HordeProblem.summary_text' => _("Please provide a summary of the problem.")
 ), true);
 $page_output->addScriptFile('problem.js', 'horde');
+
 $page_output->header(array(
     'title' => _("Problem Description")
 ));
-echo Horde::menu();
 $notification->notify(array('listeners' => 'status'));
 require HORDE_TEMPLATES . '/problem/problem.inc';
 $page_output->footer();

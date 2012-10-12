@@ -73,14 +73,13 @@ $view->message_subject = $message['message_subject'];
 $view->message_author = $message['message_author'];
 $view->message_date = $messages->dateFormat($message['message_timestamp']);
 $view->message_body = Agora_Driver::formatBody($message['body']);
-$view->menu = Horde::menu();
 
 Horde::startBuffer();
 $notification->notify(array('listeners' => 'status'));
 $view->notify = Horde::endBuffer();
 
 Horde::startBuffer();
-$form->renderActive(null, $vars, Horde::url('message/delete.php'), 'post');
+$form->renderActive(null, $vars, Horde::url('messages/delete.php'), 'post');
 $view->formbox = Horde::endBuffer();
 
 $page_output->header();

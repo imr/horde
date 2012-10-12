@@ -27,11 +27,6 @@ case Horde_Registry::VIEW_DYNAMIC:
 }
 
 /* Load Ajax interface. */
-$menu = new Horde_Menu();
-$help_link = $registry->getServiceLink('help', 'kronolith');
-if ($help_link) {
-    $help_link = Horde::widget($help_link, _("Help"), 'helplink', 'help', Horde::popupJs($help_link, array('urlencode' => true)) . 'return false;');
-}
 $today = new Horde_Date($_SERVER['REQUEST_TIME']);
 $ampm = !$prefs->getValue('twentyFour');
 
@@ -108,6 +103,12 @@ $injector->getInstance('Horde_Core_Factory_Imple')->create('Kronolith_Ajax_Imple
     'triggerContainer' => 'kronolithACCalendarTriggerContainer'
 ));
 
+$injector->getInstance('Horde_Core_Factory_Imple')->create('Kronolith_Ajax_Imple_TagAutoCompleter', array(
+    'box' => 'kronolithTaskACBox',
+    'id' => 'kronolithTaskTags',
+    'pretty' => true
+));
+
 $injector->getInstance('Horde_Core_Factory_Imple')->create('Kronolith_Ajax_Imple_ContactAutoCompleter', array(
     'box' => 'kronolithAttendeesACBox',
     'id' => 'kronolithEventAttendees',
@@ -127,14 +128,13 @@ $injector->getInstance('Horde_Core_Factory_Imple')->create('Kronolith_Ajax_Imple
 ));
 
 if ($conf['maps']['driver']) {
-    Kronolith::initEventMap($conf['maps']);
+    Horde::initMap();
 }
 
+$topbar = $injector->getInstance('Horde_View_Topbar');
+$topbar->search = true;
+
 $injector->getInstance('Kronolith_Ajax')->init();
-
-require KRONOLITH_TEMPLATES . '/index/index.inc';
-
-$page_output->includeScriptFiles();
-$page_output->outputInlineScript();
-
-echo "</body>\n</html>";
+require KRONOLITH_TEMPLATES . '/dynamic/index.inc';
+echo $injector->getInstance('Kronolith_View_Sidebar');
+$page_output->footer();

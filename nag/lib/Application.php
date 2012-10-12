@@ -40,7 +40,7 @@ class Nag_Application extends Horde_Registry_Application
 
     /**
      */
-    public $version = 'H5 (4.0-git)';
+    public $version = 'H4 (4.0.0-git)';
 
     /**
      * Global variables defined:
@@ -50,6 +50,13 @@ class Nag_Application extends Horde_Registry_Application
     {
         // Set the timezone variable.
         $GLOBALS['registry']->setTimeZone();
+
+        /* For now, autoloading the Content_* classes depend on there being a
+         * registry entry for the 'content' application that contains at least
+         * the fileroot entry. */
+        $GLOBALS['injector']->getInstance('Horde_Autoloader')
+            ->addClassPathMapper(
+                new Horde_Autoloader_ClassPathMapper_Prefix('/^Content_/', $GLOBALS['registry']->get('fileroot', 'content') . '/lib/'));
 
         // Create a share instance.
         $GLOBALS['nag_shares'] = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Share')->create();
@@ -70,21 +77,15 @@ class Nag_Application extends Horde_Registry_Application
     }
 
     /**
+     * Generate links in the sidebar.
+     *
+     * @param Horde_Menu  The menu object.
      */
-    public function menu($menu)
+    public function menu(Horde_Menu $menu)
     {
-        global $conf, $injector, $page_output;
+        global $conf;
 
-        $menu->add(Horde::url('list.php'), _("_List Tasks"), 'nag-list', null, null, null, basename($_SERVER['PHP_SELF']) == 'index.php' ? 'current' : null);
-
-        if (Nag::getDefaultTasklist(Horde_Perms::EDIT) &&
-            ($injector->getInstance('Horde_Core_Perms')->hasAppPermission('max_tasks') === true ||
-             $injector->getInstance('Horde_Core_Perms')->hasAppPermission('max_tasks') > Nag::countTasks()) &&
-            $GLOBALS['browser']->hasFeature('dom')) {
-            $page_output->addScriptFile('scriptaculous/effects.js', 'horde');
-            $page_output->addScriptFile('redbox.js', 'horde');
-            $menu->add(new Horde_Url(''), _("_Quick Add"), 'nag-add', null, null, 'RedBox.showInline(\'quickAddInfoPanel\'); $(\'quickText\').focus(); return false;', Horde_Util::getFormData('task') ? 'quickAdd __noselection' : 'quickAdd');
-        }
+        $menu->add(Horde::url('list.php'), _("_List Tasks"), 'nag-list', null, null, null, (basename($_SERVER['PHP_SELF']) == 'list.php' || strpos($_SERVER['PHP_SELF'], 'nag/index.php') !== false) ? 'current' : null);
 
         /* Search. */
         $menu->add(Horde::url('search.php'), _("_Search"), 'nag-search');
@@ -92,6 +93,82 @@ class Nag_Application extends Horde_Registry_Application
         /* Import/Export. */
         if ($conf['menu']['import_export']) {
             $menu->add(Horde::url('data.php'), _("_Import/Export"), 'horde-data');
+        }
+    }
+
+    /**
+     * Add additional items to the sidebar.
+     *
+     * @param Horde_View_Sidebar $sidebar  The sidebar object.
+     */
+    public function sidebar($sidebar)
+    {
+        // @TODO: Implement an injector factory for this.
+        global $display_tasklists, $page_output, $prefs;
+
+        $perms = $GLOBALS['injector']->getInstance('Horde_Core_Perms');
+        if (Nag::getDefaultTasklist(Horde_Perms::EDIT) &&
+            ($perms->hasAppPermission('max_tasks') === true ||
+             $perms->hasAppPermission('max_tasks') > Nag::countTasks())) {
+            $sidebar->addNewButton(
+                _("_New Task"),
+                Horde::url('task.php')->add('actionID', 'add_task'));
+
+            if ($GLOBALS['browser']->hasFeature('dom')) {
+                $page_output->addScriptFile('scriptaculous/effects.js', 'horde');
+                $page_output->addScriptFile('redbox.js', 'horde');
+                $blank = new Horde_Url();
+                $sidebar->newExtra = $blank->link(
+                    array_merge(
+                        array('onclick' => 'RedBox.showInline(\'quickAddInfoPanel\'); $(\'quickText\').focus(); return false;'),
+                        Horde::getAccessKeyAndTitle(_("_Quick Add"), false, true)
+                    )
+                );
+                require_once NAG_TEMPLATES . '/quick.inc';
+            }
+        }
+
+        $list = Horde::url('list.php');
+        $edit = Horde::url('tasklists/edit.php');
+        $user = $GLOBALS['registry']->getAuth();
+
+        $sidebar->containers['my'] = array(
+            'header' => array(
+                'id' => 'nag-toggle-my',
+                'label' => _("My Task Lists"),
+                'collapsed' => false,
+            ),
+        );
+        if (!$GLOBALS['prefs']->isLocked('default_tasklist')) {
+            $sidebar->containers['my']['header']['add'] = array(
+                'url' => Horde::url('tasklists/create.php'),
+                'label' => _("Create a new Task List"),
+            );
+        }
+        $sidebar->containers['shared'] = array(
+            'header' => array(
+                'id' => 'nag-toggle-shared',
+                'label' => _("Shared Task Lists"),
+                'collapsed' => true,
+            ),
+        );
+        foreach (Nag::listTaskLists(false, Horde_Perms::SHOW, false) as $name => $tasklist) {
+            $row = array(
+                'selected' => in_array($name, $display_tasklists),
+                'url' => $list->add('display_tasklist', $name),
+                'label' => $tasklist->get('name'),
+                'color' => $tasklist->get('color') ?: '#dddddd',
+                'edit' => $edit->add('t', $tasklist->getName()),
+                'type' => 'checkbox',
+            );
+            if ($tasklist->get('owner') == $user) {
+                $sidebar->addRow($row, 'my');
+            } else {
+                if ($tasklist->get('owner')) {
+                    $row['label'] .= ' [' . $GLOBALS['registry']->convertUsername($tasklist->get('owner'), false) . ']';
+                }
+                $sidebar->addRow($row, 'shared');
+            }
         }
     }
 
@@ -127,7 +204,7 @@ class Nag_Application extends Horde_Registry_Application
 
         $error = false;
         foreach ($shares as $share) {
-            $storage = Nag_Driver::singleton($share->getName());
+            $storage = $GLOBALS['injector']->getInstance('Nag_Factory_Driver')->create($share->getName());
             $result = $storage->deleteAll();
             try {
                 $GLOBALS['nag_shares']->removeShare($share);
@@ -165,7 +242,7 @@ class Nag_Application extends Horde_Registry_Application
             throw new Horde_Exception_PermissionDenied(_("Permission Denied"));
         }
 
-        $storage = Nag_Driver::singleton();
+        $storage = $GLOBALS['injector']->getInstance('Nag_Factory_Driver')->create();
         $group = $GLOBALS['injector']->getInstance('Horde_Group');
         $alarm_list = array();
         $tasklists = is_null($user) ?
@@ -213,66 +290,6 @@ class Nag_Application extends Horde_Registry_Application
         global $registry;
 
         switch ($params['id']) {
-        case 'alarms':
-            // Get any alarms in the next hour.
-            $now = time();
-            $alarms = Nag::listAlarms($now);
-            $alarmCount = 0;
-            $horde_alarm = $GLOBALS['injector']->getInstance('Horde_Alarm');
-            foreach ($alarms as $taskId => $task) {
-                if ($horde_alarm->isSnoozed($task->uid, $registry->getAuth())) {
-                    continue;
-                }
-                ++$alarmCount;
-
-                $differential = $task->due - $now;
-                $title = ($differential >= 60)
-                    ? sprintf(_("%s is due in %s"), $task->name, Nag::secondsToString($differential))
-                    : sprintf(_("%s is due now."), $task->name);
-                $url = Horde::url('view.php')->add(array(
-                    'task' => $task->id,
-                    'tasklist' => $task->tasklist
-                ));
-
-                $tree->addNode(array(
-                    'id' => $parent . $taskId,
-                    'parent' => $parent,
-                    'label' => $task->name,
-                    'expanded' => false,
-                    'params' => array(
-                        'icon' => Horde_Themes::img('alarm.png'),
-                        'title' => $title,
-                        'url' => $url
-                    )
-                ));
-            }
-
-            if ($registry->get('url', $parent)) {
-                $purl = $registry->get('url', $parent);
-            } elseif ($registry->get('status', $parent) == 'heading' ||
-                      !$registry->get('webroot')) {
-                $purl = null;
-            } else {
-                $purl = Horde::url($registry->getInitialPage($parent));
-            }
-
-            $pnode_name = $registry->get('name', $parent);
-            if ($alarmCount) {
-                $pnode_name = '<strong>' . $pnode_name . '</strong>';
-            }
-
-            $tree->addNode(array(
-                'id' => $parent,
-                'parent' => $registry->get('menu_parent', $parent),
-                'label' => $pnode_name,
-                'expanded' => false,
-                'params' => array(
-                    'icon' => strval($registry->get('icon', $parent)),
-                    'url' => $purl
-                )
-            ));
-            break;
-
         case 'menu':
             $add = Horde::url('task.php')->add('actionID', 'add_task');
 
@@ -331,7 +348,12 @@ class Nag_Application extends Horde_Registry_Application
             }
 
             /* Get the full, sorted task list. */
-            $tasks = Nag::listTasks(null, null, null, $tasklists, $vars->exportTasks);
+            $tasks = Nag::listTasks(array(
+                'tasklists' => $tasklists,
+                'completed' => $vars->exportTasks,
+                'include_tags' => true)
+            );
+
             if (!$tasks->hasTasks()) {
                 throw new Nag_Exception(_("There were no tasks to export."));
             }

@@ -7,32 +7,29 @@
 <div id="msgData" style="display:none">
  <div class="horde-buttonbar">
   <div class="iconImg headercloseimg closeImg" id="windowclose" title="X"></div>
-  <div>
+  <ul>
+  <li class="horde-icon">
    <?php echo $this->actionButton(array('icon' => 'Reply', 'id' => 'reply_link', 'title' => _("Reply"))) ?>
-   <div class="horde-button-split"></div>
-  </div>
-  <div>
+  </li>
+  <li class="horde-icon">
    <?php echo $this->actionButton(array('icon' => 'Forward', 'id' => 'forward_link', 'title' => _("Forward"))) ?>
-   <div class="horde-button-split"></div>
-  </div>
+  </li>
 <?php if ($this->show_spam): ?>
-  <div>
+  <li class="horde-icon">
    <?php echo $this->actionButton(array('icon' => 'Spam', 'id' => 'button_spam', 'title' => _("Spam"))) ?>
-   <div class="horde-button-split"></div>
-  </div>
+  </li>
 <?php endif; ?>
 <?php if ($this->show_innocent): ?>
-  <div>
+  <li class="horde-icon">
    <?php echo $this->actionButton(array('icon' => 'Innocent', 'id' => 'button_innocent', 'title' => _("Innocent"))) ?>
-   <div class="horde-button-split"></div>
-  </div>
+  </li>
 <?php endif; ?>
 <?php if ($this->show_delete): ?>
-  <div>
+  <li class="horde-icon">
    <?php echo $this->actionButton(array('icon' => 'Delete', 'id' => 'button_delete', 'title' => _("Delete"))) ?>
-   <div class="horde-button-split"></div>
-  </div>
+  </li>
 <?php endif; ?>
+  </ul>
  </div>
 
  <div class="msgfullread">
@@ -63,48 +60,38 @@
 <?php endif; ?>
     </div>
     <div id="msgHeadersContent">
-     <p class="p17 bold"><?php echo $this->subject ?></p>
-     <p>&nbsp;</p>
+     <div class="subject"><?php echo $this->subject ?></div>
      <table>
       <thead>
 <?php foreach ($this->hdrs as $val): ?>
-       <tr<?php if ($val['id']) echo ' id="' . $val['id'] . '"'; ?>>
+       <tr<?php if (!empty($val['id'])) echo ' id="' . $val['id'] . '"'; ?>>
         <td class="label"><?php echo $val['label'] ?>:</td>
         <td><?php echo $val['val'] ?></td>
        </tr>
 <?php endforeach; ?>
-       <tr id="msgAtc"<?php if (!isset($this->atc_label)) echo ' style="display:none"'; ?>>
-        <td class="label" id="partlist_toggle">
-         <span class="iconImg attachmentImg attachmentImage"></span>
-         <span id="partlist_col" class="iconImg"></span>
-         <span id="partlist_exp" class="iconImg" style="display:none"></span>
+       <tr id="msgHeaderAtc"<?php if (!isset($this->atc_label)) echo ' style="display:none"'; ?>>
+        <td class="label">
+         <?php echo _("Attachments") ?>:
         </td>
         <td>
-         <span class="atcLabel"><?php echo $this->atc_label ?></span>
-         <?php echo $this->atc_download ?>
-         <div id="partlist" style="display:none">
+         <div id="partlist">
           <table>
-           <?php echo $this->atc_list ?>
+<?php foreach ($this->atc_list as $val): ?>
+           <tr>
+            <td><?php echo $val['icon'] ?></td>
+            <td><?php echo $val['description'] ?> (<?php echo $val['size'] ?>)</td>
+            <td><?php echo $val['download'] ?> <?php if (!empty($val['download_zip'])) { echo $val['download_zip']; } ?></td>
+           </tr>
+<?php endforeach ?>
           </table>
-         </div>
-        </td>
-       </tr>
-       <tr id="msgLogInfo" style="display:none">
-        <td class="label" id="msgloglist_toggle">
-         <span class="iconImg" id="msgloglist_col"></span>
-         <span class="iconImg" id="msgloglist_exp" style="display:none"></span>
-        </td>
-        <td>
-         <div>
-          <span class="msgLogLabel"><?php echo _("Message Log") ?></span>
-         </div>
-         <div id="msgloglist" style="display:none">
-          <ul></ul>
          </div>
         </td>
        </tr>
       </thead>
      </table>
+     <div id="msgloglist" style="display:none">
+      <ul></ul>
+     </div>
     </div>
    </div>
   </div>

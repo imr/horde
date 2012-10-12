@@ -16,20 +16,19 @@
   <email>jan@horde.org</email>
   <active>yes</active>
  </lead>
- <date>2012-05-29</date>
- <time>18:21:01</time>
+ <date>2012-08-29</date>
+ <time>16:06:45</time>
  <version>
-  <release>2.0.0</release>
-  <api>2.0.0</api>
+  <release>2.0.0beta2</release>
+  <api>2.0.0beta1</api>
  </version>
  <stability>
-  <release>alpha</release>
-  <api>alpha</api>
+  <release>beta</release>
+  <api>beta</api>
  </stability>
  <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
  <notes>
-* [mjr] Always provide the longest forecast length available for weather forecast data.
-* [mjr] No longer attempt to create a Horde_Service_Weather provider if we do not have one configured.
+* 
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
@@ -117,35 +116,35 @@
    <package>
     <name>Horde_Core</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Date</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Url</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Util</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
@@ -157,14 +156,14 @@
    <package>
     <name>Horde_Service_Facebook</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Service_Weather</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
@@ -373,6 +372,35 @@
    <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
 *
+   </notes>
+  </release>
+  <release>
+   <date>2012-08-29</date>
+   <time>18:21:01</time>
+   <version>
+    <release>2.0.0beta1</release>
+    <api>2.0.0beta1</api>
+   </version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* First beta release for Horde 5.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta2</release>
+    <api>2.0.0beta1</api></version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api></stability>
+   <date>2012-08-29</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* 
    </notes>
   </release>
  </changelog>

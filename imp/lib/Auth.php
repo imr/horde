@@ -5,7 +5,6 @@
  * The following is the list of IMP session variables:
  *   - compose_cache: (array) List of compose objects that have not yet been
  *                    garbage collected.
- *   - csearchavail: (boolean) True if contacts search is available.
  *   - file_upload: (integer) If file uploads are allowed, the max size.
  *   - filteravail: (boolean) Can we apply filters manually?
  *   - imap_acl: (boolean) See 'acl' entry in config/backends.php.
@@ -16,7 +15,6 @@
  *   - imap_quota: (array) See 'quota' entry in config/backends.php.
  *   - imap_thread: (string) The trheading algorithm supported by the server.
  *   - maildomain: (string) See 'maildomain' entry in config/backends.php.
- *   - notepadavail: (boolean) Is listing of notepads available?
  *   - pgp: (array) Cached PGP passhprase values.
  *   - rteavail: (boolean) Is the HTML editor available?
  *   - search: (IMP_Search) The IMP_Search object.
@@ -25,7 +23,6 @@
  *   - smtp: (array) SMTP configuration.
  *   - showunsub: (boolean) Show unsusubscribed mailboxes on the folders
  *                screen.
- *   - tasklistavail: (boolean) Is listing of tasklists available?
  *
  * Copyright 1999-2012 Horde LLC (http://www.horde.org/)
  *
@@ -87,7 +84,7 @@ class IMP_Auth
             try {
                 $imp_imap->createImapObject($credentials['userId'], $credentials['password'], $credentials['server']);
             } catch (IMP_Imap_Exception $e) {
-                self::_logMessage(false, $imp_imap);
+                self::_log(false, $imp_imap);
                 throw $e->authException();
             }
 
@@ -99,7 +96,7 @@ class IMP_Auth
         try {
             $imp_imap->login();
         } catch (IMP_Imap_Exception $e) {
-            self::_logMessage(false, $imp_imap);
+            self::_log(false, $imp_imap);
             throw $e->authException();
         }
 
@@ -144,7 +141,7 @@ class IMP_Auth
      * @param boolean $success   True on success, false on failure.
      * @param IMP_Imap $imap_ob  The IMP_Imap object to use.
      */
-    static protected function _logMessage($status, $imap_ob)
+    static protected function _log($status, $imap_ob)
     {
         if ($status) {
             $msg = 'Login success';
@@ -173,7 +170,7 @@ class IMP_Auth
             $protocol ? ' [' . $protocol . ']' : ''
         );
 
-        Horde::logMessage($msg, $level);
+        Horde::log($msg, $level);
     }
 
     /**
@@ -209,11 +206,10 @@ class IMP_Auth
      * single value or an array of multiple values.
      *
      * @param string $server  A complete server entry from the $servers hash.
-     * @param string $key     The server key entry.
      *
      * @return boolean  True if this entry is "preferred".
      */
-    static public function isPreferredServer($server, $key = null)
+    static public function isPreferredServer($server)
     {
         if (empty($server['preferred'])) {
             return false;
@@ -411,34 +407,10 @@ class IMP_Auth
          * value, in bytes, of the maximum file size. */
         $session->set('imp', 'file_upload', $browser->allowFileUploads());
 
-        /* Is the 'contacts/search' API call available? */
-        if ($registry->hasMethod('contacts/search')) {
-            $session->set('imp', 'csearchavail', true);
-        }
-
-        /* Is the 'mail/canApplyFilters' API call available? */
-        try {
-            if ($registry->call('mail/canApplyFilters')) {
-                $session->set('imp', 'filteravail', true);
-            }
-        } catch (Horde_Exception $e) {}
-
-        /* Is the 'tasks/listTasklists' call available? */
-        if ($conf['tasklist']['use_tasklist'] &&
-            $registry->hasMethod('tasks/listTasklists')) {
-            $session->set('imp', 'tasklistavail', true);
-        }
-
-        /* Is the 'notes/listNotepads' call available? */
-        if ($conf['notepad']['use_notepad'] &&
-            $registry->hasMethod('notes/listNotepads')) {
-            $session->set('imp', 'notepadavail', true);
-        }
-
         /* Is the HTML editor available? */
         $session->set('imp', 'rteavail', $injector->getInstance('Horde_Editor')->supportedByBrowser());
 
-        self::_logMessage(true, $imp_imap);
+        self::_log(true, $imp_imap);
     }
 
 }

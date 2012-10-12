@@ -46,7 +46,6 @@ if ($perms->hasAppPermission('max_tasks') !== true &&
 $app_fields = array(
     'name'           => _("Name"),
     'desc'           => _("Description"),
-    'category'       => _("Category"),
     'assignee'       => _("Assignee"),
     'due'            => _("Due By"),
     'alarm'          => _("Alarm"),
@@ -96,12 +95,9 @@ if ($import_format) {
 
 /* We have a final result set. */
 if (is_array($next_step)) {
-    /* Create a category manager. */
-    $cManager = new Horde_Prefs_CategoryManager();
-    $categories = $cManager->get();
 
     /* Create a Nag storage instance. */
-    $storage = Nag_Driver::singleton($storage->set('target'));
+    $storage = $GLOBALS['injector']->getInstance('Nag_Factory_Driver')->create($storage->set('target'));
     $max_tasks = $perms->hasAppPermission('max_tasks');
     $num_tasks = Nag::countTasks();
     $result = null;
@@ -138,12 +134,6 @@ if (is_array($next_step)) {
             break;
         }
 
-        if (!empty($row['category']) &&
-            !in_array($row['category'], $categories)) {
-            $cManager->add($row['category']);
-            $categories[] = $row['category'];
-        }
-
         $num_tasks++;
     }
 
@@ -167,12 +157,9 @@ $export_tasklists = Nag::listTasklists(false, Horde_Perms::READ);
 $page_output->header(array(
     'title' => _("Import/Export Tasks")
 ));
-echo Nag::menu();
 Nag::status();
-
 foreach ($templates[$next_step] as $template) {
     require $template;
     echo '<br />';
 }
-
 $page_output->footer();

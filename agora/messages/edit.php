@@ -114,14 +114,13 @@ if ($message_parent_id) {
 }
 
 $view->replying = $message_parent_id;
-$view->menu = Horde::menu();
 
 Horde::startBuffer();
 $notification->notify(array('listeners' => 'status'));
 $view->notify = Horde::endBuffer();
 
 Horde::startBuffer();
-$form->renderActive(null, $vars, Horde::url('message/edit.php'), 'post');
+$form->renderActive(null, $vars, Horde::url('messages/edit.php'), 'post');
 $view->formbox = Horde::endBuffer();
 
 $page_output->header();

@@ -52,11 +52,6 @@ class Horde_Api extends Horde_Registry_Api
                 'name' => _("_Alarms"),
                 'icon' => 'alarm'
             ),
-            'datatree' => array(
-                'link' => '%application%/admin/datatree.php',
-                'name' => _("_DataTree"),
-                'icon' => 'datatree'
-            ),
             'sessions' => array(
                 'link' => '%application%/admin/sessions.php',
                 'name' => _("Sessions"),
@@ -85,11 +80,6 @@ class Horde_Api extends Horde_Registry_Api
                 'name' => _("ActiveSync Devices"),
                 'icon' => 'mobile'
             );
-        }
-
-        if (empty($GLOBALS['conf']['datatree']['driver']) ||
-            $GLOBALS['conf']['datatree']['driver'] == 'null') {
-            unset($admin['datatree']);
         }
 
         return $admin;
@@ -245,13 +235,12 @@ class Horde_Api extends Horde_Registry_Api
     /**
      * Adds a group to the groups system.
      *
-     * @param string $name    The group's name.
-     * @param string $parent  The group's parent's ID.
+     * @param string $name  The group's name.
      *
      * @return mixed  The group's ID.
      * @throws Horde_Exception
      */
-    public function addGroup($name, $parent = null)
+    public function addGroup($name)
     {
         if (!$GLOBALS['registry']->isAdmin()) {
             throw new Horde_Exception(_("You are not allowed to add groups."));
@@ -531,7 +520,7 @@ class Horde_Api extends Horde_Registry_Api
         try {
             $share->removeUser($userName);
         } catch (Horde_Share_Exception $e) {
-            throw new Horde_Exception($result);
+            throw new Horde_Exception($e);
         }
     }
 

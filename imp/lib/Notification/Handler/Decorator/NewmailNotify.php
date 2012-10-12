@@ -29,14 +29,22 @@ extends Horde_Core_Notification_Handler_Decorator_Base
     public function notify(Horde_Notification_Handler $handler,
                            Horde_Notification_Listener $listener)
     {
-        global $injector, $prefs, $session;
+        global $injector, $prefs, $registry, $session;
+
+        $pushed = $registry->pushApp($this->_app, array(
+            'check_perms' => true,
+            'logintasks' => false
+        ));
 
         $imp_imap = $injector->getInstance('IMP_Factory_Imap')->create();
 
         if (!$prefs->getValue('newmail_notify') ||
             !($listener instanceof Horde_Notification_Listener_Status) ||
-            !$imp_imap->imap ||
-            !$imp_imap->ob) {
+            !$imp_imap->imap) {
+
+            if ($pushed) {
+                $registry->popApp();
+            }
             return;
         }
 
@@ -44,22 +52,33 @@ extends Horde_Core_Notification_Handler_Decorator_Base
         $ns = $imp_imap->getNamespace();
         $recent = array();
 
-        foreach ($imp_imap->statusMultiple($injector->getInstance('IMP_Imap_Tree')->getPollList(), Horde_Imap_Client::STATUS_RECENT, array('sort' => true, 'sort_delimiter' => $ns['delimiter'])) as $key => $val) {
-            if (!empty($val['recent'])) {
-                /* Open the mailbox R/W so we ensure the 'recent' flag is
-                 * cleared. */
-                $imp_imap->openMailbox($key, Horde_Imap_Client::OPEN_READWRITE);
+        try {
+            foreach ($imp_imap->statusMultiple($injector->getInstance('IMP_Imap_Tree')->getPollList(), Horde_Imap_Client::STATUS_RECENT, array('sort' => true, 'sort_delimiter' => $ns['delimiter'])) as $key => $val) {
+                if (!empty($val['recent'])) {
+                    /* Open the mailbox R/W so we ensure the 'recent' flag is
+                     * cleared. */
+                    $imp_imap->openMailbox($key, Horde_Imap_Client::OPEN_READWRITE);
 
-                $mbox = IMP_Mailbox::get($key);
-                $recent[$mbox->display] = $val['recent'];
-                $ajax_queue->poll($mbox);
+                    $mbox = IMP_Mailbox::get($key);
+                    $recent[$mbox->display] = $val['recent'];
+                    $ajax_queue->poll($mbox);
+                }
             }
+        } catch (Exception $e) {
+            if ($pushed) {
+                $registry->popApp();
+            }
+            return;
         }
 
         /* Don't show newmail notification on initial login. */
         if (empty($recent) ||
             !$session->get('imp', 'newmail_init')) {
             $session->set('imp', 'newmail_init', true);
+
+            if ($pushed) {
+                $registry->popApp();
+            }
             return;
         }
 
@@ -89,6 +108,10 @@ extends Horde_Core_Notification_Handler_Decorator_Base
         if ($audio = $prefs->getValue('newmail_audio')) {
             $handler->attach('audio');
             $handler->push(Horde_Themes::sound($audio), 'audio');
+        }
+
+        if ($pushed) {
+            $registry->popApp();
         }
     }
 

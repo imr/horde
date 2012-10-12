@@ -20,16 +20,14 @@ class IMP_Contents
     const SUMMARY_SIZE = 2;
     const SUMMARY_ICON = 4;
     const SUMMARY_ICON_RAW = 16384;
-    const SUMMARY_DESCRIP_LINK = 8;
-    const SUMMARY_DESCRIP_NOLINK = 16;
-    const SUMMARY_DESCRIP_NOLINK_NOHTMLSPECCHARS = 32;
-    const SUMMARY_DOWNLOAD = 64;
-    const SUMMARY_DOWNLOAD_NOJS = 128;
-    const SUMMARY_DOWNLOAD_ZIP = 256;
-    const SUMMARY_IMAGE_SAVE = 512;
-    const SUMMARY_PRINT = 1024;
-    const SUMMARY_PRINT_STUB = 2048;
-    const SUMMARY_STRIP = 4096;
+    const SUMMARY_DESCRIP = 8;
+    const SUMMARY_DESCRIP_LINK = 16;
+    const SUMMARY_DOWNLOAD = 32;
+    const SUMMARY_DOWNLOAD_ZIP = 64;
+    const SUMMARY_IMAGE_SAVE = 128;
+    const SUMMARY_PRINT = 256;
+    const SUMMARY_PRINT_STUB = 512;
+    const SUMMARY_STRIP = 1024;
 
     /* Rendering mask entries. */
     const RENDER_FULL = 1;
@@ -52,6 +50,13 @@ class IMP_Contents
      * @var string
      */
     public $lastBodyPartDecode = null;
+
+    /**
+     * Close session when fetching data from IMAP server?
+     *
+     * @var boolean
+     */
+    public $fetchCloseSession = false;
 
     /**
      * Have we scanned for embedded parts?
@@ -502,8 +507,8 @@ class IMP_Contents
 
         if (!empty($options['autodetect']) &&
             ($tempfile = Horde::getTempFile()) &&
-            ($fp = fopen($tempfile, 'w'))) {
-            $contents = $mime_part->getContents(array('stream' => true));
+            ($fp = fopen($tempfile, 'w')) &&
+            !is_null($contents = $mime_part->getContents(array('stream' => true)))) {
             rewind($contents);
             while (!feof($contents)) {
                 fwrite($fp, fread($contents, 8192));
@@ -582,12 +587,12 @@ class IMP_Contents
             $ret[$mime_id]['name'] = $mime_part->getName(true);
         }
 
-        if (!is_null($ret[$mime_id]['data']) &&
-            ($textmode == 'inline') &&
+        /* Don't show empty parts. */
+        if (($textmode == 'inline') &&
+            !is_null($ret[$mime_id]['data']) &&
             !strlen($ret[$mime_id]['data']) &&
-            $this->isAttachment($type) &&
             !isset($ret[$mime_id]['status'])) {
-            $ret[$mime_id]['status'] = new IMP_Mime_Status(_("This part is empty."));
+            $ret[$mime_id] = null;
         }
 
         return $ret;
@@ -676,14 +681,14 @@ class IMP_Contents
      * IMP_Contents::SUMMARY_ICON_RAW
      *   Output: parts = 'icon'
      *
+     * IMP_Contents::SUMMARY_DESCRIP
+     *   Output: parts = 'description_raw'
+     *
      * IMP_Contents::SUMMARY_DESCRIP_LINK
-     * IMP_Contents::SUMMARY_DESCRIP_NOLINK
-     * IMP_Contents::SUMMARY_DESCRIP_NOLINK_NOHTMLSPECCHARS
      *   Output: parts = 'description'
      *
      * IMP_Contents::SUMMARY_DOWNLOAD
-     * IMP_Contents::SUMMARY_DOWNLOAD_NOJS
-     *   Output: parts = 'download'
+     *   Output: parts = 'download', 'download_url'
      *
      * IMP_Contents::SUMMARY_DOWNLOAD_ZIP
      *   Output: parts = 'download_zip'
@@ -772,20 +777,17 @@ class IMP_Contents
             } else {
                 $part['description'] = htmlspecialchars($description);
             }
-        } elseif ($mask & self::SUMMARY_DESCRIP_NOLINK) {
-            $part['description'] = htmlspecialchars($description);
-        } elseif ($mask & self::SUMMARY_DESCRIP_NOLINK_NOHTMLSPECCHARS) {
-            $part['description'] = $description;
+        }
+        if ($mask & self::SUMMARY_DESCRIP) {
+            $part['description_raw'] = $description;
         }
 
         /* Download column. */
-        if ($is_atc &&
+        if (($mask & self::SUMMARY_DOWNLOAD) &&
+            $is_atc &&
             (is_null($part['bytes']) || $part['bytes'])) {
-            if ($mask & self::SUMMARY_DOWNLOAD) {
-                $part['download'] = $this->linkView($mime_part, 'download_attach', '', array('class' => 'iconImg downloadAtc', 'jstext' => _("Download")));
-            } elseif ($mask & self::SUMMARY_DOWNLOAD_NOJS) {
-                $part['download'] = $this->urlView($mime_part, 'download_attach');
-            }
+            $part['download'] = $this->linkView($mime_part, 'download_attach', '', array('class' => 'iconImg downloadAtc', 'jstext' => _("Download")));
+            $part['download_url'] = $this->urlView($mime_part, 'download_attach');
         }
 
         /* Display the compressed download link only if size is greater
@@ -938,7 +940,7 @@ class IMP_Contents
 
         return empty($options['widget'])
             ? Horde::link('#', $options['jstext'], empty($options['css']) ? null : $options['css'], null, $url) . $text . '</a>'
-            : Horde::widget('#', $options['jstext'], empty($options['css']) ? null : $options['css'], null, $url, $text);
+            : Horde::widget(array('url' => '#', 'class' => empty($options['css']) ? null : $options['css'], 'onclick' => $url, 'title' => $text));
     }
 
     /**
@@ -1496,14 +1498,24 @@ class IMP_Contents
      */
     protected function _fetchData(Horde_Imap_Client_Fetch_Query $query)
     {
+        if ($this->fetchCloseSession) {
+            $GLOBALS['session']->close();
+        }
+
         try {
             $imp_imap = $GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create();
-            return $imp_imap->fetch($this->_mailbox, $query, array(
+            $res = $imp_imap->fetch($this->_mailbox, $query, array(
                 'ids' => $imp_imap->getIdsOb($this->_uid)
             ))->first();
         } catch (Horde_Imap_Client_Exception $e) {
-            return array();
+            $res = new Horde_Imap_Client_Data_Fetch();
         }
+
+        if ($this->fetchCloseSession) {
+            $GLOBALS['session']->start();
+        }
+
+        return $res;
     }
 
 }

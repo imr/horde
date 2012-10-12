@@ -17,6 +17,17 @@ pre, code, .fixed, table.lineNumbered * {
     font-family: Menlo,Consolas,"Lucida Console","DejaVu Sans Mono",monospace;
 }
 
+/* Login page. */
+#login div[data-role="content"] {
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+/* Login tasks. */
+.horde-logintasks-buttons .ui-btn-inner {
+    white-space: normal;
+}
+
 /* Styles for email-like messages. */
 .signature {
     color: #ccc;
@@ -78,19 +89,19 @@ pre, code, .fixed, table.lineNumbered * {
 }
 .horde-error {
     background-color: #e81222 !important;
-    background-image: url("../graphics/smartmobile/alerts/error.png") !important;
+    background-image: url("../graphics/alerts/error.png") !important;
 }
 .horde-message {
     background-color: #369 !important;
-    background-image: url("../graphics/smartmobile/alerts/message.png") !important;
+    background-image: url("../graphics/alerts/message.png") !important;
 }
 .horde-success  {
     background-color: #5db110 !important;
-    background-image: url("../graphics/smartmobile/alerts/success.png") !important;
+    background-image: url("../graphics/alerts/success.png") !important;
 }
 .horde-warning {
     background-color: #ebe20c !important;
-    background-image: url("../graphics/smartmobile/alerts/warning.png") !important;
+    background-image: url("../graphics/alerts/warning.png") !important;
     color: #444 !important;
     text-shadow: 0 1px 1px #f6f6f6 !important;
 }

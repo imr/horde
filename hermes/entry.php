@@ -25,8 +25,10 @@ if (!$vars->exists('id') && $vars->exists('timer')) {
             $vars->set('note', sprintf(_("Using the \"%s\" stop watch from %s to %s"), $tname, date($tformat, $timer_id), date($tformat, time())));
         }
         $notification->push(sprintf(_("The stop watch \"%s\" has been stopped."), $tname), 'horde.success');
-        unset($timers[$timer_id]);
-        $prefs->setValue('running_timers', serialize($timers));
+        if ($timers = @unserialize($prefs->getValue('running_timers'))) {
+            unset($timers[$timer_id]);
+            $prefs->setValue('running_timers', serialize($timers));
+        }
     }
 }
 
@@ -47,10 +49,10 @@ case 'hermes_form_time_entry':
         $form->getInfo($vars, $info);
         try {
             if ($vars->exists('id')) {
-                $notification->push(_("Your time was successfully updated."), 'horde.success');
+                $notification->push(_("Your time was successfully updated."), 'horde.success', array('sticky'));
                 $GLOBALS['injector']->getInstance('Hermes_Driver')->updateTime(array($info));
             } else {
-                $notification->push(_("Your time was successfully entered."), 'horde.success');
+                $notification->push(_("Your time was successfully entered."), 'horde.success', array('sticky'));
                 $GLOBALS['injector']->getInstance('Hermes_Driver')->enterTime($GLOBALS['registry']->getAuth(), $info);
             }
         } catch (Exception $e) {
@@ -89,7 +91,6 @@ $form->setCostObjects($vars);
 $page_output->header(array(
     'title' => $vars->exists('id') ? _("Edit Time") : _("New Time")
 ));
-echo Horde::menu();
 $notification->notify(array('listeners' => 'status'));
 $form->renderActive(new Horde_Form_Renderer(), $vars, Horde::url('entry.php'), 'post');
 $page_output->footer();

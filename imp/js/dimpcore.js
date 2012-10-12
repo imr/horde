@@ -118,8 +118,7 @@ var DimpCore = {
     {
         o = o || {};
 
-        //var elt = new Element('SPAN', { className: 'iconImg popdownImg popdown' }),
-        var elt = new Element('DIV', { className: 'horde-subnavi-arrow horde-icon-arrow-subnavi' }),
+        var elt = new Element('SPAN', { className: 'horde-popdown' }),
             ins = {};
         p = $(p);
 
@@ -149,7 +148,6 @@ var DimpCore = {
     addPopdownButton: function(p, t, o)
     {
         this.addPopdown(p, t, o);
-        //$(p).next('SPAN.popdown').insert({ before: new Element('SPAN', { className: 'popdownSep' }) });
     },
 
     addContextMenu: function(p)
@@ -170,27 +168,10 @@ var DimpCore = {
             return elt;
         }
 
-        alist.addr.each(function(o) {
-            var a = new Element('A', { className: 'address' }).store({ email: o });
-            df.appendChild(a);
-            df.appendChild(document.createTextNode(', '));
-
-            if (o.g) {
-                a.insert(o.g.escapeHTML());
-            } else if (o.p) {
-                a.writeAttribute({ title: o.b }).insert(o.p.escapeHTML());
-            } else if (o.b) {
-                a.insert(o.b.escapeHTML());
-            }
-
-            this.DMenu.addElement(a.identify(), 'ctx_contacts', { offset: a, left: true });
-        }, this);
-
-        // Remove trailing comma
-        df.removeChild(df.lastChild);
+        this._buildAddressLinks(alist.addr, df);
 
         if (alist.addr.size() > 15) {
-            tmp = $('largeaddrspan').clone(true).addClassName('largeaddrspan_active');
+            tmp = $('largeaddrspan').clone(true).addClassName('largeaddrspan_active').writeAttribute({ id: null });
             elt.insert(tmp);
             base = tmp.down('.dispaddrlist');
             tmp = tmp.down('.largeaddrlist');
@@ -212,25 +193,44 @@ var DimpCore = {
         return elt;
     },
 
+    _buildAddressLinks: function(alist, df)
+    {
+        alist.each(function(o) {
+            var tmp,
+                a = new Element('A', { className: 'horde-button' }).store({ email: o });
+
+            if (o.g) {
+                a.insert(o.g.escapeHTML() + ':').addClassName('addrgroup-name');
+
+                tmp = new Element('DIV', { className: 'addrgroup-div' });
+                tmp.insert(a);
+                df.appendChild(tmp);
+
+                this._buildAddressLinks(o.a, tmp);
+            } else if (o.p) {
+                a.writeAttribute({ title: o.b }).insert(o.p.escapeHTML());
+                df.appendChild(a);
+            } else if (o.b) {
+                a.insert(o.b.escapeHTML());
+                df.appendChild(a);
+            }
+
+            this.DMenu.addElement(a.identify(), 'ctx_contacts', { offset: a, left: true });
+        }, this);
+    },
+
     /* Add message log info to message view. */
     updateMsgLog: function(log)
     {
-        var df, tmp;
-
-        if (log) {
-            df = document.createDocumentFragment();
-            log.each(function(entry) {
-                df.appendChild(new Element('LI').insert(new Element('SPAN', { className: 'iconImg imp-' + entry.t })).insert(entry.m));
-            });
-
+        var df = document.createDocumentFragment(),
             tmp = $('msgloglist').down('UL');
-            tmp.childElements().invoke('remove');
-            tmp.appendChild(df);
 
-            $('msgLogInfo').show();
-        } else {
-            $('msgLogInfo').hide();
-        }
+        log.each(function(entry) {
+            df.appendChild(new Element('LI').insert(new Element('SPAN', { className: 'iconImg imp-' + entry.t })).insert(entry.m));
+        });
+
+        tmp.childElements().invoke('remove');
+        tmp.appendChild(df);
     },
 
     // Abstract: define in any pages that need reloadMessage().
@@ -266,7 +266,7 @@ var DimpCore = {
         if (elt.hasClassName('unblockImageLink')) {
             IMP_JS.unblockImages(e.memo);
         } else if (elt.hasClassName('largeaddrspan_active') &&
-                   !e.memo.element().hasClassName('address')) {
+                   !e.memo.element().hasClassName('horde-button')) {
             if (e.memo.element().hasClassName('largeaddrlistlimit')) {
                 e.memo.element().hide();
                 elt.up('TD').fire('DimpCore:updateAddressHeader');
@@ -429,5 +429,12 @@ document.observe(Prototype.Browser.IE ? 'selectstart' : 'mousedown', function(e)
         !e.element().match('TEXTAREA') &&
         !e.element().match('INPUT')) {
         e.stop();
+
+        if (document.activeElement) {
+            var ae = $(document.activeElement);
+            if (ae.match('TEXTAREA') || ae.match('INPUT')) {
+                ae.blur();
+            }
+        }
     }
 });

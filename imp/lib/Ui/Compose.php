@@ -46,7 +46,7 @@ class IMP_Ui_Compose
 
         /* "Search" string will be in mailbox element. */
         $imple = new IMP_Ajax_Imple_ContactAutoCompleter();
-        $res = $imp->getAddressList($search->mailbox);
+        $res = $imple->getAddressList($search->mailbox);
 
         switch (count($res)) {
         case 0:
@@ -88,11 +88,13 @@ class IMP_Ui_Compose
     {
         global $injector, $prefs, $registry;
 
-        $br = ($registry->getView() == Horde_Registry::VIEW_BASIC)
-            ? '<br />'
-            : '';
+        if ($registry->getView() == Horde_Registry::VIEW_BASIC) {
+            $spell_img = '<span class="iconImg spellcheckImg"></span>';
+            $br = '<br />';
+        } else {
+            $spell_img = $br = '';
+        }
         $menu_view = $prefs->getValue('menu_view');
-        $spell_img = '<span class="iconImg spellcheckImg"></span>';
 
         $injector->getInstance('Horde_Core_Factory_Imple')->create('SpellChecker', array(
             'id' => 'spellcheck',
@@ -186,13 +188,32 @@ class IMP_Ui_Compose
      */
     public function popupSuccess()
     {
-        $menu = new Horde_Menu(Horde_Menu::MASK_NONE);
-        $menu->add(Horde::url('compose.php'), _("New Message"), 'compose.png');
-        $menu->add(new Horde_Url(''), _("Close this window"), 'close.png', null, null, 'window.close();');
+        global $page_output;
+
+        $page_output->topbar = $page_output->sidebar = false;
+
+        $page_output->addInlineScript(array(
+            '$("close_success").observe("click", function() { window.close(); })'
+        ), true);
+
         IMP::header();
-        $success_template = $GLOBALS['injector']->createInstance('Horde_Template');
-        $success_template->set('menu', $menu->render());
-        echo $success_template->fetch(IMP_TEMPLATES . '/imp/compose/success.html');
+
+        $view = new Horde_View(array(
+            'templatePath' => IMP_TEMPLATES . '/basic/compose'
+        ));
+
+        $view->close = Horde::widget(array(
+            'id' => 'close_success',
+            'url' => new Horde_Url(),
+            'title' => _("Close this window")
+        ));
+        $view->new = Horde::widget(array(
+            'url' => Horde::url('compose.php'),
+            'title' => _("New Message")
+        ));
+
+        echo $view->render('success');
+
         IMP::status();
         $GLOBALS['page_output']->footer();
     }
@@ -259,13 +280,12 @@ class IMP_Ui_Compose
     /**
      * Convert compose data to/from text/HTML.
      *
-     * @param string $data       The message text.
-     * @param string $to         Either 'text' or 'html'.
-     * @param integer $identity  The current identity.
+     * @param string $data  The message text.
+     * @param string $to    Either 'text' or 'html'.
      *
      * @return string  The converted text.
      */
-    public function convertComposeText($data, $to, $identity)
+    public function convertComposeText($data, $to)
     {
         switch ($to) {
         case 'html':

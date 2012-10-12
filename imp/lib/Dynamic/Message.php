@@ -26,9 +26,10 @@ class IMP_Dynamic_Message extends IMP_Dynamic_Base
         }
 
         $page_output->addScriptFile('message-dimp.js');
-        $page_output->addScriptFile('imp.js');
         $page_output->addScriptFile('textarearesize.js', 'horde');
         $page_output->addScriptFile('toggle_quotes.js', 'horde');
+
+        $page_output->addScriptPackage('IMP_Script_Package_Imp');
 
         $js_vars = array();
         $uid = IMP::uid();
@@ -68,7 +69,9 @@ class IMP_Dynamic_Message extends IMP_Dynamic_Base
                 $js_vars['DimpMessage.' . $val] = $msg_res[$val];
             }
         }
-        $js_vars['DimpMessage.reply_list'] = $msg_res['list_info']['exists'];
+        if (!empty($msg_res['list_info']['exists'])) {
+            $js_vars['DimpMessage.reply_list'] = true;
+        }
         $js_vars['DimpMessage.tasks'] = $injector->getInstance('Horde_Core_Factory_Ajax')->create('imp', $this->vars)->getTasks();
 
         $page_output->addInlineJsVars($js_vars);
@@ -111,7 +114,9 @@ class IMP_Dynamic_Message extends IMP_Dynamic_Base
         $this->view->show_view_source = !empty($conf['user']['allow_view_source']);
 
         $this->view->save_as = $msg_res['save_as'];
-        $this->view->subject = $msg_res['subject'];
+        $this->view->subject = isset($msg_res['subjectlink'])
+            ? $msg_res['subjectlink']
+            : $msg_res['subject'];
 
         $hdrs = array();
         foreach ($msg_res['headers'] as $val) {

@@ -126,15 +126,14 @@ class IMP_Mailbox_List implements ArrayAccess, Countable, Iterator, Serializable
                 $mboxname = $this->_mailbox->search
                     ? $this->_sortedMbox[$i - 1]
                     : strval($this->_mailbox);
-
-                // $uids - KEY: UID, VALUE: array index
-                $to_process[$mboxname][$this->_sorted[$i - 1]] = $i;
+                $to_process[$mboxname][$i] = $this->_sorted[$i - 1];
             }
         }
 
         $fetch_query = new Horde_Imap_Client_Fetch_Query();
         $fetch_query->envelope();
         $fetch_query->flags();
+        $fetch_query->seq();
         $fetch_query->size();
         $fetch_query->uid();
 
@@ -170,24 +169,31 @@ class IMP_Mailbox_List implements ArrayAccess, Countable, Iterator, Serializable
         foreach ($to_process as $mbox => $ids) {
             try {
                 $fetch_res = $imp_imap->fetch($mbox, $fetch_query, array(
-                    'ids' => $imp_imap->getIdsOb(array_keys($ids))
+                    'ids' => $imp_imap->getIdsOb($ids)
                 ));
 
                 if ($options['preview']) {
                     $preview_info = $tostore = array();
                     if ($cache) {
                         try {
-                            $preview_info = $cache->get($mbox, array_keys($ids), array('IMPpreview', 'IMPpreviewc'));
+                            $preview_info = $cache->get($mbox, $ids, array('IMPpreview', 'IMPpreviewc'));
                         } catch (IMP_Imap_Exception $e) {}
                     }
                 }
 
-                foreach ($fetch_res as $k => $f) {
+                $mbox_ids = array();
+
+                foreach ($ids as $k => $v) {
+                    if (!isset($fetch_res[$v])) {
+                        continue;
+                    }
+
+                    $f = $fetch_res[$v];
                     $v = array(
                         'envelope' => $f->getEnvelope(),
                         'flags' => $f->getFlags(),
                         'headers' => $f->getHeaders('imp', Horde_Imap_Client_Data_Fetch::HEADER_PARSE),
-                        'idx' => $ids[$f->getUid()],
+                        'idx' => $k,
                         'mailbox' => $mbox,
                         'size' => $f->getSize(),
                         'uid' => $f->getUid()
@@ -197,27 +203,28 @@ class IMP_Mailbox_List implements ArrayAccess, Countable, Iterator, Serializable
                         (($options['preview'] === 1) &&
                          (!$GLOBALS['prefs']->getValue('preview_show_unread') ||
                           !in_array(Horde_Imap_Client::FLAG_SEEN, $v['flags'])))) {
-                        if (empty($preview_info[$k])) {
+                        if (empty($preview_info[$v])) {
                             try {
-                                $imp_contents = $GLOBALS['injector']->getInstance('IMP_Factory_Contents')->create(new IMP_Indices($mbox, $k));
+                                $imp_contents = $GLOBALS['injector']->getInstance('IMP_Factory_Contents')->create(new IMP_Indices($mbox, $v));
                                 $prev = $imp_contents->generatePreview();
-                                $preview_info[$k] = array('IMPpreview' => $prev['text'], 'IMPpreviewc' => $prev['cut']);
+                                $preview_info[$v] = array('IMPpreview' => $prev['text'], 'IMPpreviewc' => $prev['cut']);
                                 if (!is_null($cache)) {
-                                    $tostore[$k] = $preview_info[$k];
+                                    $tostore[$v] = $preview_info[$v];
                                 }
                             } catch (Exception $e) {
-                                $preview_info[$k] = array('IMPpreview' => '', 'IMPpreviewc' => false);
+                                $preview_info[$v] = array('IMPpreview' => '', 'IMPpreviewc' => false);
                             }
                         }
 
-                        $v['preview'] = $preview_info[$k]['IMPpreview'];
-                        $v['previewcut'] = $preview_info[$k]['IMPpreviewc'];
+                        $v['preview'] = $preview_info[$v]['IMPpreview'];
+                        $v['previewcut'] = $preview_info[$v]['IMPpreviewc'];
                     }
 
                     $overview[] = $v;
+                    $mbox_ids[] = $v['uid'];
                 }
 
-                $uids[$mbox] = $fetch_res->ids();
+                $uids[$mbox] = $mbox_ids;
 
                 if (!is_null($cache) && !empty($tostore)) {
                     $status = $imp_imap->status($mbox, Horde_Imap_Client::STATUS_UIDVALIDITY);
@@ -291,7 +298,7 @@ class IMP_Mailbox_List implements ArrayAccess, Countable, Iterator, Serializable
         foreach ($query_ob as $mbox => $val) {
             if ($thread_sort) {
                 $this->_thread[$mbox] = $imp_imap->thread($mbox, $val ? array_merge($opts, array('search' => $val)) : $opts);
-                $sorted = $this->_thread[$mbox]->messageList();
+                $sorted = $this->_thread[$mbox]->messageList()->ids;
                 if ($sortpref->sortdir) {
                     $sorted = array_reverse($sorted);
                 }
@@ -418,7 +425,7 @@ class IMP_Mailbox_List implements ArrayAccess, Countable, Iterator, Serializable
      *   page: (integer) The current page number.
      *   pagecount: (integer) The number of pages in this mailbox.
      */
-    public function buildMailboxPage($page = 0, $start = 0, $opts = array())
+    public function buildMailboxPage($page = 0, $start = 0)
     {
         $this->_buildMailbox();
 
@@ -673,10 +680,10 @@ class IMP_Mailbox_List implements ArrayAccess, Countable, Iterator, Serializable
     public function getFullThread($uid, $mbox = null)
     {
         if (empty($this->_thread)) {
-            $this->_rebuild();
+            $this->rebuild();
         }
 
-        return new IMP_Indices($mbox, $this->_thread[strval($mbox)]->getThread($uid));
+        return new IMP_Indices($mbox, array_keys($this->_thread[strval($mbox)]->getThread($uid)));
     }
 
     /**
@@ -696,39 +703,33 @@ class IMP_Mailbox_List implements ArrayAccess, Countable, Iterator, Serializable
             $thread_level = array();
             $t_ob = $this->_thread[$mbox];
 
-            foreach ($t_ob->getThread($uid) as $val) {
-                $this->_threadui[$mbox][$val] = '';
-
-                $indentBase = $t_ob->getThreadBase($val);
-                if (empty($indentBase)) {
+            foreach ($t_ob->getThread($uid) as $key => $val) {
+                if (is_null($val->base) ||
+                    ($val->last && ($val->base == $key))) {
+                    $this->_threadui[$mbox][$key] = '';
                     continue;
                 }
 
-                $lastinlevel = $t_ob->lastInLevel($val);
-                if ($lastinlevel && ($indentBase == $val)) {
-                    continue;
-                }
-
-                $indentLevel = $t_ob->getThreadIndent($val);
-
-                if ($lastinlevel) {
+                if ($val->last) {
                     $join = IMP_Mailbox_List_Thread::JOINBOTTOM;
                 } else {
-                    $join = (($indentLevel == 1) && ($indentBase == $val))
+                    $join = (!$val->level && ($val->base == $key))
                         ? IMP_Mailbox_List_Thread::JOINBOTTOM_DOWN
                         : IMP_Mailbox_List_Thread::JOIN;
                 }
 
-                $thread_level[$indentLevel] = $lastinlevel;
+                $thread_level[$val->level] = $val->last;
                 $line = '';
 
-                for ($i = 1; $i < $indentLevel; ++$i) {
-                    $line .= (isset($thread_level[$i]) && !$thread_level[$i])
-                        ? IMP_Mailbox_List_Thread::LINE
-                        : IMP_Mailbox_List_Thread::BLANK;
+                for ($i = 0; $i < $val->level; ++$i) {
+                    if (isset($thread_level[$i])) {
+                        $line .= (isset($thread_level[$i]) && !$thread_level[$i])
+                            ? IMP_Mailbox_List_Thread::LINE
+                            : IMP_Mailbox_List_Thread::BLANK;
+                    }
                 }
 
-                $this->_threadui[$mbox][$val] = $line . $join;
+                $this->_threadui[$mbox][$key] = $line . $join;
             }
         }
 

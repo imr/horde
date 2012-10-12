@@ -182,33 +182,6 @@ class Sesha
         return ($a['note'] > $b['note']) ? -1 : 1;
     }
 
-    /**
-     * Build Sesha's list of menu items.
-     */
-    public function getMenu($returnType = 'object')
-    {
-        global $registry, $conf, $browser, $print_link, $perms;
-        $perms = $GLOBALS['injector']->getInstance('Horde_Perms');
-        $menu = new Horde_Menu();
-        $menu->add(Horde::url('list.php'), _("_List Stock"), 'sesha.png', null, null, null, basename($_SERVER['PHP_SELF']) == 'index.php' ? 'current' : null);
-        if (Sesha::isAdmin(Horde_Perms::READ)|| $perms->hasPermission('sesha:addStock', $GLOBALS['registry']->getAuth(), Horde_Perms::READ)) {
-            $menu->add(Horde::url(Horde_Util::addParameter('stock.php', 'actionId', 'add_stock')), _("_Add Stock"), 'stock.png');
-            $menu->add(Horde::url('admin.php'), _("Administration"), 'sesha.png');
-        }
-        $menu->add(Horde::url('search.php'), _("_Search"), 'search.png');
-
-        /* Print. */
-        if ($conf['menu']['print'] && isset($print_link) && $browser->hasFeature('javascript')) {
-            $menu->add("javascript:popup('$print_link'); return false;", _("_Print"), 'print.png');
-        }
-
-        if ($returnType == 'object') {
-            return $menu;
-        } else {
-            return $menu->render();
-        }
-    }
-
     public static function isAdmin($permLevel = Horde_Perms::DELETE)
     {
         return ($GLOBALS['registry']->isAdmin() || $GLOBALS['injector']->getInstance('Horde_Perms')->hasPermission('sesha:admin', $GLOBALS['registry']->getAuth(), $permLevel));

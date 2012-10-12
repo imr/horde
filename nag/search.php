@@ -14,12 +14,22 @@ $page_output->addInlineScript(array(
 ), true);
 
 $page_output->header(array(
-    'body_class' => $prefs->getValue('show_panel') ? 'rightPanel' : null,
     'title' => _("Search")
 ));
 
-echo Nag::menu();
+// Editing existing SmartList?
+$vars = Horde_Variables::getDefaultVariables();
+
+if ($id = $vars->get('smart_id')) {
+    $list = $nag_shares->getShare($id);
+    $searchObj = unserialize($list->get('search'));
+    $vars->set('smartlist_name', $list->get('name'));
+    $searchObj->getVars($vars);
+    $form = new Nag_Form_Search($vars, sprintf(_("Editing SmartList \"%s\""), htmlspecialchars($list->get('name'))));
+} else {
+    $form = new Nag_Form_Search($vars, _("Search"));
+}
+
 Nag::status();
-require NAG_TEMPLATES . '/search/search.inc';
-require NAG_TEMPLATES . '/panel.inc';
+$form->renderActive();
 $page_output->footer();

@@ -22,19 +22,22 @@
   <email>chuck@horde.org</email>
   <active>yes</active>
  </lead>
- <date>2012-07-06</date>
- <time>00:40:08</time>
+ <date>2012-07-20</date>
+ <time>01:30:28</time>
  <version>
-  <release>3.0.0beta1</release>
-  <api>3.0.0alpha1</api>
+  <release>3.0.0beta2</release>
+  <api>3.0.0beta1</api>
  </version>
  <stability>
-  <release>alpha</release>
-  <api>alpha</api>
+  <release>beta</release>
+  <api>beta</api>
  </stability>
  <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
  <notes>
-* [mms] Fix javascript actions on the vacation page.
+* [mms] Add &apos;transport_auth&apos; hook to handle defining authentication parameters for transport backends.
+* [mms] Remove session caching of rules.
+* [mms] Initial implementation of smartmobile view.
+* [mms] Disable blacklist, vacation, and whitelist API methods if the preference is locked.
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
@@ -475,84 +478,84 @@
    <package>
     <name>horde</name>
     <channel>pear.horde.org</channel>
-    <min>5.0.0alpha1</min>
+    <min>5.0.0beta1</min>
     <max>6.0.0alpha1</max>
     <exclude>6.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Auth</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Autoloader</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Core</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Group</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Form</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Imap_Client</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Mime</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Perms</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Share</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Util</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
@@ -564,9 +567,9 @@
    <package>
     <name>Horde_Vfs</name>
     <channel>pear.horde.org</channel>
-    <min>1.0.0</min>
-    <max>2.0.0alpha1</max>
-    <exclude>2.0.0alpha1</exclude>
+    <min>2.0.0beta1</min>
+    <max>3.0.0alpha1</max>
+    <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Net_Sieve</name>
@@ -1040,10 +1043,10 @@
    <stability>
     <release>stable</release>
     <api>stable</api></stability>
-   <date>2012-06-26</date>
+   <date>2012-10-02</date>
    <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
-*
+* [mms] Don&apos;t allow a user to save a rule with no matching conditions.
    </notes>
   </release>
   <release>
@@ -1069,14 +1072,31 @@
   <release>
    <version>
     <release>3.0.0beta1</release>
-    <api>3.0.0alpha1</api></version>
+    <api>3.0.0beta1</api></version>
    <stability>
     <release>beta</release>
-    <api>alpha</api></stability>
-   <date>2012-07-06</date>
+    <api>beta</api></stability>
+   <date>2012-07-20</date>
    <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
+* [jan] Update icon set.
 * [mms] Fix javascript actions on the vacation page.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>3.0.0beta2</release>
+    <api>3.0.0beta1</api></version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api></stability>
+   <date>2012-07-20</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* [mms] Add &apos;transport_auth&apos; hook to handle defining authentication parameters for transport backends.
+* [mms] Remove session caching of rules.
+* [mms] Initial implementation of smartmobile view.
+* [mms] Disable blacklist, vacation, and whitelist API methods if the preference is locked.
    </notes>
   </release>
  </changelog>

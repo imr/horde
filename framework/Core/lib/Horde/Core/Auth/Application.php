@@ -20,9 +20,12 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
      * Authentication failure reasons (additions to Horde_Auth:: reasons):
      *   - REASON_BROWSER: A browser change was detected
      *   - REASON_SESSIONIP: Logout due to change of IP address during session
+     *   - REASON_SESSIONMAXTIME: Logout due to the session exceeding the
+     *                            maximum allowed length.
      */
     const REASON_BROWSER = 100;
     const REASON_SESSIONIP = 101;
+    const REASON_SESSIONMAXTIME = 102;
 
     /**
      * Application for authentication.
@@ -276,7 +279,7 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
         if ($this->hasCapability('update')) {
             $GLOBALS['registry']->callAppMethod($this->_app, 'authUpdateUser', array('args' => array($oldID, $newID, $credentials)));
         } else {
-            parent::updateUser($userId, $credentials);
+            parent::updateUser($oldID, $newID, $credentials);
         }
     }
 
@@ -657,7 +660,7 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
      */
     protected function _setView()
     {
-        global $conf, $browser, $notification, $prefs, $registry, $session;
+        global $conf, $browser, $notification, $registry;
 
         $mode = $this->_view;
 
@@ -693,7 +696,7 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
                     $notification->push(_("Your browser does not support the dynamic view. Using traditional view instead."), 'horde.warning');
                     $mode = 'traditional';
                 } else {
-                    $notification->push(_("Your browser does not support the dynmic view. Using minimal view instead."), 'horde.warning');
+                    $notification->push(_("Your browser does not support the dynamic view. Using minimal view instead."), 'horde.warning');
                     $mode = 'mobile';
                 }
             }
@@ -720,9 +723,10 @@ class Horde_Core_Auth_Application extends Horde_Auth_Base
         }
 
         if (($browser->getBrowser() == 'msie') &&
-            ($browser->getMajor() < 7) &&
-            ($mode != 'traditional')) {
-            $notification->push(_("You are using an old, unsupported version of Internet Explorer. Various page formatting and features may not work properly until you upgrade your browser or, alternatively, use the minimal view instead."), 'horde.warning');
+            ($browser->getMajor() < 8) &&
+            ($mode != 'mobile')) {
+            $notification->push(_("You are using an old, unsupported version of Internet Explorer. You must use the minimal view until you upgrade your browser."));
+            $mode = 'mobile';
         }
 
         $registry_map = array(

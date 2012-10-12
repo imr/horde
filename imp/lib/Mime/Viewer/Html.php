@@ -70,7 +70,7 @@ class IMP_Mime_Viewer_Html extends Horde_Mime_Viewer_Html
         default:
             $uid = strval(new Horde_Support_Randomid());
 
-            $GLOBALS['page_output']->addScriptFile('imp.js');
+            $GLOBALS['page_output']->addScriptPackage('IMP_Script_Package_Imp');
 
             $data['js'] = array('IMP_JS.iframeInject("' . $uid . '", ' . Horde_Serialize::serialize($data['data'], Horde_Serialize::JSON, $this->_mimepart->getCharset()) . ')');
             $data['data'] = '<div>' . _("Loading...") . '</div><iframe class="htmlMsgData" id="' . $uid . '" src="javascript:false" frameborder="0" style="display:none"></iframe>';
@@ -120,23 +120,33 @@ class IMP_Mime_Viewer_Html extends Horde_Mime_Viewer_Html
      */
     protected function _IMPrender($inline)
     {
-        global $registry;
+        global $injector, $prefs, $registry;
 
         $data = $this->_mimepart->getContents();
 
         $contents = $this->getConfigParam('imp_contents');
         $convert_text = ($registry->getView() == $registry::VIEW_MINIMAL) ||
-                        $GLOBALS['injector']->getInstance('Horde_Variables')->convert_text;
+                        $injector->getInstance('Horde_Variables')->convert_text;
 
         /* Don't do IMP DOM processing if in mimp mode or converting to
          * text. */
         if (!$inline || $convert_text) {
             $this->_imptmp = array();
         } else {
+            $filters = array();
+            if ($prefs->getValue('emoticons')) {
+//                $filters['emoticons'] = array(
+//                    'entities' => true
+//                );
+            }
+
             if ($inline) {
                 $imgview = new IMP_Ui_Imageview();
                 $blockimg = !$imgview->showInlineImage($contents) &&
                             ($registry->getView() != $registry::VIEW_SMARTMOBILE);
+//                $filters['emails'] = array(
+//                    'callback' => array($this, 'emailsCallback')
+//                );
             } else {
                 $blockimg = false;
             }
@@ -146,6 +156,7 @@ class IMP_Mime_Viewer_Html extends Horde_Mime_Viewer_Html
                 'cid' => null,
                 'cid_used' => array(),
                 'cssblock' => false,
+                'filters' => $filters,
                 'img' => $blockimg,
                 'imgblock' => false,
                 'inline' => $inline,
@@ -167,7 +178,7 @@ class IMP_Mime_Viewer_Html extends Horde_Mime_Viewer_Html
 
         /* Sanitize the HTML. */
         $data = $this->_cleanHTML($data, array(
-            'noprefetch' => ($inline && ($GLOBALS['registry']->getView() != Horde_Registry::VIEW_MINIMAL)),
+            'noprefetch' => ($inline && ($registry->getView() != Horde_Registry::VIEW_MINIMAL)),
             'phishing' => $inline
         ));
 
@@ -177,12 +188,12 @@ class IMP_Mime_Viewer_Html extends Horde_Mime_Viewer_Html
 
         $data = $data->returnHtml();
 
-
         $status = array();
         if ($this->_phishWarn) {
             $status[] = new IMP_Mime_Status(array(
-                sprintf(_("%s: This message may not be from whom it claims to be. Beware of following any links in it or of providing the sender with any personal information."), _("Warning")),
-                _("The links that caused this warning have this background color:") . ' <span style="' . $this->_phishCss . '">' . _("EXAMPLE") . '</span>'
+                sprintf(_("%s: This message may not be from whom it claims to be."), _("WARNING")),
+                _("Beware of following any links in it or of providing the sender with any personal information."),
+                _("The links that caused this warning have this background color:") . ' <span style="' . $this->_phishCss . '">' . _("EXAMPLE LINK") . '</span>'
             ));
         }
 
@@ -201,14 +212,12 @@ class IMP_Mime_Viewer_Html extends Horde_Mime_Viewer_Html
         }
 
         if ($inline && $this->_imptmp['imgblock']) {
-            $imple = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Imple')->create('IMP_Ajax_Imple_ImageUnblock', array(
-                'mailbox' => $contents->getMailbox(),
-                'uid' => $contents->getUid()
-            ));
             $tmp = new IMP_Mime_Status(array(
                 _("Images have been blocked in this message part."),
-                Horde::link('#', '', 'unblockImageLink') . _("Show Images?") . '</a>',
-                Horde::link('#', '', '', '', '', '', '', array('id' => $imple->getDomId())) . _("Always show images from this sender?") . '</a>'
+                Horde::link('#', '', 'unblockImageLink', '', '', '', '', array(
+                    'mailbox' => $contents->getMailbox()->form_to,
+                    'uid' => $contents->getUid()
+                )) . _("Show Images?") . '</a>'
             ));
             $tmp->icon('mime/image.png');
             $status[] = $tmp;
@@ -221,23 +230,6 @@ class IMP_Mime_Viewer_Html extends Horde_Mime_Viewer_Html
             ));
             $tmp->icon('mime/image.png');
             $status[] = $tmp;
-        }
-
-        $filters = array();
-        if ($GLOBALS['prefs']->getValue('emoticons')) {
-            $filters['emoticons'] = array(
-                'entities' => true
-            );
-        }
-
-        if ($inline) {
-            $filters['emails'] = array(
-                'callback' => array($this, 'emailsCallback')
-            );
-        }
-
-        if (!empty($filters)) {
-            $data = $this->_textFilter($data, array_keys($filters), array_values($filters));
         }
 
         /* Filter bad language. */
@@ -276,6 +268,11 @@ class IMP_Mime_Viewer_Html extends Horde_Mime_Viewer_Html
         parent::_node($doc, $node);
 
         if (empty($this->_imptmp) || !($node instanceof DOMElement)) {
+            if (!empty($this->_imptmp['filters']) &&
+                ($node instanceof DOMText) &&
+                ($node->length > 1)) {
+                $node->replaceData(0, $node->length, $this->_textFilter($node->wholeText, array_keys($this->_imptmp['filters']), array_values($this->_imptmp['filters'])));
+            }
             return;
         }
 
@@ -324,7 +321,9 @@ class IMP_Mime_Viewer_Html extends Horde_Mime_Viewer_Html
 
                 /* Block images.*/
                 if (!empty($this->_imptmp['img'])) {
-                    $node->setAttribute('htmlimgblocked', $val);
+                    $url = new Horde_Url($val);
+                    $url->setScheme();
+                    $node->setAttribute('htmlimgblocked', $url);
                     $node->setAttribute('src', $this->_imptmp['blockimg']);
                     $this->_imptmp['imgblock'] = true;
                 }
@@ -455,20 +454,29 @@ class IMP_Mime_Viewer_Html extends Horde_Mime_Viewer_Html
         }
         $style->import = array();
 
+        $style_blocked = clone $style;
+        $was_blocked = false;
+
         foreach ($style->css as $key => $val) {
             foreach ($val as $key2 => $val2) {
                 foreach ($val2 as $key3 => $val3) {
                     foreach ($val3['p'] as $key4 => $val4) {
                         if (preg_match('/^\s*url\(["\']?.*?["\']?\)/i', $val4)) {
-                            $blocked[] = $key2 . '{' . $key3 . ':' . $val4 . ';}';
-                            unset($style->css[$key][$key2][$key3]['p'][$key4]);
+                            $was_blocked = true;
+                            unset($style->css[$key][$key2]);
+                            break 3;
                         }
                     }
                 }
+                unset($style_blocked->css[$key][$key2]);
             }
         }
 
         $css_text = $style->print->plain();
+
+        if ($was_blocked) {
+            $blocked[] = $style_blocked->print->plain();
+        }
 
         if ($css_text || !empty($blocked)) {
             /* Gets the HEAD element or creates one if it doesn't exist. */

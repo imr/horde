@@ -59,7 +59,7 @@ class IMP_Application extends Horde_Registry_Application
 
     /**
      */
-    public $version = 'H5 (6.0.0beta1)';
+    public $version = 'H5 (6.0.0-git)';
 
     /**
      * Server key used in logged out session.
@@ -196,6 +196,7 @@ class IMP_Application extends Horde_Registry_Application
         if (is_array($allowed)) {
             $allowed = max($allowed);
         }
+
         return $allowed;
     }
 
@@ -241,7 +242,7 @@ class IMP_Application extends Horde_Registry_Application
             $menu->addArray(array(
                 'icon' => 'imp-folder',
                 'text' => _("_Folders"),
-                'url' => Horde::url('folders.php')->unique()
+                'url' => Horde::url('folders.php')
             ));
         }
 
@@ -259,6 +260,35 @@ class IMP_Application extends Horde_Registry_Application
                 'text' => _("Fi_lters"),
                 'url' => $registry->getServiceLink('prefs', 'imp')->add('group', 'filters')
             ));
+        }
+    }
+
+    /**
+     * Add additional items to the sidebar.
+     *
+     * @param Horde_View_Sidebar $sidebar  The sidebar object.
+     */
+    public function sidebar($sidebar)
+    {
+        if (IMP::canCompose()) {
+            $sidebar->addNewButton(_("_New Message"), IMP::composeLink());
+        }
+
+        /* Folders. */
+        if ($GLOBALS['injector']->getInstance('IMP_Factory_Imap')->create()->access(IMP_Imap::ACCESS_FOLDERS)) {
+            $tree = $GLOBALS['injector']
+                ->getInstance('Horde_Core_Factory_Tree')
+                ->create('imp_menu',
+                         'Horde_Tree_Renderer_Sidebar',
+                         array('nosession' => true));
+            $imaptree = $GLOBALS['injector']->getInstance('IMP_Imap_Tree');
+            $imaptree->setIteratorFilter(IMP_Imap_Tree::FLIST_VFOLDER);
+            $tree = $imaptree->createTree($tree, array(
+                'open' => false,
+                'poll_info' => true
+            ));
+            $tree->addNodeParams(IMP_Mailbox::formTo(IMP::mailbox()), array('selected' => true));
+            $sidebar->containers['imp-menu'] = array('content' => $tree->getTree());
         }
     }
 
@@ -391,8 +421,8 @@ class IMP_Application extends Horde_Registry_Application
 
     /**
      */
-    public function topbarCreate(Horde_Tree_Renderer_Base $tree, $parent = null,
-                                 array $params = array())
+    public function topbarCreate(Horde_Tree_Renderer_Base $tree,
+                                 $parent = null, array $params = array())
     {
         global $injector, $registry;
 
@@ -413,6 +443,20 @@ class IMP_Application extends Horde_Registry_Application
 
         $imp_imap = $injector->getInstance('IMP_Factory_Imap')->create();
         if ($imp_imap->access(IMP_Imap::ACCESS_SEARCH)) {
+            $onclick = null;
+            switch ($registry->getView()) {
+            case $registry::VIEW_DYNAMIC:
+                $url = Horde::url('dynamic.php')
+                    ->add('page', 'mailbox')
+                    ->setAnchor('search');
+                $onclick = 'if (DimpBase) DimpBase.go(\'search\');';
+                break;
+
+            default:
+                $url = Horde::url('search.php');
+                break;
+            }
+
             $tree->addNode(array(
                 'id' => strval($parent) . 'search',
                 'parent' => $parent,
@@ -420,7 +464,8 @@ class IMP_Application extends Horde_Registry_Application
                 'expanded' => false,
                 'params' => array(
                     'icon' => Horde_Themes::img('search.png'),
-                    'url' => Horde::url('search.php')
+                    'url' => $url,
+                    'onclick' => $onclick,
                 )
             ));
         }
@@ -466,13 +511,16 @@ class IMP_Application extends Horde_Registry_Application
         case 'download_mbox':
             $mlist = IMP_Mailbox::formFrom($vars->mbox_list);
             $mbox = $injector->getInstance('IMP_Ui_Folder')->generateMbox($mlist);
+            $name = is_array($mlist)
+                ? reset($mlist)
+                : $mlist;
 
             if ($vars->zip) {
                 try {
                     $data = Horde_Compress::factory('Zip')->compress(array(
                         array(
                             'data' => $mbox,
-                            'name' => reset($mlist) . '.mbox'
+                            'name' => $name . '.mbox'
                         )
                     ), array(
                         'stream' => true
@@ -485,14 +533,14 @@ class IMP_Application extends Horde_Registry_Application
 
                 return array(
                     'data' => $data,
-                    'name' => reset($mlist) . '.zip',
+                    'name' => $name . '.zip',
                     'type' => 'application/zip'
                 );
             }
 
             return array(
                 'data' => $mbox,
-                'name' => reset($mlist) . '.mbox',
+                'name' => $name . '.mbox',
                 'type' => 'text/plain; charset=UTF-8'
             );
 

@@ -44,7 +44,7 @@ class Horde_Core_Topbar
 
         $isAdmin = $registry->isAdmin();
         $current = $registry->getApp();
-        $menu = $children = array();
+        $menu = array();
 
         foreach ($registry->listApps(array('active', 'admin', 'noadmin', 'heading', 'notoolbar', 'topbar'), true, null) as $app => $params) {
             /* Check if the current user has permisson to see this application,
@@ -58,19 +58,25 @@ class Horde_Core_Topbar
                   $registry->hasPermission((!empty($params['app']) ? $params['app'] : $app), Horde_Perms::SHOW) &&
                   !($isAdmin && $params['status'] == 'noadmin')))) {
                 $menu[$app] = $params;
+            }
+        }
 
+        do {
+            $children = array();
+            foreach ($menu as $params) {
                 if (isset($params['menu_parent'])) {
                     $children[$params['menu_parent']] = true;
                 }
             }
-        }
-
-        foreach (array_keys($menu) as $key) {
-            if (($menu[$key]['status'] == 'heading') &&
-                !isset($children[$key])) {
-                unset($menu[$key]);
+            $found = false;
+            foreach (array_keys($menu) as $key) {
+                if ($menu[$key]['status'] == 'heading' &&
+                    empty($children[$key])) {
+                    unset($menu[$key]);
+                    $found = true;
+                }
             }
-        }
+        } while ($found);
 
         /* Add the administration menu if the user is an admin or has any admin
          * permissions. */
@@ -109,13 +115,14 @@ class Horde_Core_Topbar
         );
 
         /* Add preferences. */
-        if (Horde_Menu::showService('prefs') &&
+        if ($registry->showService('prefs') &&
             !($GLOBALS['injector']->getInstance('Horde_Core_Factory_Prefs')->create() instanceof Horde_Prefs_Session)) {
             $menu['prefs'] = array(
                 'icon' => Horde_Themes::img('prefs.png'),
                 'menu_parent' => 'settings',
                 'name' => Horde_Core_Translation::t("Preferences"),
-                'status' => 'active'
+                'status' => 'active',
+                'url' => $registry->getServiceLink('prefs', $current)
             );
 
             /* Get a list of configurable applications. */
@@ -145,7 +152,7 @@ class Horde_Core_Topbar
         }
 
         /* Add problem link. */
-        if (Horde_Menu::showService('problem') &&
+        if ($registry->showService('problem') &&
             ($problem_link = $registry->getServiceLink('problem', $current))) {
             $menu['problem_' . $current] = array(
                 'icon' => 'problem.png',
@@ -157,7 +164,7 @@ class Horde_Core_Topbar
         }
 
         /* Add help link. */
-        if (Horde_Menu::showService('help') &&
+        if ($registry->showService('help') &&
             ($help_link = $registry->getServiceLink('help', $current))) {
             $menu['help_' . $current] = array(
                 'icon' => 'help_index.png',
@@ -195,7 +202,7 @@ class Horde_Core_Topbar
                     $url = $params['url'];
                 } elseif (($params['status'] == 'heading') ||
                           !isset($params['webroot'])) {
-                    $url = '#';
+                    $url = '';
                 } else {
                     $url = Horde::url($registry->getInitialPage($app), false, array('app' => $app));
                 }

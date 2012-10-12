@@ -256,24 +256,6 @@ implements Horde_Kolab_Storage_Data, Horde_Kolab_Storage_Data_Query
     }
 
     /**
-     * Generate a unique object ID.
-     *
-     * @return string  The unique ID.
-     */
-    public function generateUid()
-    {
-        $result = $this->_data->generateUid();
-        $this->_logger->debug(
-            sprintf(
-                'Generated new uid %s for %s.',
-                $result,
-                $this->_data->getPath()
-            )
-        );
-        return $result;
-    }
-
-    /**
      * Check if the given object ID exists.
      *
      * @param string $object_id The object ID.
@@ -452,7 +434,7 @@ implements Horde_Kolab_Storage_Data, Horde_Kolab_Storage_Data_Query
                 $new_folder
             )
         );
-        $this->_data->move($object_ids, $new_folder);
+        $this->_data->move($object_id, $new_folder);
         $this->_logger->debug(
             sprintf(
                 'Moved data object %s in %s to %s.',

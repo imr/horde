@@ -16,19 +16,19 @@
   <email>lang@b1-systems.de</email>
   <active>yes</active>
  </lead>
- <date>2012-07-10</date>
- <time>11:54:49</time>
+ <date>2012-08-08</date>
+ <time>13:43:26</time>
  <version>
-  <release>1.0.0</release>
-  <api>1.0.0alpha1</api>
+  <release>1.0.0beta2</release>
+  <api>1.0.0beta1</api>
  </version>
  <stability>
-  <release>alpha</release>
-  <api>alpha</api>
+  <release>beta</release>
+  <api>beta</api>
  </stability>
  <license uri="http://www.horde.org/licenses/gpl">GPL-2.0</license>
  <notes>
-*
+* 
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
@@ -138,7 +138,7 @@
     <dir name="Sesha">
      <dir name="Unit">
       <dir name="Driver">
-       <file name="SqlTest.php" role="test" />
+       <file name="RdoTest.php" role="test" />
       </dir> <!-- /test/Sesha/Unit/Driver -->
      </dir> <!-- /test/Sesha/Unit -->
      <file name="AllTests.php" role="test" />
@@ -149,8 +149,10 @@
    <dir name="themes">
     <dir name="default">
      <dir name="graphics">
+      <file name="administration.png" role="horde" />
       <file name="az.png" role="horde" />
       <file name="favicon.ico" role="horde" />
+      <file name="search.png" role="horde" />
       <file name="sesha.png" role="horde" />
       <file name="stock.png" role="horde" />
       <file name="za.png" role="horde" />
@@ -178,70 +180,70 @@
    <package>
     <name>horde</name>
     <channel>pear.horde.org</channel>
-    <min>5.0.0alpha1</min>
+    <min>5.0.0beta1</min>
     <max>6.0.0alpha1</max>
     <exclude>6.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Auth</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Autoloader</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Core</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Db</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Form</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Perms</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Prefs</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Rdo</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
@@ -314,10 +316,12 @@
    <install as="Sesha/AllTests.php" name="test/Sesha/AllTests.php" />
    <install as="Sesha/Autoload.php" name="test/Sesha/Autoload.php" />
    <install as="Sesha/TestCase.php" name="test/Sesha/TestCase.php" />
-   <install as="Sesha/Unit/Driver/SqlTest.php" name="test/Sesha/Unit/Driver/SqlTest.php" />
+   <install as="Sesha/Unit/Driver/RdoTest.php" name="test/Sesha/Unit/Driver/RdoTest.php" />
    <install as="sesha/themes/default/screen.css" name="themes/default/screen.css" />
+   <install as="sesha/themes/default/graphics/administration.png" name="themes/default/graphics/administration.png" />
    <install as="sesha/themes/default/graphics/az.png" name="themes/default/graphics/az.png" />
    <install as="sesha/themes/default/graphics/favicon.ico" name="themes/default/graphics/favicon.ico" />
+   <install as="sesha/themes/default/graphics/search.png" name="themes/default/graphics/search.png" />
    <install as="sesha/themes/default/graphics/sesha.png" name="themes/default/graphics/sesha.png" />
    <install as="sesha/themes/default/graphics/stock.png" name="themes/default/graphics/stock.png" />
    <install as="sesha/themes/default/graphics/za.png" name="themes/default/graphics/za.png" />
@@ -345,15 +349,31 @@
   </release>
   <release>
    <version>
-    <release>1.0.0</release>
-    <api>1.0.0alpha1</api></version>
+    <release>1.0.0beta1</release>
+    <api>1.0.0beta1</api>
+   </version>
    <stability>
-    <release>alpha</release>
-    <api>alpha</api></stability>
-   <date>2012-07-10</date>
+    <release>beta</release>
+    <api>beta</api>
+   </stability>
+   <date>2012-08-08</date>
    <license uri="http://www.horde.org/licenses/gpl">GPL-2.0</license>
    <notes>
-*
+* [rla] Use Horde 5&apos;s CSS for sidebar icons.
+* [rla] Use Horde 5&apos;s New button for the Add Stock menu entry.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>1.0.0beta2</release>
+    <api>1.0.0beta1</api></version>
+   <stability>
+    <release>beta</release>
+    <api>beta</api></stability>
+   <date>2012-08-08</date>
+   <license uri="http://www.horde.org/licenses/gpl">GPL-2.0</license>
+   <notes>
+* 
    </notes>
   </release>
  </changelog>

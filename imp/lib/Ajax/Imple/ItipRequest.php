@@ -43,7 +43,7 @@ class IMP_Ajax_Imple_ItipRequest extends Horde_Core_Ajax_Imple
     /**
      * Variables required in form input:
      *   - identity (TODO: ? Code uses it, but it is never set anywhere)
-     *   - itip_action
+     *   - imple_submit: itip_action(s)
      *   - mailbox
      *   - mime_id
      *   - uid
@@ -54,7 +54,7 @@ class IMP_Ajax_Imple_ItipRequest extends Horde_Core_Ajax_Imple
     {
         global $conf, $injector, $notification, $registry;
 
-        $actions = $vars->get('itip_action', array());
+        $actions = (array)$vars->imple_submit;
         $result = false;
         $vCal = new Horde_Icalendar();
 
@@ -75,6 +75,9 @@ class IMP_Ajax_Imple_ItipRequest extends Horde_Core_Ajax_Imple
         }
 
         foreach ($actions as $key => $action) {
+            $pos = strpos($key, '[');
+            $key = substr($key, $pos + 1, strlen($key) - $pos - 2);
+
             switch ($action) {
             case 'delete':
                 // vEvent cancellation.
@@ -307,10 +310,12 @@ class IMP_Ajax_Imple_ItipRequest extends Horde_Core_Ajax_Imple
                     }
 
                     $organizerEmail = $organizer['path'];
+
                     $organizer = $vFb->getAttribute('ORGANIZER', true);
-                    $organizerName = isset($organizer['cn'])
-                        ? $organizer['cn']
-                        : '';
+                    $organizerFullEmail = new Horde_Mail_Rfc822_Address($organizerEmail);
+                    if (isset($organizer['cn'])) {
+                        $organizerFullEmail->personal = $organizer['cn'];
+                    }
 
                     if ($action == 'reply2m') {
                         $startStamp = time();
@@ -378,7 +383,7 @@ class IMP_Ajax_Imple_ItipRequest extends Horde_Core_Ajax_Imple
                     $msg_headers->addMessageIdHeader();
                     $msg_headers->addHeader('Date', date('r'));
                     $msg_headers->addHeader('From', $email);
-                    $msg_headers->addHeader('To', $organizerEmail);
+                    $msg_headers->addHeader('To', $organizerFullEmail);
 
                     $identity->setDefault($vars->identity);
                     $replyto = $identity->getValue('replyto_addr');

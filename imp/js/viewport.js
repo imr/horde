@@ -113,7 +113,7 @@
  *
  * ViewPort:select
  *   Fired when rows are selected.
- *   params: (object) opts = (object) Boolean options [delay, right]
+ *   params: (object) opts = (object) Boolean options [right]
  *                    vs = (ViewPort_Selection) A ViewPort_Selection object.
  *
  * ViewPort:splitBarChange
@@ -309,6 +309,7 @@ var ViewPort = Class.create({
         if (curr = this.views[view]) {
             this._updateContent(curr.getMetaData('offset') || 0, f_opts);
             if (!opts.background) {
+                this.opts.container.fire('ViewPort:fetch', view);
                 this.opts.ajax(this.addRequestParams({ checkcache: 1 }));
             }
             return;
@@ -320,7 +321,7 @@ var ViewPort = Class.create({
             this.scroller.clear();
         }
 
-        this.views[view] = buffer = this._getBuffer(view, true);
+        this.views[view] = this._getBuffer(view, true);
 
         if (opts.search) {
             f_opts.search = opts.search;
@@ -425,10 +426,7 @@ var ViewPort = Class.create({
     {
         var buffer = vs.getBuffer();
 
-        if (buffer.getView() == this.view) {
-            this.deselect(vs);
-        }
-
+        this.deselect(vs);
         this.opts.container.fire('ViewPort:remove', vs);
 
         buffer.remove(vs.get('rownum'));
@@ -1007,6 +1005,11 @@ var ViewPort = Class.create({
             : new ViewPort_Buffer(this, view);
     },
 
+    bufferLoaded: function(view)
+    {
+        return Boolean(this.views[view]);
+    },
+
     currentOffset: function()
     {
         return this.scroller.currentOffset();
@@ -1202,7 +1205,9 @@ var ViewPort = Class.create({
 
     _onDragDblClick: function(e)
     {
-        if (e.element() != this.split_pane.currbar) {
+        if (!Object.isElement(this.split_pane.currbar) ||
+            (e.element() != this.split_pane.currbar &&
+             !e.element().descendantOf(this.split_pane.currbar))) {
             return;
         }
 
@@ -1300,10 +1305,12 @@ var ViewPort = Class.create({
     // opts = (object) TODO [clearall]
     deselect: function(vs, opts)
     {
+        var buffer = vs.getBuffer();
         opts = opts || {};
 
         if (vs.size() &&
-            this._getBuffer().deselect(vs, opts && opts.clearall)) {
+            buffer.deselect(vs, opts.clearall) &&
+            buffer.getView() == this.view) {
             vs.get('div').invoke('removeClassName', 'vpRowSelected');
             this.opts.container.fire('ViewPort:deselect', { opts: opts, vs: vs });
         }

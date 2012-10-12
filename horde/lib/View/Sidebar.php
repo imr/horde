@@ -5,8 +5,28 @@
  * Useful properties:
  * - newLink: (string, optional) Link of the "New" button
  *   - newText: (string) Text of the "New" button
- * - newRefresh: (string, optional) HTML content of the refresh button
- * - containers: (array, optional) HTML content of any sidebar sections.
+ * - newExtra: (string, optional) HTML content of the extra link
+ * - containers: (array, optional) HTML content of any sidebar sections. A list
+ *               of hashes with the following properties:
+ *               - id: (string, optional) The container's DOM ID.
+ *               - header: (array, optional) Container header, also used to
+ *                         toggle the section:
+ *                 - id: (string) The header's DOM ID.
+ *                 - label: (string) Header label.
+ *                 - collapsed: (boolean, optional) Start section collapsed?
+ *                   Overriden by cookies.
+ *                 - add: (string|array, optional) Link to add something:
+ *                   - url: (string) Link URL.
+ *                   - label: (string) Link text.
+ *               - content: (string, optional) The container's HTML content.
+ *               - rows: (array, optional) A list of row hashes, if 'content'
+ *                       is not specified. @see addRow().
+ *               - resources: (boolean, optional) Does the container contain
+ *                            switchable resource lists? Automatically set
+ *                            through addRow().
+ *               - type: (string, optional) @see addRow().
+ * - content: (string, optional) HTML content of the sidebar, if 'containers'
+ *            is not specified.
  *
  * Copyright 2012 Horde LLC (http://www.horde.org/)
  *
@@ -35,6 +55,19 @@ class Horde_View_Sidebar extends Horde_View
 
         $this->containers = array();
         $this->width = $GLOBALS['prefs']->getValue('sidebar_width');
+
+        $pageOutput = $GLOBALS['injector']->getInstance('Horde_PageOutput');
+        $pageOutput->addScriptFile('sidebar.js', 'horde');
+        $pageOutput->addInlineJsVars(array(
+            'HordeSidebar.text' => array(
+                'collapse' => _("Collapse"),
+                'expand' => _("Expand"),
+             ),
+            'HordeSidebar.opts' => array(
+                'cookieDomain' => $GLOBALS['conf']['cookie']['domain'],
+                'cookiePath' => $GLOBALS['conf']['cookie']['path'],
+            ),
+        ));
     }
 
     /**
@@ -46,7 +79,24 @@ class Horde_View_Sidebar extends Horde_View
      */
     public function render($name = 'sidebar', $locals = array())
     {
-        $GLOBALS['page_output']->sidebarLoaded = true;
+        $effects = false;
+        foreach ($this->containers as $id => &$container) {
+            if (!isset($container['header'])) {
+                continue;
+            }
+            if (isset($container['header']['id'])) {
+                $id = $container['header']['id'];
+            }
+            if (isset($_COOKIE['horde_sidebar_c_' . $id])) {
+                $container['header']['collapsed'] = !empty($_COOKIE['horde_sidebar_c_' . $id]);
+            }
+            $effects = true;
+        }
+        if ($effects) {
+            $GLOBALS['injector']
+                ->getInstance('Horde_PageOutput')
+                ->addScriptFile('scriptaculous/effects.js', 'horde');
+        }
         $this->containers = array_values($this->containers);
         return parent::render($name, $locals);
     }
@@ -66,14 +116,15 @@ class Horde_View_Sidebar extends Horde_View
      *
      * @param string $label  The button text, including access key.
      * @param string $url    The button URL.
+     * @param array $extra   Extra attributes for the link tag.
      */
-    public function addNewButton($label, $url)
+    public function addNewButton($label, $url, $extra = array())
     {
         $ak = Horde::getAccessKey($label);
         $attributes = $ak
             ? Horde::getAccessKeyAndTitle($label, true, true)
             : array();
-        $this->newLink = $url->link($attributes);
+        $this->newLink = $url->link($attributes + $extra);
         $this->newText = Horde::highlightAccessKey($label, $ak);
     }
 
@@ -86,14 +137,19 @@ class Horde_View_Sidebar extends Horde_View
      *
      * @param array $row         A hash with the row information. Possible
      *                           values:
-     *                           - cssClass: (string) CSS class for the icon.
-     *                           - id: (string) DOM ID for the row link.
-     *                           - label: (string) The row text.
-     *                           - selected: (boolean) Whether to mark the row
-     *                             as active.
-     *                           - style: (string) Additional CSS styles to
-     *                             apply to the row.
-     *                           - url (string) URL to link the row to.
+     *   - label: (string) The row text.
+     *   - selected: (boolean) Whether to mark the row as active.
+     *   - style: (string) Additional CSS styles to apply to the row.
+     *   - url (string) URL to link the row to.
+     *   - type (string, optional) The row type, defaults to "tree". Further
+     *     $row properties depending on the type:
+     *     - tree:
+     *       - cssClass: (string) CSS class for the icon.
+     *       - id: (string) DOM ID for the row link.
+     *     - checkbox:
+     *     - radiobox:
+     *       - color: (string, optional) Background color.
+     *       - edit: (string, optional) URL for extra edit icon.
      * @param string $container  If using multiple sidebar sections, the ID of
      *                           the section to add the row to. Sections will
      *                           be rendered in the order of their first usage.
@@ -107,20 +163,67 @@ class Horde_View_Sidebar extends Horde_View
             }
         }
 
-        $ak = Horde::getAccessKey($row['label']);
-        $url = empty($row['url']) ? new Horde_Url() : $row['url'];
-        $attributes = $ak
-            ? array('accesskey' => $ak)
-            : array();
-        foreach (array('onclick', 'target', 'class') as $attribute) {
-            if (!empty($row[$attribute])) {
-               $attributes[$attribute] = $row[$attribute];
+        $boxrow = isset($row['type']) &&
+            ($row['type'] == 'checkbox' || $row['type'] == 'radiobox');
+
+        if (isset($row['url'])) {
+            $ak = Horde::getAccessKey($row['label']);
+            $url = empty($row['url']) ? new Horde_Url() : $row['url'];
+            $attributes = $ak
+                ? array('accesskey' => $ak)
+                : array();
+            foreach (array('onclick', 'target', 'class') as $attribute) {
+                if (!empty($row[$attribute])) {
+                   $attributes[$attribute] = $row[$attribute];
+                }
+            }
+            if ($boxrow) {
+                $class = 'horde-resource-'
+                    . (empty($row['selected']) ? 'off' : 'on');
+                if ($row['type'] == 'radiobox') {
+                    $class .= ' horde-radiobox';
+                }
+                if (empty($attributes['class'])) {
+                    $attributes['class'] = $class;
+                } else {
+                    $attributes['class'] .= ' ' . $class;
+                }
+            }
+            $row['link'] = $url->link($attributes)
+                . Horde::highlightAccessKey($row['label'], $ak)
+                . '</a>';
+        } else {
+            $row['link'] = '<span class="horde-resource-none">'
+                . $row['label'] . '</span>';
+        }
+
+        if ($boxrow) {
+            $this->containers[$container]['type'] = $row['type'];
+            if (!isset($row['style'])) {
+                $row['style'] = '';
+            }
+            if (!isset($row['color'])) {
+                $row['color'] = '#dddddd';
+            }
+            $foreground = '000';
+            if (Horde_Image::brightness($row['color']) < 128) {
+                $foreground = 'fff';
+            }
+            if (strlen($row['style'])) {
+                $row['style'] .= ';';
+            }
+            $row['style'] .= 'background-color:' . $row['color']
+                . ';color:#' . $foreground;
+            if (isset($row['edit'])) {
+                $row['editLink'] = $row['edit']
+                    ->link(array(
+                        'title' =>  _("Edit"),
+                        'class' => 'horde-resource-edit-' . $foreground))
+                    . '&#9658;' . '</a>';
             }
         }
-        $row['link'] = $url->link($attributes)
-            . Horde::highlightAccessKey($row['label'], $ak)
-            . '</a>';
 
         $this->containers[$container]['rows'][] = $row;
     }
+
 }

@@ -198,7 +198,7 @@ class IMP_Crypt_Pgp extends Horde_Crypt_Pgp
         if (empty($options['nocache']) && ($cache = $GLOBALS['injector']->getInstance('Horde_Cache'))) {
             $result = $cache->get("PGPpublicKey_" . $address . $keyid, 3600);
             if ($result) {
-                Horde::logMessage('PGPpublicKey: ' . serialize($result), 'DEBUG');
+                Horde::log('PGPpublicKey: ' . serialize($result), 'DEBUG');
                 return $result;
             }
         }
@@ -211,7 +211,7 @@ class IMP_Crypt_Pgp extends Horde_Crypt_Pgp
         } catch (Horde_Exception_HookNotSet $e) {}
 
         /* Try retrieving by e-mail only first. */
-        $params = IMP::getAddressbookSearchParams();
+        $params = $GLOBALS['injector']->getInstance('IMP_Ui_Contacts')->getAddressbookSearchParams();
         $result = null;
         try {
             $result = $GLOBALS['registry']->call('contacts/getField', array($address, self::PUBKEY_FIELD, $params['sources'], true, true));
@@ -237,7 +237,7 @@ class IMP_Crypt_Pgp extends Horde_Crypt_Pgp
                     }
                 } catch (Horde_Crypt_Exception $e) {
                     /* Return now, if no public key found at all. */
-                    Horde::logMessage('PGPpublicKey: ' . $e->getMessage(), 'DEBUG');
+                    Horde::log('PGPpublicKey: ' . $e->getMessage(), 'DEBUG');
                     throw new Horde_Crypt_Exception(sprintf(_("Could not retrieve public key for %s."), $address));
                 }
             } else {
@@ -263,12 +263,11 @@ class IMP_Crypt_Pgp extends Horde_Crypt_Pgp
      */
     public function listPublicKeys()
     {
-        $params = IMP::getAddressbookSearchParams();
-        if (empty($params['sources'])) {
-            return array();
-        }
+        $params = $GLOBALS['injector']->getInstance('IMP_Ui_Contacts')->getAddressbookSearchParams();
 
-        return $GLOBALS['registry']->call('contacts/getAllAttributeValues', array(self::PUBKEY_FIELD, $params['sources']));
+        return empty($params['sources'])
+            ? array()
+            : $GLOBALS['registry']->call('contacts/getAllAttributeValues', array(self::PUBKEY_FIELD, $params['sources']));
     }
 
     /**
@@ -280,7 +279,7 @@ class IMP_Crypt_Pgp extends Horde_Crypt_Pgp
      */
     public function deletePublicKey($email)
     {
-        $params = IMP::getAddressbookSearchParams();
+        $params = $GLOBALS['injector']->getInstance('IMP_Ui_Contacts')->getAddressbookSearchParams();
         return $GLOBALS['registry']->call('contacts/deleteField', array($email, self::PUBKEY_FIELD, $params['sources']));
     }
 
@@ -633,7 +632,7 @@ class IMP_Crypt_Pgp extends Horde_Crypt_Pgp
         try {
             $key_info = $this->pgpPrettyKey($key);
         } catch (Horde_Crypt_Exception $e) {
-            Horde::logMessage($e, 'INFO');
+            Horde::log($e, 'INFO');
             $key_info = $e->getMessage();
         }
 
@@ -660,7 +659,13 @@ class IMP_Crypt_Pgp extends Horde_Crypt_Pgp
      */
     public function importKeyDialog($target, $reload)
     {
-        global $injector, $notification, $registry;
+        global $notification, $page_output, $registry;
+
+        $page_output->topbar = $page_output->sidebar = false;
+
+        $page_output->addInlineScript(array(
+            '$$("INPUT.horde-cancel").first().observe("click", function() { window.close(); })'
+        ), true);
 
         IMP::header(_("Import PGP Key"));
 
@@ -672,17 +677,19 @@ class IMP_Crypt_Pgp extends Horde_Crypt_Pgp
         }
         IMP::status();
 
-        $t = $injector->createInstance('Horde_Template');
-        $t->setOption('gettext', true);
+        $view = new Horde_View(array(
+            'templatePath' => IMP_TEMPLATES . '/pgp'
+        ));
+        $view->addHelper('Text');
 
-        $t->set('selfurl', Horde::url('pgp.php'));
-        $t->set('reload', htmlspecialchars($reload));
-        $t->set('target', $target);
-        $t->set('forminput', Horde_Util::formInput());
-        $t->set('import_public_key', $target == 'process_import_public_key');
-        $t->set('import_personal_key', $target == 'process_import_personal_key');
+        $view->forminput = Horde_Util::formInput();
+        $view->reload = $reload;
+        $view->selfurl = Horde::url('pgp.php');
+        $view->target = $target;
 
-        echo $t->fetch(IMP_TEMPLATES . '/pgp/import_key.html');
+        echo $view->render('import_key');
+
+        $page_output->footer();
     }
 
     /**

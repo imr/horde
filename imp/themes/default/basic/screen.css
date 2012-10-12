@@ -110,6 +110,13 @@ table.messageList .sortup, table.messageList .sortdown {
 }
 
 /* Navbar action styling. */
+li .imp-navbar span.iconImg, li .imp-navbar input {
+    margin: -4px 0 0;
+}
+li .imp-navbar span.iconImg {
+    padding: 0;
+    background-position: center center;
+}
 table.msgActionTable, #fmanager table {
     width: 100%;
     border-collapse: collapse;
@@ -118,11 +125,19 @@ div.msgActions, #fmanager div.folderActions {
     padding-left: 15px;
 }
 
+#mailboxLabel .iconImg {
+    vertical-align: top;
+}
+
 /* Message headers styling. */
 #msgheaders {
     padding: 18px;
     background-color: #eceff0;
     border-bottom: 1px solid #d0d0d0;
+}
+#msgheaders p {
+    font-size: 140%;
+    font-weight: bold;
 }
 #msgheaders table {
     border-collapse: collapse;
@@ -168,6 +183,12 @@ div.partsTreeDiv span span:last-child {
     vertical-align: top;
 }
 
+#compose .horde-spellcheck-popdown {
+    display: inline-block;
+    float: none;
+    margin-bottom: -8px;
+}
+
 .seen {
     background: #fff;
 }
@@ -202,7 +223,7 @@ td.msgheader {
 }
 .msgheader img {
     padding: 0 1px 0 2px;
-    vertical-align: bottom;
+    vertical-align: middle;
 }
 
 /* Thread page */
@@ -235,12 +256,12 @@ td.addressTr span.loadingImg {
     border-spacing: 0;
 }
 .itipconflicts tr.itipcollision {
-    background-color: #f00;
+    background-color: #f03232;
     color: #fff;
 }
 
 .itipconflicts tr.itipnearcollision {
-    background-color: #ee0;
+    background-color: #ffdf4d;
 }
 
 /* Quota styles. */

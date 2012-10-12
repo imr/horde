@@ -10,19 +10,19 @@
   <email>mrubinsk@horde.org</email>
   <active>yes</active>
  </lead>
- <date>2012-07-08</date>
- <time>11:50:41</time>
+ <date>2012-07-19</date>
+ <time>23:40:35</time>
  <version>
-  <release>2.0.0beta1</release>
+  <release>2.0.0beta2</release>
   <api>2.0.0</api>
  </version>
  <stability>
-  <release>alpha</release>
+  <release>beta</release>
   <api>stable</api>
  </stability>
  <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
  <notes>
-* [mjr] Update API to use the Graph API wherever possible.
+* 
  </notes>
  <contents>
   <dir baseinstalldir="/" name="/">
@@ -343,28 +343,28 @@
    <package>
     <name>Horde_Exception</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Http</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Translation</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
    <package>
     <name>Horde_Support</name>
     <channel>pear.horde.org</channel>
-    <min>2.0.0alpha1</min>
+    <min>2.0.0beta1</min>
     <max>3.0.0alpha1</max>
     <exclude>3.0.0alpha1</exclude>
    </package>
@@ -668,12 +668,26 @@
     <release>2.0.0beta1</release>
     <api>2.0.0</api></version>
    <stability>
-    <release>alpha</release>
+    <release>beta</release>
     <api>stable</api></stability>
-   <date>2012-07-08</date>
+   <date>2012-07-19</date>
    <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
    <notes>
+* First beta release for Horde 5.
 * [mjr] Update API to use the Graph API wherever possible.
+   </notes>
+  </release>
+  <release>
+   <version>
+    <release>2.0.0beta2</release>
+    <api>2.0.0</api></version>
+   <stability>
+    <release>beta</release>
+    <api>stable</api></stability>
+   <date>2012-07-19</date>
+   <license uri="http://www.horde.org/licenses/bsd">BSD-2-Clause</license>
+   <notes>
+* 
    </notes>
   </release>
  </changelog>

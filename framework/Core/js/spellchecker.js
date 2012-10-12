@@ -55,7 +55,7 @@ var SpellChecker = Class.create({
         this.target = $(opts.target);
         this.statusButton = $(opts.statusButton);
         this.buttonStates = opts.bs;
-        this.statusClass = opts.sc || '';
+        this.statusClass = opts.sc || this.statusButton.className;
         this.disabled = false;
 
         this.options.onComplete = this.onComplete.bind(this);
@@ -68,7 +68,7 @@ var SpellChecker = Class.create({
                 onChoose: this.setLocale.bindAsEventListener(this)
             });
 
-            this.statusButton.insert({ after: new Element('SPAN', { className: 'iconImg spellcheckPopdownImg' }) });
+            this.statusButton.insert({ after: new Element('SPAN', { className: 'horde-popdown horde-spellcheck-popdown' }) });
         }
 
         this.setStatus('CheckSpelling');
@@ -91,22 +91,22 @@ var SpellChecker = Class.create({
         this.target.fire('SpellChecker:before');
 
         var opts = Object.clone(this.options),
-            p = $H(),
-            url = this.url;
+            p = $H();
 
         this.setStatus('Checking');
 
         p.set(this.target.identify(), this.targetValue());
-        opts.parameters = p.toQueryString();
 
         if (this.locale) {
-            url += '/locale=' + this.locale;
+            p.set('locale', this.locale);
         }
         if (this.htmlAreaParent) {
-            url += '/html=1';
+            p.set('html', 1);
         }
 
-        new Ajax.Request(url, opts);
+        opts.parameters = p.toQueryString();
+
+        new Ajax.Request(this.url, opts);
     },
 
     onComplete: function(request)
@@ -197,7 +197,7 @@ var SpellChecker = Class.create({
             }
 
             e.stop();
-        } else if (elt.hasClassName('spellcheckPopdownImg')) {
+        } else if (elt.hasClassName('horde-spellcheck-popdown')) {
             this.lc.show();
             this.lc.ignoreClick(e);
             e.stop();

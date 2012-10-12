@@ -52,7 +52,7 @@ class IMP_LoginTasks_SystemTask_Upgrade extends Horde_Core_LoginTasks_SystemTask
             $this->_upgradeInnocentPrefs();
             $this->_upgradeMailboxPrefs();
             $this->_upgradeStationeryToTemplates();
-            $this->_upgradeVirtualFolders51();
+            $this->_upgradeVirtualFolders6();
             break;
         }
     }
@@ -362,7 +362,7 @@ class IMP_LoginTasks_SystemTask_Upgrade extends Horde_Core_LoginTasks_SystemTask
             $prefs->setValue('trash_folder', strval($vtrash));
         }
 
-        foreach ($vfolders as $id => $vfolder) {
+        foreach ($vfolders as $vfolder) {
             $ui = $vfolder['uiinfo'];
 
             $or_match = ($ui['match'] == 'or');
@@ -556,7 +556,7 @@ class IMP_LoginTasks_SystemTask_Upgrade extends Horde_Core_LoginTasks_SystemTask
     /**
      * Upgrade IMP 5.0.x virtual folders.
      */
-    protected function _upgradeVirtualFolders51()
+    protected function _upgradeVirtualFolders6()
     {
         $imp_search = $GLOBALS['injector']->getInstance('IMP_Search');
         $imp_search->setIteratorFilter(IMP_Search::LIST_VFOLDER | IMP_Search::LIST_DISABLED);

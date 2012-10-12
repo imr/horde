@@ -195,7 +195,7 @@ class Turba_View_List implements Countable
             $crit = array();
             if ($session->get('turba', 'search_mode') == 'advanced') {
                 $map = $driver->getCriteria();
-                foreach ($map as $key => $value) {
+                foreach (array_keys($map) as $key) {
                     if (($key != '__key') && !empty($vars->$key)) {
                         $crit[$key] = $vars->$key;
                     }
@@ -347,7 +347,7 @@ class Turba_View_List implements Countable
         $sortorder = Turba::getPreferredSortOrder();
         foreach ($sortorder as $elt) {
             $field = $elt['field'];
-            if ($field == 'lastname') {
+            if (!strlen($field) || ($field == 'lastname')) {
                 $field = 'name';
             }
             $description[] = $GLOBALS['attributes'][$field]['label'];
@@ -414,6 +414,9 @@ class Turba_View_List implements Countable
         } else {
             $own_source = $own_id = null;
         }
+
+        $vars = Horde_Variables::getDefaultVariables();
+        $page = $vars->get('page', 'A');
 
         include TURBA_TEMPLATES . '/browse/column_headers.inc';
 

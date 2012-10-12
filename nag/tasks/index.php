@@ -9,48 +9,22 @@
 require_once __DIR__ . '/../lib/Application.php';
 Horde_Registry::appInit('nag');
 
-$search = Horde_Util::getGet('q');
-if (!$search) {
+$query = Horde_Util::getGet('q');
+if (!$query) {
     header('HTTP/1.0 204 No Content');
     exit;
 }
 
-$tasks = Nag::listTasks(
-    $prefs->getValue('sortby'),
-    $prefs->getValue('sortdir'),
-    $prefs->getValue('altsortby'),
-    null,
-    1
-);
-$search_pattern = '/^' . preg_quote($search, '/') . '/i';
-$search_results = new Nag_Task();
-$tasks->reset();
-while ($task = $tasks->each()) {
-    if (preg_match($search_pattern, $task->name)) {
-        $search_results->add($task);
-    }
+$vars = Horde_Variables::getDefaultVariables();
+$vars->search_completed = Nag::VIEW_ALL;
+$vars->search_pattern = $query;
+$vars->search_in = array('search_name');
+$vars->actionID = 'search_tasks';
+try {
+    $view = new Nag_View_List($vars);
+} catch (Nag_Exception $e) {
+    $notification->push($e, 'horde.error');
+    Horde::url('list.php')->redirect();
+    exit;
 }
-
-$search_results->reset();
-if ($search_results->count() == 1) {
-    $task = $search_results->each();
-    Horde::url($task->view_link, true)->redirect();
-}
-
-$tasks = $search_results;
-$actionID = null;
-
-$page_output->addScriptFile('tooltips.js', 'horde');
-$page_output->addScriptFile('scriptaculous/effects.js', 'horde');
-$page_output->addScriptFile('quickfinder.js', 'horde');
-
-$page_output->header(array(
-    'body_class' => $prefs->getValue('show_panel') ? 'rightPanel' : null,
-    'title' => sprintf(_("Search: Results for \"%s\""), $search)
-));
-echo Nag::menu();
-Nag::status();
-echo '<div id="page">';
-require NAG_TEMPLATES . '/list.html.php';
-require NAG_TEMPLATES . '/panel.inc';
-$page_output->footer();
+echo $view->render($page_output);

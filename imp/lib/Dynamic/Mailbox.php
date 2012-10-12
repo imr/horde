@@ -19,16 +19,17 @@ class IMP_Dynamic_Mailbox extends IMP_Dynamic_Base
     public $growlerLog = true;
 
     /**
+     * @var boolean
+     */
+    public $topbar = true;
+
+    /**
      */
     protected function _init()
     {
-        global $browser, $conf, $injector, $page_output, $prefs, $registry, $session;
-
-        $this->view->addHelper('IMP_Dynamic_Helper_Mailbox');
+        global $browser, $conf, $injector, $page_output, $registry, $session;
 
         $page_output->addScriptFile('dimpbase.js');
-        $page_output->addScriptFile('imp.js');
-        $page_output->addScriptFile('mailbox-dimp.js');
         $page_output->addScriptFile('passphrase.js');
         $page_output->addScriptFile('viewport.js');
         $page_output->addScriptFile('dragdrop2.js', 'horde');
@@ -37,58 +38,67 @@ class IMP_Dynamic_Mailbox extends IMP_Dynamic_Base
         $page_output->addScriptFile('slider2.js', 'horde');
         $page_output->addScriptFile('toggle_quotes.js', 'horde');
         $page_output->addScriptPackage('Dialog');
+        $page_output->addScriptPackage('IMP_Script_Package_Imp');
 
         $this->_addMailboxVars();
 
         $imp_imap = $injector->getInstance('IMP_Factory_Imap')->create();
 
-        $this->view->filter_avail = $session->get('imp', 'filteravail');
+        $this->view->filter_avail = IMP::applyFilters();
         $this->view->show_folders = $imp_imap->access(IMP_Imap::ACCESS_FOLDERS);
-        $this->view->show_logout = Horde_Menu::showService('logout');
         $this->view->show_notspam = !empty($conf['notspam']['reporting']);
-        $this->view->show_prefs = Horde_Menu::showService('prefs');
         $this->view->show_search = $imp_imap->access(IMP_Imap::ACCESS_SEARCH);
         $this->view->show_spam = !empty($conf['spam']['reporting']);
 
         $this->view->is_opera = $browser->isBrowser('opera');
 
+        $impSubinfo = new Horde_View(array(
+            'templatePath' => IMP_TEMPLATES . '/dynamic'
+        ));
+        $impSubinfo->addHelper('Text');
+        $impSubinfo->quota = $session->get('imp', 'imap_quota');
+
         $topbar = $GLOBALS['injector']->getInstance('Horde_View_Topbar');
-        if ($session->get('imp', 'imap_quota')) {
-            $topbar->subinfo = '<span id="quota-text"></span>';
-        }
         $topbar->search = $this->view->show_search;
-        $topbar->searchAction = '#';
         $topbar->searchMenu = true;
-        $this->view->topbar = $topbar->render();
+        $topbar->subinfo = $impSubinfo->render('mailbox_subinfo');
 
         $blank = new Horde_Url();
         $impSidebar = new Horde_View(array(
             'templatePath' => array(
-                $GLOBALS['registry']->get('templates', 'horde') . '/sidebar',
+                $registry->get('templates', 'horde') . '/sidebar',
                 IMP_TEMPLATES . '/dynamic'
             )
         ));
         $impSidebar->addHelper('Text');
         $impSidebar->containers = array(
-            array('id' => 'imp-specialmboxes'),
-            array('rows' => array(
-                array('id' => 'folderopts_link',
-                      'cssClass' => 'folderoptsImg',
-                      'dropDown' => true,
-                      'link' => $blank->link() . _("Folder Actions") . '</a>'),
-                array('id' => 'dropbase',
-                      'style' => 'display:none',
-                      'cssClass' => 'folderImg',
-                      'link' => $blank->link() . _("Move to Base Level") . '</a>'))),
-            array('id' => 'imp-normalmboxes'));
-        $impSidebar->containersCount = 3;
+            array(
+                'id' => 'imp-specialmboxes'
+            ),
+            array(
+                'rows' => array(
+                    array(
+                        'id' => 'folderopts_link',
+                        'cssClass' => 'folderoptsImg',
+                        'link' => $blank->link() . _("Folder Actions") . '</a>'
+                    ),
+                    array(
+                        'id' => 'dropbase',
+                        'style' => 'display:none',
+                        'cssClass' => 'folderImg',
+                        'link' => $blank->link() . _("Move to Base Level") . '</a>'
+                    )
+                )
+            ),
+            array(
+                'id' => 'imp-normalmboxes'
+            )
+        );
 
         $sidebar = $GLOBALS['injector']->getInstance('Horde_View_Sidebar');
         $sidebar->newLink = $blank->link(array('id' => 'composelink',
                                                'class' => 'icon'));
         $sidebar->newText = _("New Message");
-        $sidebar->newRefresh = $blank->link(array('id' => 'checkmaillink',
-                                                  'class' => 'icon'));
         $sidebar->content = $impSidebar->render('sidebar');
 
         $this->view->sidebar = $sidebar->render();
@@ -148,6 +158,10 @@ class IMP_Dynamic_Mailbox extends IMP_Dynamic_Base
             'FLAG_DELETED' => Horde_Imap_Client::FLAG_DELETED,
             'FLAG_DRAFT' => Horde_Imap_Client::FLAG_DRAFT,
             'FLAG_SEEN' => Horde_Imap_Client::FLAG_SEEN,
+
+            // Message list templates
+            'msglist_template_horiz' => file_get_contents(IMP_TEMPLATES . '/dynamic/msglist_horiz.html'),
+            'msglist_template_vert' => file_get_contents(IMP_TEMPLATES . '/dynamic/msglist_vert.html'),
 
             // Other variables
             'acl' => $acl,
@@ -440,7 +454,7 @@ class IMP_Dynamic_Mailbox extends IMP_Dynamic_Base
             }
         }
 
-        $this->js_context += $context;
+        $this->js_context = array_merge($context, $this->js_context);
 
         $this->js_text += array(
             'badaddr' => _("Invalid Address"),

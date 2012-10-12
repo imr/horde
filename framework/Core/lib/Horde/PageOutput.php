@@ -72,11 +72,18 @@ class Horde_PageOutput
     public $metaTags = array();
 
     /**
-     * Has the sidebar been loaded in this page?
+     * Load the topbar in this page?
      *
      * @var boolean
      */
-    public $sidebarLoaded = false;
+    public $topbar = true;
+
+    /**
+     * Load the sidebar in this page?
+     *
+     * @var boolean
+     */
+    public $sidebar = true;
 
     /**
      * Has PHP userspace page compression been started?
@@ -517,11 +524,18 @@ class Horde_PageOutput
     /**
      * Adds an external stylesheet to the output.
      *
-     * @param string $file  The CSS filepath.
-     * @param string $url   The CSS URL.
+     * @param Horde_Themes_Element|string $file  Either a Horde_Themes_Element
+     *                                           object or the CSS filepath.
+     * @param string $url                        If $file is a string, this
+     *                                           must be a CSS URL.
      */
-    public function addStylesheet($file, $url)
+    public function addStylesheet($file, $url = null)
     {
+        if ($file instanceof Horde_Themes_Element) {
+            $url = $file->uri;
+            $file = $file->fs;
+        }
+
         $this->css->addStylesheet($file, $url);
     }
 
@@ -583,6 +597,10 @@ class Horde_PageOutput
     {
         if ($this->_compress && (reset(ob_list_handlers()) == 'ob_gzhandler')) {
             ob_end_clean();
+            /* Removing the ob_gzhandler ADDS the below headers, which breaks
+             * display on the browser (as of PHP 5.3.15). */
+            header_remove('content-encoding');
+            header_remove('vary');
             $this->_compress = false;
         }
     }
@@ -603,7 +621,7 @@ class Horde_PageOutput
      */
     public function header(array $opts = array())
     {
-        global $language, $registry, $session;
+        global $injector, $language, $registry, $session;
 
         $view = new Horde_View(array(
             'templatePath' => $registry->get('templates', 'horde') . '/common'
@@ -618,7 +636,7 @@ class Horde_PageOutput
 
         switch ($this->_view) {
         case $registry::VIEW_BASIC:
-            $this->_addBasicScripts($opts);
+            $this->_addBasicScripts();
             $view->stylesheetOpts['sub'] = 'basic';
             break;
 
@@ -626,7 +644,7 @@ class Horde_PageOutput
             $this->ajax = true;
             $this->growler = true;
 
-            $this->_addBasicScripts($opts);
+            $this->_addBasicScripts();
             $this->addScriptPackage('Popup');
 
             $view->stylesheetOpts['sub'] = 'dynamic';
@@ -660,6 +678,7 @@ class Horde_PageOutput
                 'HordeMobile.conf' => array(
                     'ajax_url' => $registry->getServiceLink('ajax', $registry->getApp())->url,
                     'logout_url' => strval($registry->getServiceLink('logout')),
+                    'sid' => defined('SID') ? SID : '',
                     'token' => $session->getToken()
                 )
             ));
@@ -691,7 +710,7 @@ class Horde_PageOutput
             $js_conf = array_filter(array(
                 /* URLs */
                 'URI_AJAX' => $registry->getServiceLink('ajax', $registry->getApp())->url,
-                'URI_DLOAD' => $registry->getServiceLink('download', $registry->getApp())->url,
+                'URI_DLOAD' => strval($registry->getServiceLink('download', $registry->getApp())),
                 'URI_LOGOUT' => strval($registry->getServiceLink('logout')),
                 'URI_SNOOZE' => strval(Horde::url($registry->get('webroot', 'horde') . '/services/snooze.php', true, -1)),
 
@@ -774,6 +793,11 @@ class Horde_PageOutput
         }
 
         echo $view->render('header');
+        if ($this->topbar &&
+            ($this->_view == $registry::VIEW_BASIC ||
+             $this->_view == $registry::VIEW_DYNAMIC)) {
+            echo $injector->getInstance('Horde_View_Topbar')->render();
+        }
 
         // Send what we have currently output so the browser can start
         // loading CSS/JS. See:
@@ -785,9 +809,9 @@ class Horde_PageOutput
     /**
      * Add basic framework scripts to the output.
      */
-    protected function _addBasicScripts($opts)
+    protected function _addBasicScripts()
     {
-        global $prefs, $registry, $session;
+        global $prefs;
 
         $base_js = array(
             'prototype.js',
@@ -827,14 +851,11 @@ class Horde_PageOutput
             'templatePath' => $registry->get('templates', 'horde') . '/common'
         ));
 
-        $view->notifications = $browser->isMobile()
-            ? ''
-            : $notification->notify(array('listeners' => array('audio')));
+        if (!$browser->isMobile()) {
+            $notification->notify(array('listeners' => array('audio')));
+        }
         $view->outputJs = $this->deferScripts;
         $view->pageOutput = $this;
-        $view->sidebarLoaded = $this->sidebarLoaded;
-
-        $this->deferScripts = false;
 
         switch ($this->_view) {
         case $registry::VIEW_MINIMAL:
@@ -844,9 +865,18 @@ class Horde_PageOutput
         case $registry::VIEW_SMARTMOBILE:
             $view->smartmobileView = true;
             break;
+
+        case $registry::VIEW_BASIC:
+            $view->basicView = true;
+            if ($this->sidebar) {
+                $view->sidebar = Horde::sidebar();
+            }
+            break;
         }
 
         echo $view->render('footer');
+
+        $this->deferScripts = false;
     }
 
 }
