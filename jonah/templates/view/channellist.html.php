@@ -35,7 +35,7 @@
       <td nowrap><?php echo Horde::link(Horde::url('stories/edit.php')->add('channel_id', $feed->getName()), _("Add Story")) . $this->add_img . '</a>' ?>
           <?php echo Horde::link(Horde::url('channels/' . $feed->getName() . '/edit'), _("Edit")) . $this->edit_img . '</a>' ?>
 <?php if (empty($conf['share']['no_sharing'])): ?>
-          <?php echo Horde::link(Horde_Util::addParameter($perms_url_base, 'share', $feed->getName()), _("Change Permissions"), '', '_blank', Horde::popupJs($perms_url_base, array('params' => array('share' => $feed->getName()), 'urlencode' => true)) . 'return false;') . $this->perms_img . '</a>' ?>
+          <?php echo Horde::link(Horde::url($GLOBALS['registry']->get('webroot', 'horde') . '/services/shares/edit.php?app=jonah')->add('share', $feed->getName()), _("Change Permissions"), '', '_blank', Horde::popupJs($perms_url_base, array('params' => array('share' => $feed->getName()), 'urlencode' => true)) . 'return false;') . $this->perms_img . '</a>' ?>
 <?php endif; ?>
           <?php echo Horde::link(Horde::url($feed->getName()), _("Delete")) . $this->delete_img . '</a>' ?></td>
       <td><?php echo htmlspecialchars($feed->get('name')) ?></td>
