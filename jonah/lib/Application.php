@@ -73,35 +73,63 @@ class Jonah_Application extends Horde_Registry_Application
      */
     public function menu($menu)
     {
-        /* If authorized, show admin links. */
-        if (Jonah::checkPermissions('jonah:news', Horde_Perms::EDIT)) {
-            $menu->addArray(array(
-                'icon' => 'jonah.png',
-                'text' => _("_Feeds"),
-                'url' => Horde::url('channels/index.php')
-            ));
+        $menu->add(Horde::url('list.php'), _("_List Stories"), 'jonah_list'); 
+
+    }
+
+    /**
+     * Add additional items to the sidebar.
+     *
+     * @param Horde_View_Sidebar $sidebar  The sidebar object.
+     */
+    public function sidebar($sidebar)
+    {
+        global $page_output, $prefs;
+
+        $perms = $GLOBALS['injector']->getInstance('Horde_Core_Perms');
+        $sidebar->addNewButton(
+            _("_New Story"),
+            Horde::url('stories/edit.php'));
+
+        $sidebar->containers['my'] = array(
+            'header' => array(
+                'id' => 'jonah-toggle-my',
+                'label' => _("My Feeds"),
+                'collapsed' => false,
+            ),
+        );
+
+        $list = Horde::url('stories/');
+        $edit = Horde::url('channels/edit.php');
+        $user = $GLOBALS['registry']->getAuth();
+
+        if (!$GLOBALS['prefs']->isLocked('default_feed')) {
+            $sidebar->containers['my']['header']['add'] = array(
+                'url' => Horde::url('channels/edit.php'),
+                'label' => _('Create a new Feed'),
+            );
         }
-        foreach ($GLOBALS['conf']['news']['enable'] as $channel_type) {
-            if (Jonah::checkPermissions($channel_type, Horde_Perms::EDIT)) {
-                $menu->addArray(array(
-                    'icon' => 'new.png',
-                    'text' => _("New Feed"),
-                    'url' => Horde::url('channels/edit.php')
-                ));
-                break;
+        $sidebar->containers['shared'] = array(
+            'header' => array(
+                'id' => 'nag-toggle-shared',
+                'label' => _("Shared Feeds"),
+                'collapsed' => true,
+            ),
+        );
+        foreach (Jonah::listFeeds(false, Horde_Perms::SHOW) as $name => $feed) {
+            $url = $list->add(array('channel_id' => $name));
+            $row = array(
+                'selected' => in_array($name, $display_feeds),
+                'url' => $url,
+                'label' => $name,
+                'edit' => $edit->add('channel_id', $feed->getName()),
+                'type' => 'checkbox'
+            );
+            if ($feed->get('owner') == $user) {
+                $sidebar->addRow($row, 'my');
+            } else {
+                $sidebar->addRow($row, 'shared');
             }
-        }
-        if ($channel_id = Horde_Util::getFormData('channel_id')) {
-            $channel = Jonah::getFeed($channel_id);
-            // @todo: The share feeds currently still lack type information.
-            /* if ($channel['channel_type'] == Jonah::INTERNAL_CHANNEL && */
-            /*     Jonah::checkPermissions(Jonah::typeToPermName($channel['channel_type']), Horde_Perms::EDIT, $channel_id)) { */
-            /*     $menu->addArray(array( */
-            /*         'icon' => 'new.png', */
-            /*         'text' => _("_New Story"), */
-            /*         'url' => Horde::url('stories/edit.php')->add('channel_id', (int)$channel_id) */
-            /*     )); */
-            /* } */
         }
     }
 
