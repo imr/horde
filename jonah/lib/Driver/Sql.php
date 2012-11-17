@@ -26,10 +26,10 @@ class Jonah_Driver_Sql extends Jonah_Driver
      */
     protected $_db;
 
-    public function __construct($params = array())
+    public function __construct($feed, $params = array())
     {
-        parent::__construct($params);
-        $this->initialize();
+        $this->_feed = $feed;
+        $this->_db = $params['db'];
     }
 
     /**
@@ -500,13 +500,4 @@ class Jonah_Driver_Sql extends Jonah_Driver
         return true;
     }
 
-    /**
-     * Attempts to open a connection to the SQL server.
-     *
-     * @return boolean    True on success.
-     */
-    protected function initialize()
-    {
-        $this->_db = $GLOBALS['injector']->getInstance('Horde_Core_Factory_Db')->create('jonah', 'storage');
-    }
 }

@@ -17,6 +17,10 @@
  */
 class Jonah_Driver
 {
+    protected $_stories = array();
+
+    protected $_feed = '';
+
     /**
      * Hash containing connection parameters.
      *
